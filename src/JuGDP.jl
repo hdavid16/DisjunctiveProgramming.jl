@@ -1,5 +1,5 @@
 module JuGDP
 
-greet() = print("Hello World!")
+println("Julia Generalized Disjunctive Programming")
 
 end # module
