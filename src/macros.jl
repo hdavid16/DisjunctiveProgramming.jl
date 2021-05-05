@@ -1,9 +1,13 @@
-macro disjunction(args...)
+macro disjunction(m,args...)
+    _disjunction_macro(esc(m),args)
+end
+
+function _disjunction_macro(m,args)
     pos_args, kw_args, requestedcontainer = Containers._extract_kw_args(args)
-    m = pos_args[1]
-    println(m)
-    @assert eval(:($m isa Model)) "$m must be a JuMP Model."
-    disj = pos_args[2:end]
+    # m = pos_args[1]
+    # m = esc(m)
+    # @assert eval(:($m)) isa Model "A valid JuMP Model must be provided."
+    disj = pos_args#[2:end]
     #get reformulation method
     method = filter(i -> i.args[1] == :reformulation, kw_args)
     if !isempty(method)
@@ -23,34 +27,34 @@ macro disjunction(args...)
         end
     end
     #get all variable names
-    vars = eval(:(all_variables($m)))
+    vars = :(all_variables($m))
     #apply reformulation
     for (i,arg) in enumerate(disj)
         var_name = Symbol("disj_ind_$i") #create disjunction indicator binary
-        eval(:(@variable($m,$var_name,Bin)))
+        :(@variable($m,$var_name,Bin))
         if Meta.isexpr(arg, :tuple) || Meta.isexpr(arg,:vect)
             for (j,a) in enumerate(arg.args)
-                @assert eval(:($a in keys(($m).obj_dict))) "$a is not a constraint in the model."
-                @assert eval(:(is_valid($m,$m[$a]))) "$a is not a valid constraint in the model."
-                arg_set = eval(:(constraint_object($m[$a]))).set
+                # @assert eval(:($a in keys(($m).obj_dict))) "$a is not a constraint in the model."
+                # @assert eval(:(is_valid($m,$m[$a]))) "$a is not a valid constraint in the model."
+                arg_set = :(constraint_object($m[$a]).set)
                 set_fields = fieldnames(typeof(arg_set))
-                @assert length(set_fields) == 1 "A reformulation cannot be done on constraint $a because it is not one of the following GreaterThan, LessThan, or EqualTo."
+                # @assert length(set_fields) == 1 "A reformulation cannot be done on constraint $a because it is not one of the following GreaterThan, LessThan, or EqualTo."
 
                 if reformulation_method == :(:BMR)
-                    apply_BigM(M, m, a, arg_set, set_fields, vars, var_name)
+                    # apply_BigM(M, m, a, arg_set, set_fields, vars, var_name)
                 elseif reformulation_method == :(:CHR)
 
                 end
             end
         else
-            @assert eval(:($arg in keys(($m).obj_dict))) "$arg is not a constraint in the model."
-            @assert eval(:(is_valid($m,$m[$arg]))) "$arg is not a valid constraint in the model."
-            arg_set = eval(:(constraint_object($m[$arg]))).set
+            # @assert eval(:($arg in keys(($m).obj_dict))) "$arg is not a constraint in the model."
+            # @assert eval(:(is_valid($m,$m[$arg]))) "$arg is not a valid constraint in the model."
+            arg_set = :(constraint_object($m[$arg]).set)
             set_fields = fieldnames(typeof(arg_set))
-            @assert length(set_fields) == 1 "A reformulation cannot be done on constraint $arg because it is not one of the following GreaterThan, LessThan, or EqualTo."
+            # @assert length(set_fields) == 1 "A reformulation cannot be done on constraint $arg because it is not one of the following GreaterThan, LessThan, or EqualTo."
 
             if reformulation_method == :(:BMR)
-                apply_BigM(M, m, arg, arg_set, set_fields, vars, var_name)
+                # apply_BigM(M, m, arg, arg_set, set_fields, vars, var_name)
             elseif reformulation_method == :(:CHR)
 
             end
@@ -59,7 +63,7 @@ macro disjunction(args...)
 end
 
 function infer_BigM(m, arg, arg_set, set_fields, vars)
-    @assert :value in set_fields || :lower in set_fields || :upper in set_fields "$arg must be one the following: GreaterThan, LessThan, or EqualTo."
+    # @assert :value in set_fields || :lower in set_fields || :upper in set_fields "$arg must be one the following: GreaterThan, LessThan, or EqualTo."
     BigM = 0 #initialize BigM
     for var in vars
         coeff = eval(:(normalized_coefficient($m[$arg],$var)))
