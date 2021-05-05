@@ -1,5 +1,9 @@
 module JuGDP
 
-println("Julia Generalized Disjunctive Programming")
+using JuMP
+
+export @disjunction
+
+include("macros.jl")
 
 end # module
