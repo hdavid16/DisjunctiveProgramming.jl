@@ -15,7 +15,7 @@ function add_disjunction(m::Model,disj...;reformulation=:BMR,BigM=missing,kw_arg
     for (i,constr) in enumerate(disj)
         var_name = Symbol("disj_ind_$i") #create disjunction indicator binary
         eval(:(@variable($m,$var_name,Bin)))
-        if constr isa Tuple || constr isa Vector
+        if constr isa Tuple || constr isa Vector || Meta.isexpr(constr,:tuple) || Meta.isexpr(constr,:vect)
             for (j,constr_j) in enumerate(constr)
                 @assert constr_j in keys(m.obj_dict) "$constr_j is not a constraint in the model."
                 @assert is_valid(m,m[constr_j]) "$constr_j is not a valid constraint in the model."

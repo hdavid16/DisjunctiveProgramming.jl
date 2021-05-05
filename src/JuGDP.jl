@@ -3,10 +3,9 @@ module JuGDP
 using JuMP
 
 export add_disjunction
-# export @disjunction
+export @disjunction
 
-# include("macros.jl")
 include("disjunction.jl")
-
+include("macros.jl")
 
 end # module

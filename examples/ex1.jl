@@ -124,7 +124,8 @@ m = Model(GLPK.Optimizer)
 @constraint(m, con3, x[1]<=9)
 @constraint(m, con4, 5<=x[1])
 
-add_disjunction(m,(:con1,:con2),:con3,:con4,reformulation=:BMR)
+@disjunction(m,(:con1,:con2),:con3,:con4,reformulation=:BMR)
+# add_disjunction(m,(:con1,:con2),:con3,:con4,reformulation=:BMR)
 
 # @constraint(m, c1, 0<=x[1]<=3)
 # c1_obj=constraint_object(c1)
