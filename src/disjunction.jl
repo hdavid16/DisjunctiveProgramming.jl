@@ -11,10 +11,12 @@ function add_disjunction(m::Model,disj...;reformulation=:BMR,BigM=missing,kw_arg
     end
     #get all variable names
     vars = all_variables(m)
+    #create binary indicator varialbes for each disjunction
+    bin_var = Symbol("disj_binary_",gensym())
+    eval(:(@variable($m, $bin_var[i = 1:length($disj)], Bin)))
+    eval(:(@constraint($m,sum($bin_var[i] for i = 1:length($disj)) == 1)))
     #apply reformulation
     for (i,constr) in enumerate(disj)
-        var_name = Symbol("disj_ind_$i") #create disjunction indicator binary
-        eval(:(@variable($m,$var_name,Bin)))
         if constr isa Tuple || constr isa Vector || Meta.isexpr(constr,:tuple) || Meta.isexpr(constr,:vect)
             for (j,constr_j) in enumerate(constr)
                 @assert constr_j in keys(m.obj_dict) "$constr_j is not a constraint in the model."
@@ -24,12 +26,12 @@ function add_disjunction(m::Model,disj...;reformulation=:BMR,BigM=missing,kw_arg
                 @assert length(set_fields) == 1 "A reformulation cannot be done on constraint $constr_j because it is not one of the following GreaterThan, LessThan, or EqualTo."
 
                 if reformulation == :BMR
-                    apply_BigM(M, m, constr_j, constr_set, set_fields, vars, var_name)
+                    apply_BigM(M, m, constr_j, constr_set, set_fields, vars, bin_var, i)
                 elseif reformulation == :CHR
 
                 end
             end
-        else
+        elseif constr isa Symbol
             @assert constr in keys(m.obj_dict) "$constr is not a constraint in the model."
             @assert is_valid(m,m[constr]) "$constr is not a valid constraint in the model."
             constr_set = constraint_object(m[constr]).set
@@ -37,7 +39,7 @@ function add_disjunction(m::Model,disj...;reformulation=:BMR,BigM=missing,kw_arg
             @assert length(set_fields) == 1 "A reformulation cannot be done on constraint $constr because it is not one of the following GreaterThan, LessThan, or EqualTo."
 
             if reformulation == :BMR
-                apply_BigM(M, m, constr, constr_set, set_fields, vars, var_name)
+                apply_BigM(M, m, constr, constr_set, set_fields, vars, bin_var, i)
             elseif reformulation == :(:CHR)
 
             end
@@ -83,7 +85,7 @@ function infer_BigM(m, constr, constr_set, set_fields, vars)
     return BigM
 end
 
-function apply_BigM(M, m, constr, constr_set, set_fields, vars, var_name)
+function apply_BigM(M, m, constr, constr_set, set_fields, vars, bin_var, i)
     if M isa Number
         BigM = M
     elseif M isa Vector || M isa Tuple
@@ -94,5 +96,5 @@ function apply_BigM(M, m, constr, constr_set, set_fields, vars, var_name)
     end
     add_to_function_constant(m[constr], -BigM)
     ref = m[constr]
-    eval(:(set_normalized_coefficient($ref, $var_name , $BigM)))
+    eval(:(set_normalized_coefficient($ref, $bin_var[$i] , $BigM)))
 end
