@@ -12,4 +12,4 @@ m = Model()
 
 BigM = 10
 code=@disjunction(m,(con1,con2),con3,con4,
-                reformulation=:BMR,BigM=BigM)
+                reformulation=:BMR,M=BigM)
