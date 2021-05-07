@@ -19,27 +19,15 @@ function add_disjunction(m::Model,disj...;reformulation=:BMR,BigM=missing,kw_arg
     for (i,constr) in enumerate(disj)
         if constr isa Tuple || constr isa Vector || Meta.isexpr(constr,:tuple) || Meta.isexpr(constr,:vect)
             for (j,constr_j) in enumerate(constr)
-                @assert constr_j in keys(m.obj_dict) "$constr_j is not a constraint in the model."
-                @assert is_valid(m,m[constr_j]) "$constr_j is not a valid constraint in the model."
-                constr_set = constraint_object(m[constr_j]).set
-                set_fields = fieldnames(typeof(constr_set))
-                @assert length(set_fields) == 1 "A reformulation cannot be done on constraint $constr_j because it is not one of the following GreaterThan, LessThan, or EqualTo."
-
                 if reformulation == :BMR
-                    apply_BigM(M, m, constr_j, constr_set, set_fields, vars, bin_var, i)
+                    apply_BigM(M, m, constr_j, vars, bin_var, i, j)
                 elseif reformulation == :CHR
 
                 end
             end
         elseif constr isa Symbol
-            @assert constr in keys(m.obj_dict) "$constr is not a constraint in the model."
-            @assert is_valid(m,m[constr]) "$constr is not a valid constraint in the model."
-            constr_set = constraint_object(m[constr]).set
-            set_fields = fieldnames(typeof(constr_set))
-            @assert length(set_fields) == 1 "A reformulation cannot be done on constraint $constr because it is not one of the following GreaterThan, LessThan, or EqualTo."
-
             if reformulation == :BMR
-                apply_BigM(M, m, constr, constr_set, set_fields, vars, bin_var, i)
+                apply_BigM(M, m, constr, vars, bin_var, i)
             elseif reformulation == :(:CHR)
 
             end
@@ -47,11 +35,22 @@ function add_disjunction(m::Model,disj...;reformulation=:BMR,BigM=missing,kw_arg
     end
 end
 
-function infer_BigM(m, constr, constr_set, set_fields, vars)
-    @assert :value in set_fields || :lower in set_fields || :upper in set_fields "$constr must be one the following: GreaterThan, LessThan, or EqualTo."
+function infer_BigM(m, constr, vars, k = missing)
+    @assert constr in keys(m.obj_dict) "$constr is not a constraint in the model."
+    if ismissing(k)
+        @assert is_valid(m,m[constr]) "$constr is not a valid constraint in the model."
+        ref = m[constr]
+    else
+        @assert is_valid(m,m[constr][k]) "$constr is not a valid constraint in the model."
+        ref = m[constr][k]
+    end
+    constr_set = constraint_object(ref).set
+    set_fields = fieldnames(typeof(constr_set))
+    @assert length(set_fields) == 1 "A reformulation cannot be done on constraint $ref because it is not one of the following GreaterThan, LessThan, or EqualTo."
+    @assert :value in set_fields || :lower in set_fields || :upper in set_fields "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
     BigM = 0 #initialize BigM
     for var in vars
-        coeff = normalized_coefficient(m[constr],var)
+        coeff = normalized_coefficient(ref,var)
         iszero(coeff) && continue
         has_bounds = (has_lower_bound(var), has_upper_bound(var))
         if coeff > 0
@@ -85,16 +84,42 @@ function infer_BigM(m, constr, constr_set, set_fields, vars)
     return BigM
 end
 
-function apply_BigM(M, m, constr, constr_set, set_fields, vars, bin_var, i)
+function apply_BigM(M, m, constr, vars, bin_var, i, j = missing)
     if M isa Number
         BigM = M
+        set_BigM(m, constr, BigM, bin_var, i)
     elseif M isa Vector || M isa Tuple
-        @assert M[i] isa Number "$constr was passed more than 1 BigM value"
-        BigM = M[i]
-    else
-        BigM = infer_BigM(m, constr, constr_set, set_fields, vars)
+        if M[i] isa Number
+            BigM = M[i]
+        elseif M[i] isa Vector || M[i] isa Tuple
+            BigM = M[i][j]
+        else
+            error("Invalid BigM parameter provided for disjunct $i.")
+        end
+        set_BigM(m, constr, BigM, bin_var, i)
+    elseif m[constr] isa ConstraintRef
+        BigM = infer_BigM(m, constr, vars)
+        set_BigM(m, constr, BigM, bin_var, i)
+    elseif m[constr] isa Vector
+        for k in 1:length(m[constr])
+            BigM = infer_BigM(m, constr, vars, k)
+            set_BigM(m, con, BigM, bin_var, i, k)
+        end
+    elseif m[constr] isa JuMP.Containers.DenseAxisArray
+        for k in m[constr].axes[1]
+            BigM = infer_BigM(m, constr, vars, k)
+            set_BigM(m, con, BigM, bin_var, i, k)
+        end
     end
+
+end
+
+function set_BigM(m, constr, BigM, bin_var, i, k = missing)
     add_to_function_constant(m[constr], -BigM)
-    ref = m[constr]
+    if ismissing(k)
+        ref = m[constr]
+    else
+        ref = m[constr][k]
+    end
     eval(:(set_normalized_coefficient($ref, $bin_var[$i] , $BigM)))
 end
