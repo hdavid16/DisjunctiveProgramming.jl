@@ -10,9 +10,10 @@ macro disjunction(args...)
     end
     BigM = filter(i -> i.args[1] == :BigM, kw_args)
     if !isempty(BigM)
-        BigM = BigM[1].args[2]
+        BigM = esc(BigM[1].args[2])
     else
         BigM = :(missing)
     end
-    :(add_disjunction($m,$(disj...); reformulation = $reformulation, BigM = $BigM))
+
+    :(add_disjunction($m,$(disj...), reformulation = $reformulation, BigM = $BigM))
 end
