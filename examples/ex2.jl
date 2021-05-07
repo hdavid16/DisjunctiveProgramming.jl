@@ -1,3 +1,4 @@
+# https://optimization.mccormick.northwestern.edu/index.php/Disjunctive_inequalities
 using JuMP
 using JuGDP
 
@@ -14,4 +15,3 @@ b=[3,4]
 @constraint(m, con6, x[2] <= 6)
 
 @disjunction(m,(con1,con2,con3),(con4,con5,con6),reformulation=:BMR)
-# add_disjunction(m,(con1,con2,con3),(con4,con5,con6),reformulation=:BMR)
