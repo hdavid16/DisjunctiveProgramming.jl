@@ -8,21 +8,5 @@ function add_disjunction(m::Model,disj...;reformulation=:BMR,M=missing,kw_args..
     #enforce exclussive OR
     eval(:(@constraint($m,sum($bin_var[i] for i = 1:length($disj)) == 1)))
     #apply reformulation
-    for (i,constr) in enumerate(disj)
-        if constr isa Vector || constr isa Tuple
-            for (j,constr_j) in enumerate(constr)
-                if reformulation == :BMR
-                    BMR(M, m, constr_j, bin_var, i, j)
-                elseif reformulation == :CHR
-
-                end
-            end
-        elseif constr isa ConstraintRef || typeof(constr) <: Array || constr isa JuMP.Containers.DenseAxisArray
-            if reformulation == :BMR
-                BMR(M, m, constr, bin_var, i)
-            elseif reformulation == :(:CHR)
-
-            end
-        end
-    end
+    eval(:($reformulation($M, $m, $disj, $bin_var)))
 end

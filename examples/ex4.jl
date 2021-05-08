@@ -2,7 +2,6 @@ using JuMP
 using JuGDP
 
 m = Model()
-@variable(m, y)
 @variable(m, -1<=x[1:2]<=10)
 
 b=[3,4]
@@ -13,7 +12,7 @@ b=[3,4]
 @constraint(m, con5, x[1] <= 9)
 @constraint(m, con6, x[2] <= 6)
 
-BigM = (10,(10,10,10))
+M = (10,(10,10,10))
 @disjunction(m,(con1,con2,con3),(con4,con5,con6),
-                reformulation=:BMR,
-                M=BigM)
+                reformulation=:CHR,
+                M=M)

@@ -2,7 +2,6 @@ using JuMP
 using JuGDP
 
 m = Model()
-@variable(m, y)
 @variable(m, -1<=x<=10)
 
 @constraint(m, con1, x<=3)
@@ -10,9 +9,9 @@ m = Model()
 @constraint(m, con3, x<=9)
 @constraint(m, con4, 5<=x)
 
-@disjunction(m,(con1,con2),con3,con4,reformulation=:BMR)
+@disjunction(m,(con1,con2),con3,con4,reformulation=:CHR)
 
-# add_disjunction(m,(con1,con2),con3,con4,reformulation=:BMR)
+# add_disjunction(m,(con1,con2),con3,con4,reformulation=:CHR)
 
 # @constraint(m, c1, 0<=x[1]<=3)
 # c1_obj=constraint_object(c1)

@@ -1,4 +1,16 @@
-function BMR(M, m, constr, bin_var, i, j = missing)
+function BMR(M, m, disj, bin_var)
+    for (i,constr) in enumerate(disj)
+        if constr isa Vector || constr isa Tuple
+            for (j,constr_j) in enumerate(constr)
+                apply_BMR(M, m, constr_j, bin_var, i, j)
+            end
+        elseif constr isa ConstraintRef || typeof(constr) <: Array || constr isa JuMP.Containers.DenseAxisArray
+            apply_BMR(M, m, constr, bin_var, i)
+        end
+    end
+end
+
+function apply_BMR(M, m, constr, bin_var, i, j = missing)
     if M isa Number || ismissing(M)
         M = M
     elseif M isa Vector || M isa Tuple
@@ -39,7 +51,7 @@ function add_BigM(m, constr, M, bin_var, i, k = missing)
         @warn "No M value passed for $ref. M = $M was inferred from the variable bounds."
     end
     add_to_function_constant(ref, -M)
-    bin_var_ref = variable_by_name(ref.model, "$bin_var[$i]")
+    bin_var_ref = variable_by_name(ref.model, string(bin_var[i]))
     set_normalized_coefficient(ref, bin_var_ref , M)
 end
 
