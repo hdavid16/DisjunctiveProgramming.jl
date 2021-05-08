@@ -33,4 +33,25 @@ m = Model()
 @constraint(m, con4[i=1:2], x[i] <= [9,6][i])
 
 @disjunction(m,(con1,con2),(con3,con4), reformulation=:BMR)
+
+┌ Warning: No M value passed for con1[1] : x[1] <= 3.0. M = 7.0 was inferred from the variable bounds.
+└ @ JuGDP C:\Users\HD\.julia\dev\JuGDP\src\reformulate.jl:56
+┌ Warning: No M value passed for con1[2] : x[2] <= 4.0. M = 6.0 was inferred from the variable bounds.
+└ @ JuGDP C:\Users\HD\.julia\dev\JuGDP\src\reformulate.jl:56
+┌ Warning: No M value passed for con2 : -x[1] <= 0.0. M = 1.0 was inferred from the
+variable bounds.
+└ @ JuGDP C:\Users\HD\.julia\dev\JuGDP\src\reformulate.jl:56
+┌ Warning: No M value passed for con3 : -x[2] <= 0.0. M = 1.0 was inferred from the
+variable bounds.
+└ @ JuGDP C:\Users\HD\.julia\dev\JuGDP\src\reformulate.jl:56
+┌ Warning: No M value passed for con4[1] : -x[1] <= -5.0. M = 6.0 was inferred from
+the variable bounds.
+└ @ JuGDP C:\Users\HD\.julia\dev\JuGDP\src\reformulate.jl:56
+┌ Warning: No M value passed for con4[2] : -x[2] <= -4.0. M = 5.0 was inferred from
+the variable bounds.
+└ @ JuGDP C:\Users\HD\.julia\dev\JuGDP\src\reformulate.jl:56
+┌ Warning: No M value passed for con5 : x[1] <= 9.0. M = 1.0 was inferred from the variable bounds.
+└ @ JuGDP C:\Users\HD\.julia\dev\JuGDP\src\reformulate.jl:56
+┌ Warning: No M value passed for con6 : x[2] <= 6.0. M = 4.0 was inferred from the variable bounds.
+└ @ JuGDP C:\Users\HD\.julia\dev\JuGDP\src\reformulate.jl:56
 ```
