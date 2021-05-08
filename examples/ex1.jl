@@ -10,12 +10,3 @@ m = Model()
 @constraint(m, con4, 5<=x)
 
 @disjunction(m,(con1,con2),con3,con4,reformulation=:BMR)
-
-# add_disjunction(m,(con1,con2),con3,con4,reformulation=:CHR)
-
-# @constraint(m, c1, 0<=x[1]<=3)
-# c1_obj=constraint_object(c1)
-# delete(m, c1)
-# unregister(m, :c1)
-# @constraint(m, c1_lt, c1_obj.set.lower <= c1_obj.func)
-# @constraint(m, c1_gt, c1_obj.func <= c1_obj.set.upper)

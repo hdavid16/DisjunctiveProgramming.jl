@@ -5,7 +5,6 @@ using JuGDP
 m = Model()
 @variable(m, -1<=x[1:2]<=10)
 
-b=[3,4]
 @constraint(m, con1[i=1:2], x[i]<=[3,4][i])
 @constraint(m, con2, 0<=x[1])
 @constraint(m, con3, 0<=x[2])
@@ -14,4 +13,3 @@ b=[3,4]
 @constraint(m, con6, x[2] <= 6)
 
 @disjunction(m,(con1,con2,con3),(con4,con5,con6),reformulation=:BMR)
-# add_disjunction(m,(con1,con2,con3),(con4,con5,con6),reformulation=:BMR)
