@@ -6,8 +6,7 @@ export add_disjunction
 export @disjunction
 
 include("reformulate.jl")
-
 include("disjunction.jl")
-include("macros.jl")
+include("macro.jl")
 
 end # module
