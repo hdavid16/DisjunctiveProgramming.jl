@@ -13,4 +13,5 @@ b=[3,4]
 @constraint(m, con5, x[1] <= 9)
 @constraint(m, con6, x[2] <= 6)
 
-@disjunction(m,(con1,con2,con3),(con4,con5,con6),reformulation=:CHR)
+@disjunction(m,(con1,con2,con3),(con4,con5,con6),reformulation=:BMR)
+# add_disjunction(m,(con1,con2,con3),(con4,con5,con6),reformulation=:BMR)

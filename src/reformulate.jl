@@ -109,6 +109,10 @@ function CHR(m, constr, M, bin_var, i, k = missing)
         ref = constr[k...]
     end
     bin_var_ref = variable_by_name(ref.model, string(bin_var[i]))
+    constr_set = constraint_object(ref).set
+    set_fields = fieldnames(typeof(constr_set))
+    @assert length(set_fields) == 1 "A reformulation cannot be done on constraint $ref because it is not one of the following GreaterThan, LessThan, or EqualTo."
+    @assert :value in set_fields || :lower in set_fields || :upper in set_fields "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
     for var in m[:original_model_variables]
         coeff = normalized_coefficient(ref,var)
         iszero(coeff) && continue

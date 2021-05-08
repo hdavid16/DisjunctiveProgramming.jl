@@ -10,5 +10,5 @@ m = Model()
 @constraint(m, con4, 5<=x)
 
 M = 10
-code=@disjunction(m,(con1,con2),con3,con4,
-                reformulation=:CHR,M=M)
+@disjunction(m,(con1,con2),con3,con4,
+                reformulation=:BMR,M=M)

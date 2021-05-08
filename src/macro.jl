@@ -8,12 +8,12 @@ macro disjunction(args...)
     else
         throw(UndefKeywordError(:reformulation))
     end
-    BigM = filter(i -> i.args[1] == :BigM, kw_args)
-    if !isempty(BigM)
-        BigM = esc(BigM[1].args[2])
+    M = filter(i -> i.args[1] == :M, kw_args)
+    if !isempty(M)
+        M = esc(M[1].args[2])
     else
-        BigM = :(missing)
+        M = :(missing)
     end
 
-    :(add_disjunction($m,$(disj...), reformulation = $reformulation, BigM = $BigM))
+    :(add_disjunction($m,$(disj...), reformulation = $reformulation, M = $M))
 end
