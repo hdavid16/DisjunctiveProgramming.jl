@@ -61,18 +61,18 @@ function BMR(m, constr, M, bin_var, i, k = missing)
 end
 
 function apply_interval_arithmetic(ref)
-    if ref isa ConstraintRef
+    if ref isa NonlinearConstraintRef
+        ref_str = string(ref)
+        @assert length(findall(r"[<>]", ref_str)) <= 1 "$ref must be one of the following: GreaterThan, LessThan, or EqualTo."
+        ref_func = replace(split(ref_str, r"[=<>]")[1], " " => "")
+        ref_type = occursin(">", ref_str) ? :lower : :upper
+        ref_rhs = parse(Float64,split(ref_str, " ")[end])
+    elseif ref isa ConstraintRef
         ref_obj = constraint_object(ref)
         @assert ref_obj.set isa MOI.LessThan || ref_obj.set isa MOI.GreaterThan || ref_obj.set isa MOI.EqualTo "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
         ref_func = string(ref_obj.func)
         ref_type = fieldnames(typeof(ref_obj.set))[1]
         ref_rhs = normalized_rhs(ref)
-    elseif ref isa NonlinearConstraintRef
-        ref_str = string(ref)
-        @assert length(findall(r"[<>]", ref_str)) <= 1 "$ref must be one of the following: GreaterThan, LessThan, or EqualTo."
-        ref_func = replace(split(ref_str, r"[=<>]")[1], " " => "")
-        ref_type = occursin(">", ref_str) ? :lower : :upper
-        ref_rhs = split(ref_str, " ")[end]
     end
     vars = all_variables(ref.model) #get all variable names
     for var in vars
@@ -125,11 +125,13 @@ function CHR(m, constr, M, bin_var, i, k = missing)
                 error("Variable $var does not have an upper bound, an M value must be specified")
             end
         end
+        #create disaggregated variable
         var_i = Symbol("$(var)_$i")
         if !(var_i in keys(m.obj_dict))
             eval(:(@variable($m, 0 <= $var_i <= $M)))
             eval(:(@constraint($m, $var_i <= $M * $bin_var_ref)))
         end
+        #create convex hull constraint
         rhs = normalized_rhs(ref)
         set_normalized_rhs(ref,0)
         set_normalized_coefficient(ref, var, 0)
