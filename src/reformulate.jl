@@ -16,34 +16,36 @@ function reformulate(m, disj, bin_var, reformulation, M)
 end
 
 function init_reformulation(m, constr, bin_var, reformulation, M, i, j = missing)
-    if M isa Number || ismissing(M)
-        M = M
-    elseif M isa Vector || M isa Tuple
-        if M[i] isa Number
-            M = M[i]
-        elseif M[i] isa Vector || M[i] isa Tuple
-            @assert j <= length(M[i]) "If constraint specific M values are provided, a value must be provided for each constraint in disjunct $i."
-            M = M[i][j]
+    if reformulation == :BMR
+        if M isa Number || ismissing(M)
+            M = M
+        elseif M isa Vector || M isa Tuple
+            if M[i] isa Number
+                M = M[i]
+            elseif M[i] isa Vector || M[i] isa Tuple
+                @assert j <= length(M[i]) "If constraint specific M values are provided, a value must be provided for each constraint in disjunct $i."
+                M = M[i][j]
+            else
+                error("Invalid M parameter provided for disjunct $i.")
+            end
         else
             error("Invalid M parameter provided for disjunct $i.")
         end
-    else
-        error("Invalid M parameter provided for disjunct $i.")
     end
     if constr isa ConstraintRef
-        eval(:($reformulation($m, $constr, $M, $bin_var, $i)))
+        eval(:($reformulation($m, $constr, $bin_var, $i, missing; M = $M)))
     elseif typeof(constr) <: Array
         for k in Iterators.product([1:s for s in size(constr)]...)
-            eval(:($reformulation($m, $constr, $M, $bin_var, $i, $k)))
+            eval(:($reformulation($m, $constr, $bin_var, $i, $k; M = $M)))
         end
     elseif constr isa JuMP.Containers.DenseAxisArray
         for k in Iterators.product([s for s in constr.axes]...)
-            eval(:($reformulation($m, $constr, $M, $bin_var, $i, $k)))
+            eval(:($reformulation($m, $constr, $M, $bin_var, $i, $k; M = $M)))
         end
     end
 end
 
-function BMR(m, constr, M, bin_var, i, k = missing)
+function BMR(m, constr, bin_var, i, k = missing; M)
     if ismissing(k)
         @assert is_valid(m,constr) "$constr is not a valid constraint in the model."
         ref = constr
@@ -66,7 +68,7 @@ function apply_interval_arithmetic(ref)
         @assert length(findall(r"[<>]", ref_str)) <= 1 "$ref must be one of the following: GreaterThan, LessThan, or EqualTo."
         ref_func = replace(split(ref_str, r"[=<>]")[1], " " => "")
         ref_type = occursin(">", ref_str) ? :lower : :upper
-        ref_rhs = parse(Float64,split(ref_str, " ")[end])
+        ref_rhs = 0 #Could be calculated with: parse(Float64,split(ref_str, " ")[end]). NOTE: @NLconstraint will always have a 0 RHS.
     elseif ref isa ConstraintRef
         ref_obj = constraint_object(ref)
         @assert ref_obj.set isa MOI.LessThan || ref_obj.set isa MOI.GreaterThan || ref_obj.set isa MOI.EqualTo "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
@@ -102,7 +104,7 @@ function apply_interval_arithmetic(ref)
     end
 end
 
-function CHR(m, constr, M, bin_var, i, k = missing)
+function CHR(m, constr, bin_var, i, k = missing; M = missing)
     if ismissing(k)
         @assert is_valid(m,constr) "$constr is not a valid constraint in the model."
         ref = constr
@@ -111,33 +113,52 @@ function CHR(m, constr, M, bin_var, i, k = missing)
         ref = constr[k...]
     end
     bin_var_ref = variable_by_name(ref.model, string(bin_var[i]))
-    constr_set = constraint_object(ref).set
-    set_fields = fieldnames(typeof(constr_set))
-    @assert length(set_fields) == 1 "A reformulation cannot be done on constraint $ref because it is not one of the following GreaterThan, LessThan, or EqualTo."
-    @assert :value in set_fields || :lower in set_fields || :upper in set_fields "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
     for var in m[:original_model_variables]
-        coeff = normalized_coefficient(ref,var)
-        iszero(coeff) && continue
-        if ismissing(M)
-            if has_upper_bound(var)
-                M = upper_bound(var)
-            else
-                error("Variable $var does not have an upper bound, an M value must be specified")
-            end
-        end
+        #get bounds for disaggregated variable
+        @assert has_upper_bound(var) "Variable $var does not have an upper bound."
+        @assert has_lower_bound(var) "Variable $var does not have a lower bound."
+        UB = upper_bound(var)
+        LB = lower_bound(var)
         #create disaggregated variable
         var_i = Symbol("$(var)_$i")
         if !(var_i in keys(m.obj_dict))
-            eval(:(@variable($m, 0 <= $var_i <= $M)))
-            eval(:(@constraint($m, $var_i <= $M * $bin_var_ref)))
+            eval(:(@variable($m, $LB <= $var_i <= $UB)))
+            eval(:(@constraint($m, $LB * $bin_var_ref <= $var_i)))
+            eval(:(@constraint($m, $var_i <= $UB * $bin_var_ref)))
         end
         #create convex hull constraint
-        rhs = normalized_rhs(ref)
-        set_normalized_rhs(ref,0)
-        set_normalized_coefficient(ref, var, 0)
-        set_normalized_coefficient(ref, m[var_i], coeff)
-        set_normalized_coefficient(ref, bin_var_ref, -rhs)
+        if ref isa NonlinearConstraintRef
+            nl_perspective_function(ref, bin_var_ref)
+        elseif ref isa ConstraintRef
+            lin_perspective_function(ref, bin_var_ref, var, i)
+        end
     end
+end
+
+function nl_perspective_function(ref, bin_var_ref)
+    # [(1-ϵ)⋅λ + ϵ]⋅g(v/[(1-ϵ)⋅λ + ϵ]) - ϵ⋅g(0)⋅(1-λ) <= 0
+    ref_str = string(ref)
+    @assert length(findall(r"[<>]", ref_str)) <= 1 "$ref must be one of the following: GreaterThan, LessThan, or EqualTo."
+    ref_func = replace(split(ref_str, r"[=<>]")[1], " " => "")
+    ref_op = occursin(">=", ref_str) ? ">=" : (occursin("<=", ref_str) ? "<=" : "==")
+end
+
+function lin_perspective_function(ref, bin_var_ref, var, i)
+    #check constraint type
+    ref_obj = constraint_object(ref)
+    @assert ref_obj.set isa MOI.LessThan || ref_obj.set isa MOI.GreaterThan || ref_obj.set isa MOI.EqualTo "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
+    #check var is present in the constraint
+    coeff = normalized_coefficient(ref,var)
+    iszero(coeff) && return
+    #check CHR can be applied to this constraint
+    rhs = normalized_rhs(ref) #get rhs
+    @assert !iszero(rhs) "The convex hull reformulation cannot be done on constraint $ref because its right-hand-side is zero. Use Big-M instead."
+    #modify constraint using convex hull
+    var_i_ref = variable_by_name(ref.model, "$(var)_$i")
+    set_normalized_rhs(ref,0) #set rhs to 0
+    set_normalized_coefficient(ref, var, 0) #remove original variable
+    set_normalized_coefficient(ref, var_i_ref, coeff) #add disaggregated variable
+    set_normalized_coefficient(ref, bin_var_ref, -rhs) #add binary variable
 end
 
 function add_disaggregated_constr(m, disj, vars)
@@ -151,7 +172,9 @@ function add_disaggregated_constr(m, disj, vars)
     end
 end
 
+################################################################################
 ###                             DEPRECATED                                   ###
+################################################################################
 function infer_BigM(ref)
     constr_set = constraint_object(ref).set
     set_fields = fieldnames(typeof(constr_set))
