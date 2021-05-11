@@ -1,6 +1,6 @@
 module JuGDP
 
-using JuMP
+using JuMP, IntervalArithmetic
 
 export add_disjunction
 export @disjunction

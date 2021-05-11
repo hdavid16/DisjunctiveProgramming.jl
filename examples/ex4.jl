@@ -13,5 +13,5 @@ m = Model()
 
 M = (10,(10,10,10))
 @disjunction(m,(con1,con2,con3),(con4,con5,con6),
-                reformulation=:CHR,
+                reformulation=:BMR,
                 M=M)

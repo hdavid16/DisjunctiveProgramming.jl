@@ -52,7 +52,7 @@ function BMR(m, constr, M, bin_var, i, k = missing)
         ref = constr[k...]
     end
     if ismissing(M)
-        M = infer_BigM(ref, k)
+        M = apply_interval_arithmetic(ref)
         @warn "No M value passed for $ref. M = $M was inferred from the variable bounds."
     end
     add_to_function_constant(ref, -M)
@@ -60,43 +60,45 @@ function BMR(m, constr, M, bin_var, i, k = missing)
     set_normalized_coefficient(ref, bin_var_ref , M)
 end
 
-function infer_BigM(ref, k = missing)
-    constr_set = constraint_object(ref).set
-    set_fields = fieldnames(typeof(constr_set))
-    @assert length(set_fields) == 1 "A reformulation cannot be done on constraint $ref because it is not one of the following GreaterThan, LessThan, or EqualTo."
-    @assert :value in set_fields || :lower in set_fields || :upper in set_fields "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
-    vars = all_variables(ref.model) #get all variable names
-    M = 0 #initialize M
-    for var in vars
-        coeff = normalized_coefficient(ref,var)
-        iszero(coeff) && continue
-        has_bounds = (has_lower_bound(var), has_upper_bound(var))
-        if coeff > 0
-            if :lower in set_fields && has_bounds[1]
-                bound = lower_bound(var)
-            elseif :upper in set_fields || :value in set_fields && has_bounds[2]
-                bound = upper_bound(var)
-            else
-                error("M parameter cannot be infered due to lack of variable bounds for variable $var.")
-            end
-            M += coeff*bound
-        elseif coeff < 0
-            if :lower in set_fields && has_bounds[2]
-                bound = upper_bound(var)
-            elseif :upper in set_fields || :value in set_fields && has_bounds[1]
-                bound = lower_bound(var)
-            else
-                error("M parameter cannot be infered due to lack of variable bounds for variable $var.")
-            end
-            M += coeff*bound
-        end
+function apply_interval_arithmetic(ref)
+    if ref isa ConstraintRef
+        ref_obj = constraint_object(ref)
+        @assert ref_obj.set isa MOI.LessThan || ref_obj.set isa MOI.GreaterThan || ref_obj.set isa MOI.EqualTo "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
+        ref_func = string(ref_obj.func)
+        ref_type = fieldnames(typeof(ref_obj.set))[1]
+        ref_rhs = normalized_rhs(ref)
+    elseif ref isa NonlinearConstraintRef
+        ref_str = string(ref)
+        @assert length(findall(r"[<>]", ref_str)) <= 1 "$ref must be one of the following: GreaterThan, LessThan, or EqualTo."
+        ref_func = replace(split(ref_str, r"[=<>]")[1], " " => "")
+        ref_type = occursin(">", ref_str) ? :lower : :upper
+        ref_rhs = split(ref_str, " ")[end]
     end
-    if :lower in set_fields
-        M -= constr_set.lower
-    elseif :upper in set_fields
-        M -= constr_set.upper
-    elseif :value in set_fields
-        M -= constr_set.value
+    vars = all_variables(ref.model) #get all variable names
+    for var in vars
+        if has_upper_bound(var)
+            ub = upper_bound(var)
+        else
+            ub = Inf
+        end
+        if has_lower_bound(var)
+            lb = lower_bound(var)
+        else
+            lb = -Inf
+        end
+        ref_func = replace(ref_func, string(var) => "($lb..$ub)")
+    end
+    func_bounds = eval(Meta.parse(ref_func))
+    if ref_type == :lower
+        M = func_bounds.lo - ref_rhs
+
+    else
+        M = func_bounds.hi - ref_rhs
+    end
+    if isinf(M)
+        error("M parameter for $ref cannot be infered due to lack of variable bounds.")
+    else
+        return M
     end
 end
 
@@ -144,5 +146,46 @@ function add_disaggregated_constr(m, disj, vars)
             var_i in keys(m.obj_dict) && push!(d_vars, m[var_i])
         end
         !isempty(d_vars) && eval(:(@constraint($m, $var == sum($d_vars))))
+    end
+end
+
+###                             DEPRECATED                                   ###
+function infer_BigM(ref)
+    constr_set = constraint_object(ref).set
+    set_fields = fieldnames(typeof(constr_set))
+    @assert length(set_fields) == 1 "A reformulation cannot be done on constraint $ref because it is not one of the following GreaterThan, LessThan, or EqualTo."
+    @assert :value in set_fields || :lower in set_fields || :upper in set_fields "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
+    vars = all_variables(ref.model) #get all variable names
+    M = 0 #initialize M
+    for var in vars
+        coeff = normalized_coefficient(ref,var)
+        iszero(coeff) && continue
+        has_bounds = (has_lower_bound(var), has_upper_bound(var))
+        if coeff > 0
+            if :lower in set_fields && has_bounds[1]
+                bound = lower_bound(var)
+            elseif :upper in set_fields || :value in set_fields && has_bounds[2]
+                bound = upper_bound(var)
+            else
+                error("M parameter cannot be infered due to lack of variable bounds for variable $var.")
+            end
+            M += coeff*bound
+        elseif coeff < 0
+            if :lower in set_fields && has_bounds[2]
+                bound = upper_bound(var)
+            elseif :upper in set_fields || :value in set_fields && has_bounds[1]
+                bound = lower_bound(var)
+            else
+                error("M parameter cannot be infered due to lack of variable bounds for variable $var.")
+            end
+            M += coeff*bound
+        end
+    end
+    if :lower in set_fields
+        M -= constr_set.lower
+    elseif :upper in set_fields
+        M -= constr_set.upper
+    elseif :value in set_fields
+        M -= constr_set.value
     end
 end
