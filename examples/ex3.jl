@@ -1,5 +1,5 @@
 using JuMP
-using JuGDP
+using DisjunctiveProgramming
 
 m = Model()
 @variable(m, -1<=x<=10)

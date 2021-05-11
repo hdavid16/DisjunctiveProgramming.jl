@@ -1,6 +1,6 @@
 # https://optimization.mccormick.northwestern.edu/index.php/Disjunctive_inequalities
 using JuMP
-using JuGDP
+using DisjunctiveProgramming
 
 m = Model()
 @variable(m, -1<=x[1:2]<=10)

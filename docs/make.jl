@@ -1,12 +1,12 @@
 push!(LOAD_PATH,"../src/")
-using JuGDP
+using DisjunctiveProgramming
 using Documenter
 makedocs(
-         sitename = "JuGDP.jl",
-         modules  = [JuGDP],
+         sitename = "DisjunctiveProgramming.jl",
+         modules  = [DisjunctiveProgramming],
          pages=[
                 "Home" => "index.md"
                ])
 deploydocs(;
-    repo="github.com/hdavid16/JuGDP.jl",
+    repo="github.com/hdavid16/DisjunctiveProgramming.jl",
 )

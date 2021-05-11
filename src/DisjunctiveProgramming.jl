@@ -1,4 +1,4 @@
-module JuGDP
+module DisjunctiveProgramming
 
 using JuMP, IntervalArithmetic
 

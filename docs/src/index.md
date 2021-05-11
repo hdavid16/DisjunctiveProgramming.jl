@@ -1,2 +1,2 @@
 # Overview
-JuGDP.jl
+DisjunctiveProgramming.jl

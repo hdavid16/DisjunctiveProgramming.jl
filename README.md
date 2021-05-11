@@ -1,11 +1,11 @@
-# JuGDP.jl
+# DisjunctiveProgramming.jl
 Generalized Disjunctive Programming extension to JuMP
 
 ## Installation
 
 ```julia
 using Pkg
-Pkg.add("https://github.com/hdavid16/JuGDP.jl")
+Pkg.add("https://github.com/hdavid16/DisjunctiveProgramming.jl")
 ```
 
 ## Disjunctions
@@ -22,7 +22,7 @@ To perform the Convex-Hull reformulation, `reformulation = :CHR`. If the variabl
 
 ```julia
 using JuMP
-using JuGDP
+using DisjunctiveProgramming
 
 m = Model()
 @variable(m, 0<=x[1:2]<=10)
