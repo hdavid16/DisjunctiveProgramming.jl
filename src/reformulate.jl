@@ -150,10 +150,8 @@ function lin_perspective_function(ref, bin_var_ref, var, i)
     #check var is present in the constraint
     coeff = normalized_coefficient(ref,var)
     iszero(coeff) && return
-    #check CHR can be applied to this constraint
-    rhs = normalized_rhs(ref) #get rhs
-    @assert !iszero(rhs) "The convex hull reformulation cannot be done on constraint $ref because its right-hand-side is zero. Use Big-M instead."
     #modify constraint using convex hull
+    rhs = normalized_rhs(ref) #get rhs
     var_i_ref = variable_by_name(ref.model, "$(var)_$i")
     set_normalized_rhs(ref,0) #set rhs to 0
     set_normalized_coefficient(ref, var, 0) #remove original variable
