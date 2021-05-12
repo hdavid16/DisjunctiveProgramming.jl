@@ -1,6 +1,6 @@
 module DisjunctiveProgramming
 
-using JuMP, IntervalArithmetic
+using JuMP, IntervalArithmetic, Symbolics
 
 export add_disjunction
 export @disjunction

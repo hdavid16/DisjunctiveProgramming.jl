@@ -33,19 +33,19 @@ function init_reformulation(m, constr, bin_var, reformulation, M, i, j = missing
         end
     end
     if constr isa ConstraintRef
-        eval(:($reformulation($m, $constr, $bin_var, $i, missing; M = $M)))
+        eval(:($reformulation($m, $constr, $bin_var, $i, $j; M = $M)))
     elseif typeof(constr) <: Array
         for k in Iterators.product([1:s for s in size(constr)]...)
-            eval(:($reformulation($m, $constr, $bin_var, $i, $k; M = $M)))
+            eval(:($reformulation($m, $constr, $bin_var, $i, $j, $k; M = $M)))
         end
     elseif constr isa JuMP.Containers.DenseAxisArray
         for k in Iterators.product([s for s in constr.axes]...)
-            eval(:($reformulation($m, $constr, $M, $bin_var, $i, $k; M = $M)))
+            eval(:($reformulation($m, $constr, $M, $bin_var, $i, $j, $k; M = $M)))
         end
     end
 end
 
-function BMR(m, constr, bin_var, i, k = missing; M)
+function BMR(m, constr, bin_var, i, j, k = missing; M)
     if ismissing(k)
         @assert is_valid(m,constr) "$constr is not a valid constraint in the model."
         ref = constr
@@ -88,7 +88,7 @@ function apply_interval_arithmetic(ref)
         else
             lb = -Inf
         end
-        ref_func = replace(ref_func, string(var) => "($lb..$ub)")
+        ref_func = replace(ref_func, "$var" => "($lb..$ub)")
     end
     func_bounds = eval(Meta.parse(ref_func))
     if ref_type == :lower
@@ -104,12 +104,20 @@ function apply_interval_arithmetic(ref)
     end
 end
 
-function CHR(m, constr, bin_var, i, k = missing; M = missing)
+function CHR(m, constr, bin_var, i, j, k = missing; M = missing)
     if ismissing(k)
-        @assert is_valid(m,constr) "$constr is not a valid constraint in the model."
+        if constr isa NonlinearConstraintRef #NOTE: CAN'T CHECK IF NL CONSTR IS VALID
+            # @assert constr in keys(m.obj_dict) "$constr is not a named reference in the model."
+        elseif constr isa ConstraintRef
+            @assert is_valid(m,constr) "$constr is not a valid constraint in the model."
+        end
         ref = constr
     else
-        @assert is_valid(m,constr[k...]) "$constr is not a valid constraint in the model."
+        if constr isa NonlinearConstraintRef #NOTE: CAN'T CHECK IF NL CONSTR IS VALID
+            # @assert constr in keys(m.obj_dict) "$constr is not a named reference in the model."
+        elseif constr isa ConstraintRef
+            @assert is_valid(m,constr[k...]) "$constr is not a valid constraint in the model."
+        end
         ref = constr[k...]
     end
     bin_var_ref = variable_by_name(ref.model, string(bin_var[i]))
@@ -126,37 +134,103 @@ function CHR(m, constr, bin_var, i, k = missing; M = missing)
             eval(:(@constraint($m, $LB * $bin_var_ref <= $var_i)))
             eval(:(@constraint($m, $var_i <= $UB * $bin_var_ref)))
         end
-        #create convex hull constraint
-        if ref isa NonlinearConstraintRef
-            nl_perspective_function(ref, bin_var_ref)
-        elseif ref isa ConstraintRef
-            lin_perspective_function(ref, bin_var_ref, var, i)
-        end
+    end
+    #create convex hull constraint
+    if ref isa NonlinearConstraintRef
+        nl_perspective_function(ref, bin_var_ref, i, j, k)
+    elseif ref isa ConstraintRef
+        lin_perspective_function(ref, bin_var_ref, i, j, k)
     end
 end
 
-function nl_perspective_function(ref, bin_var_ref)
-    # [(1-ϵ)⋅λ + ϵ]⋅g(v/[(1-ϵ)⋅λ + ϵ]) - ϵ⋅g(0)⋅(1-λ) <= 0
+function nl_perspective_function(ref, bin_var_ref, i, j, k)
+    #extract info
     ref_str = string(ref)
+    m = ref.model
+    disj_name = replace("$(bin_var_ref)", "_binary" => "")
+    vars = m[:original_model_variables]
+
+    #get function and operator for NLconstraint
     @assert length(findall(r"[<>]", ref_str)) <= 1 "$ref must be one of the following: GreaterThan, LessThan, or EqualTo."
-    ref_func = replace(split(ref_str, r"[=<>]")[1], " " => "")
+    ref_func = split(ref_str, r"[=<>]")[1]
     ref_op = occursin(">=", ref_str) ? ">=" : (occursin("<=", ref_str) ? "<=" : "==")
+
+    #create and fix epsilon variable for the perspective function (Furman and Sawaya formulation)
+    eps = Symbol("$(disj_name)_eps")
+    eval(:(@variable($m, $eps)))
+    fix(variable_by_name(m, "$eps"), 1e-6) #fix epsilon to default value of 1e-6
+
+    #create symbolic variables (using Symbolics.jl v0.1.25)
+    sym_vars1, sym_vars2 = [],[]
+    for var in vars
+        var_sym1 = Symbol(var)
+        var_sym2 = Symbol("m[:$var]")
+        push!(sym_vars1, eval(:(Symbolics.@variables($var_sym1)))[1])
+        push!(sym_vars2, eval(:(Symbolics.@variables($var_sym2)))[1])
+    end
+    ϵ = Num(Symbolics.Sym{Float64}(Symbol("m[:$eps]")))
+    λ = Num(Symbolics.Sym{Float64}(Symbol("m[:$bin_var_ref]")))
+    furman_sawaya = Num(Symbolics.Sym{Float64}(gensym()))
+
+    #convert ref_func into a symbolic expression
+    ref_sym = eval(Meta.parse(ref_func))
+
+    #use symbolic substitution to obtain the following expression:
+    # [(1-ϵ)⋅λ + ϵ]⋅g(v/[(1-ϵ)⋅λ + ϵ]) - ϵ⋅g(0)⋅(1-λ) <= 0
+    g = furman_sawaya*substitute(ref_sym, Dict(var1 => var2/furman_sawaya for (var1,var2) in zip(sym_vars1, sym_vars2)))
+    g0 = ϵ*(1-λ)*substitute(ref_sym, Dict(var => 0 for var in sym_vars1))
+    pers_func = simplify(g - g0, expand = true) #perform symbolic simplifications
+    pers_func = substitute(pers_func, Dict(furman_sawaya => (1-ϵ)*λ+ϵ))
+    pers_func = simplify(pers_func)
+
+    #convert symbolic expression of the perspective funciton to a string and remove unnecessary strings
+    pers_func_str = string(pers_func, ref_op, 0)
+    pers_func_str = replace(pers_func_str, "var\"" => "") #remove prefix to symbols starting with m[: (for the JuMP variables)
+    pers_func_str = replace(pers_func_str, "]\"" => "]") #remove sufix to symbols ending with ] (for the JuMP variables)
+
+    #create name for perspective function constraint
+    j = ismissing(j) ? "" : j
+    k = ismissing(k) ? "" : k
+    pers_func_name = Symbol("perspective_func_$(disj_name)_$(j)_$k")
+
+    #NOTE: the new NLconstraint needs to be defined by the expression in pers_func_str.
+    #This has been attempted by running the following:
+    # pers_func_sym = Meta.parse(pers_func_str)
+    # eval(:(@NLconstraint($m,$pers_func_name,$pers_func_sym)))
+    #However, this effor has been unsuccessful due to the variable scope (hygene).
+    #An expression needs to be created for $pers_func_sym which uses interpolation
+    #   (i.e., $VariableRef) for each of the variables in sym_vars, ϵ, λ
+
+    #NOTE: the NLconstraint defined by `ref` needs to be deleted. However, this
+    #   is not currently possible: https://github.com/jump-dev/JuMP.jl/issues/2355.
+    #   As of today (5/12/21), JuMP is behind on its support for nonlinear systems.
+
+    #NOTE: some ideas to extract information from pers_func_str
+    #Find the locations of all of the model variables in pers_func_str:
+    #   model_refs_loc = findall(r"m\[:(.*?)\]",pers_func_str)
+    #Get a unique list of model variables in pers_func_str:
+    #   model_refs = unique([pers_func_str[loc] for loc in model_refs_loc])
+    #Get the VariableRef for each of these variables and store in a Dict:
+    #   model_refs_dict = Dict(model_ref => variable_by_name(m, string(split(split("$model_ref",":")[2],"]")[1]))
+    #                          for model_ref in model_refs)
 end
 
-function lin_perspective_function(ref, bin_var_ref, var, i)
+function lin_perspective_function(ref, bin_var_ref, i, j, k)
     #check constraint type
     ref_obj = constraint_object(ref)
     @assert ref_obj.set isa MOI.LessThan || ref_obj.set isa MOI.GreaterThan || ref_obj.set isa MOI.EqualTo "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
-    #check var is present in the constraint
-    coeff = normalized_coefficient(ref,var)
-    iszero(coeff) && return
-    #modify constraint using convex hull
-    rhs = normalized_rhs(ref) #get rhs
-    var_i_ref = variable_by_name(ref.model, "$(var)_$i")
-    set_normalized_rhs(ref,0) #set rhs to 0
-    set_normalized_coefficient(ref, var, 0) #remove original variable
-    set_normalized_coefficient(ref, var_i_ref, coeff) #add disaggregated variable
-    set_normalized_coefficient(ref, bin_var_ref, -rhs) #add binary variable
+    for var in ref.model[:original_model_variables]
+        #check var is present in the constraint
+        coeff = normalized_coefficient(ref,var)
+        iszero(coeff) && continue
+        #modify constraint using convex hull
+        rhs = normalized_rhs(ref) #get rhs
+        var_i_ref = variable_by_name(ref.model, "$(var)_$i")
+        set_normalized_rhs(ref,0) #set rhs to 0
+        set_normalized_coefficient(ref, var, 0) #remove original variable
+        set_normalized_coefficient(ref, var_i_ref, coeff) #add disaggregated variable
+        set_normalized_coefficient(ref, bin_var_ref, -rhs) #add binary variable
+    end
 end
 
 function add_disaggregated_constr(m, disj, vars)
