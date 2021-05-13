@@ -31,7 +31,23 @@ function init_reformulation(m, constr, bin_var, reformulation, M, eps, i, j = mi
         else
             error("Invalid M parameter provided for disjunct $i.")
         end
+    elseif reformulation == :CHR
+        if eps isa Number || ismissing(eps)
+            eps = eps
+        elseif eps isa Vector || eps isa Tuple
+            if eps[i] isa Number
+                eps = eps[i]
+            elseif eps[i] isa Vector || eps[i] isa Tuple
+                @assert j <= length(eps[i]) "If constraint specific eps values are provided, a value must be provided for each constraint in disjunct $i."
+                eps = eps[i][j]
+            else
+                error("Invalid eps parameter provided for disjunct $i.")
+            end
+        else
+            error("Invalid eps parameter provided for disjunct $i.")
+        end
     end
+    
     if constr isa ConstraintRef
         eval(:($reformulation($m, $constr, $bin_var, $i, $j; M = $M, eps = $eps)))
     elseif typeof(constr) <: Array
