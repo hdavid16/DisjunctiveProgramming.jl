@@ -107,14 +107,14 @@ end
 function CHR(m, constr, bin_var, i, j, k = missing; M = missing)
     if ismissing(k)
         if constr isa NonlinearConstraintRef #NOTE: CAN'T CHECK IF NL CONSTR IS VALID
-            # @assert constr in keys(m.obj_dict) "$constr is not a named reference in the model."
+            # @assert constr in keys(object_dictionary(m)) "$constr is not a named reference in the model."
         elseif constr isa ConstraintRef
             @assert is_valid(m,constr) "$constr is not a valid constraint in the model."
         end
         ref = constr
     else
         if constr isa NonlinearConstraintRef #NOTE: CAN'T CHECK IF NL CONSTR IS VALID
-            # @assert constr in keys(m.obj_dict) "$constr is not a named reference in the model."
+            # @assert constr in keys(object_dictionary(m)) "$constr is not a named reference in the model."
         elseif constr isa ConstraintRef
             @assert is_valid(m,constr[k...]) "$constr is not a valid constraint in the model."
         end
@@ -129,7 +129,7 @@ function CHR(m, constr, bin_var, i, j, k = missing; M = missing)
         LB = lower_bound(var)
         #create disaggregated variable
         var_i = Symbol("$(var)_$i")
-        if !(var_i in keys(m.obj_dict))
+        if !(var_i in keys(object_dictionary(m)))
             eval(:(@variable($m, $LB <= $var_i <= $UB)))
             eval(:(@constraint($m, $LB * $bin_var_ref <= $var_i)))
             eval(:(@constraint($m, $var_i <= $UB * $bin_var_ref)))
@@ -145,74 +145,74 @@ end
 
 function nl_perspective_function(ref, bin_var_ref, i, j, k)
     #extract info
-    ref_str = string(ref)
     m = ref.model
     disj_name = replace("$(bin_var_ref)", "_binary" => "")
     vars = m[:original_model_variables]
+    j = ismissing(j) ? "" : j
+    k = ismissing(k) ? "" : k
 
-    #get function and operator for NLconstraint
+    #check function has a single comparrison operator (<=, >=, ==)
+    ref_str = string(ref)
     @assert length(findall(r"[<>]", ref_str)) <= 1 "$ref must be one of the following: GreaterThan, LessThan, or EqualTo."
-    ref_func = split(ref_str, r"[=<>]")[1]
-    ref_op = occursin(">=", ref_str) ? ">=" : (occursin("<=", ref_str) ? "<=" : "==")
 
     #create and fix epsilon variable for the perspective function (Furman and Sawaya formulation)
-    eps = Symbol("$(disj_name)_eps")
+    eps = Symbol("ϵ_$(disj_name)_$(j)_$(k)") #make eps specific to the constraint so that it can be changed by the user
     eval(:(@variable($m, $eps)))
     fix(variable_by_name(m, "$eps"), 1e-6) #fix epsilon to default value of 1e-6
 
     #create symbolic variables (using Symbolics.jl v0.1.25)
-    sym_vars1, sym_vars2 = [],[]
+    sym_vars = []
     for var in vars
-        var_sym1 = Symbol(var)
-        var_sym2 = Symbol("m[:$var]")
-        push!(sym_vars1, eval(:(Symbolics.@variables($var_sym1)))[1])
-        push!(sym_vars2, eval(:(Symbolics.@variables($var_sym2)))[1])
+        var_sym = Symbol(var)
+        push!(sym_vars, eval(:(Symbolics.@variables($var_sym)))[1])
     end
-    ϵ = Num(Symbolics.Sym{Float64}(Symbol("m[:$eps]")))
-    λ = Num(Symbolics.Sym{Float64}(Symbol("m[:$bin_var_ref]")))
-    furman_sawaya = Num(Symbolics.Sym{Float64}(gensym()))
+    ϵ = Num(Symbolics.Sym{Float64}(eps))
+    λ = Num(Symbolics.Sym{Float64}(Symbol(bin_var_ref)))
+    furman_sawaya1 = Num(Symbolics.Sym{Float64}(gensym())) #this will become: [(1-ϵ)⋅λ + ϵ] (See Furman Sawaya Grossmann perspecive function)
+    furman_sawaya2 = Num(Symbolics.Sym{Float64}(gensym())) #this will become: ϵ⋅(1-λ) (See Furman Sawaya Grossmann perspecive function)
 
-    #convert ref_func into a symbolic expression
-    ref_sym = eval(Meta.parse(ref_func))
+    #convert ref_str into an Expr and extract comparrison operator (<=, >=, ==),
+    #constraint function, and RHS
+    ref_sym = Meta.parse(ref_str)
+    ref_expr = ref_sym.args
+    op = eval(ref_expr[1]) #comparrison operator
+    rhs = ref_expr[3] #RHS of constraint
+    gx = eval(ref_expr[2]) #convert the LHS of the constraint into a Symbolic function
 
     #use symbolic substitution to obtain the following expression:
-    # [(1-ϵ)⋅λ + ϵ]⋅g(v/[(1-ϵ)⋅λ + ϵ]) - ϵ⋅g(0)⋅(1-λ) <= 0
-    g = furman_sawaya*substitute(ref_sym, Dict(var1 => var2/furman_sawaya for (var1,var2) in zip(sym_vars1, sym_vars2)))
-    g0 = ϵ*(1-λ)*substitute(ref_sym, Dict(var => 0 for var in sym_vars1))
-    pers_func = simplify(g - g0, expand = true) #perform symbolic simplifications
-    pers_func = substitute(pers_func, Dict(furman_sawaya => (1-ϵ)*λ+ϵ))
+    #[(1-ϵ)⋅λ + ϵ]⋅g(v/[(1-ϵ)⋅λ + ϵ]) - ϵ⋅g(0)⋅(1-λ) <= 0
+    #first term
+    g1 = furman_sawaya1*substitute(gx, Dict(var => var/furman_sawaya1 for var in sym_vars))
+    #second term
+    g2 = furman_sawaya2*substitute(gx, Dict(var => 0 for var in sym_vars))
+    #create perspective function and simplify
+    pers_func = simplify(g1 - g2, expand = true)
+    #replace furman_sawaya expressions & simplify
+    pers_func = substitute(pers_func, Dict(furman_sawaya1 => (1-ϵ)*λ+ϵ,
+                                           furman_sawaya2 => ϵ*(1-λ)))
     pers_func = simplify(pers_func)
 
-    #convert symbolic expression of the perspective funciton to a string and remove unnecessary strings
-    pers_func_str = string(pers_func, ref_op, 0)
-    pers_func_str = replace(pers_func_str, "var\"" => "") #remove prefix to symbols starting with m[: (for the JuMP variables)
-    pers_func_str = replace(pers_func_str, "]\"" => "]") #remove sufix to symbols ending with ] (for the JuMP variables)
+    #convert pers_func to Expr
+    #use build_function from Symbolics.jl to convert pers_func into an Expr
+    #where any operators (i.e. exp, *, <=) are replaced by the actual
+    #operator (not the symbol).
+    #This is done to later replace the symbolic variables with JuMP variables,
+    #without messing with the math operators.
+    pers_func_expr = Base.remove_linenums!(build_function(op(pers_func,rhs))).args[2].args[1]
 
-    #create name for perspective function constraint
-    j = ismissing(j) ? "" : j
-    k = ismissing(k) ? "" : k
-    pers_func_name = Symbol("perspective_func_$(disj_name)_$(j)_$k")
-
-    #NOTE: the new NLconstraint needs to be defined by the expression in pers_func_str.
-    #This has been attempted by running the following:
-    # pers_func_sym = Meta.parse(pers_func_str)
-    # eval(:(@NLconstraint($m,$pers_func_name,$pers_func_sym)))
-    #However, this effor has been unsuccessful due to the variable scope (hygene).
-    #An expression needs to be created for $pers_func_sym which uses interpolation
-    #   (i.e., $VariableRef) for each of the variables in sym_vars, ϵ, λ
+    #replace symbolic variables by their JuMP variables
+    replace_JuMPvars!(pers_func_expr, m)
+    #replace the math operators by symbols
+    replace_operators!(pers_func_expr)
+    #add the constraint
+    add_NL_constraint(m, pers_func_expr)
 
     #NOTE: the NLconstraint defined by `ref` needs to be deleted. However, this
     #   is not currently possible: https://github.com/jump-dev/JuMP.jl/issues/2355.
     #   As of today (5/12/21), JuMP is behind on its support for nonlinear systems.
 
-    #NOTE: some ideas to extract information from pers_func_str
-    #Find the locations of all of the model variables in pers_func_str:
-    #   model_refs_loc = findall(r"m\[:(.*?)\]",pers_func_str)
-    #Get a unique list of model variables in pers_func_str:
-    #   model_refs = unique([pers_func_str[loc] for loc in model_refs_loc])
-    #Get the VariableRef for each of these variables and store in a Dict:
-    #   model_refs_dict = Dict(model_ref => variable_by_name(m, string(split(split("$model_ref",":")[2],"]")[1]))
-    #                          for model_ref in model_refs)
+    #NOTE: the new NLconstraint cannot be assigned a name (not an option in add_NL_constraint)
+    # pers_func_name = Symbol("perspective_func_$(disj_name)_$(j)_$(k)")
 end
 
 function lin_perspective_function(ref, bin_var_ref, i, j, k)
@@ -233,12 +233,34 @@ function lin_perspective_function(ref, bin_var_ref, i, j, k)
     end
 end
 
+function replace_JuMPvars!(expr, model)
+    if expr isa Symbol
+        return model[expr]
+    elseif expr isa Expr
+        for i in eachindex(expr.args)
+            expr.args[i] = replace_JuMPvars!(expr.args[i], model)
+        end
+    end
+    expr
+end
+
+function replace_operators!(expr)
+    if expr isa Expr
+        for i in eachindex(expr.args)
+            expr.args[i] = replace_operators!(expr.args[i])
+        end
+    elseif !isa(expr, Symbol) && !isa(expr, Number) && !isa(expr, VariableRef)
+        return Symbol(expr)
+    end
+    expr
+end
+
 function add_disaggregated_constr(m, disj, vars)
     for var in vars
         d_vars = []
         for i in 1:length(disj)
             var_i = Symbol("$(var)_$i")
-            var_i in keys(m.obj_dict) && push!(d_vars, m[var_i])
+            var_i in keys(object_dictionary(m)) && push!(d_vars, m[var_i])
         end
         !isempty(d_vars) && eval(:(@constraint($m, $var == sum($d_vars))))
     end
