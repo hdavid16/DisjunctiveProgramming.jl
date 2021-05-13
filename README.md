@@ -12,6 +12,8 @@ Pkg.add("https://github.com/hdavid16/DisjunctiveProgramming.jl")
 
 Disjunctions can be applied to standard JuMP models with constraints of that are either `GreaterThan`, `LessThan`, or `EqualTo`. Reformulations on constraints that are `Interval` are not supported. The disjunctions can be reformulated via the Big-M method or the Convex Hull as described [here](https://optimization.mccormick.northwestern.edu/index.php/Disjunctive_inequalities). The user may provide an `M` object that represents the BigM value(s). The `M` object can be a `Number` that is applied to all constraints in the disjuncts, or a `Vector`/`Tuple` of values that are used for each of the disjuncts.
 
+For the Convex Hull Reformulation, the perspective function proposed in [Furman, et al. [2020]](https://link.springer.com/article/10.1007/s10589-020-00176-0) is used.
+
 ## Example
 
 The example before is from the [Northwestern University Process Optimization Open Textbook](https://optimization.mccormick.northwestern.edu/index.php/Disjunctive_inequalities).
