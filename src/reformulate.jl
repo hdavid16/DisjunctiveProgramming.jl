@@ -143,20 +143,39 @@ function CHR(m, constr, bin_var, i, j, k = missing; M = missing)
     end
 end
 
+function lin_perspective_function(ref, bin_var_ref, i, j, k)
+    #check constraint type
+    ref_obj = constraint_object(ref)
+    @assert ref_obj.set isa MOI.LessThan || ref_obj.set isa MOI.GreaterThan || ref_obj.set isa MOI.EqualTo "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
+    for var in ref.model[:original_model_variables]
+        #check var is present in the constraint
+        coeff = normalized_coefficient(ref,var)
+        iszero(coeff) && continue
+        #modify constraint using convex hull
+        rhs = normalized_rhs(ref) #get rhs
+        var_i_ref = variable_by_name(ref.model, "$(var)_$i")
+        set_normalized_rhs(ref,0) #set rhs to 0
+        set_normalized_coefficient(ref, var, 0) #remove original variable
+        set_normalized_coefficient(ref, var_i_ref, coeff) #add disaggregated variable
+        set_normalized_coefficient(ref, bin_var_ref, -rhs) #add binary variable
+    end
+end
+
 function nl_perspective_function(ref, bin_var_ref, i, j, k)
     #extract info
     m = ref.model
     disj_name = replace("$(bin_var_ref)", "_binary" => "")
     vars = m[:original_model_variables]
-    j = ismissing(j) ? "" : j
-    k = ismissing(k) ? "" : k
+    j = ismissing(j) ? "" : "_$j"
+    k = ismissing(k) ? "" : "_$k"
 
     #check function has a single comparrison operator (<=, >=, ==)
     ref_str = string(ref)
     @assert length(findall(r"[<>]", ref_str)) <= 1 "$ref must be one of the following: GreaterThan, LessThan, or EqualTo."
 
-    #create and fix epsilon variable for the perspective function (Furman and Sawaya formulation)
-    eps = Symbol("ϵ_$(disj_name)_$(j)_$(k)") #make eps specific to the constraint so that it can be changed by the user
+    #create and fix epsilon variable for the perspective function (Furman, Sawaya, Grossmann [2020])
+    eps = Symbol("ϵ_$(disj_name)$(j)$(k)") #make eps specific to the constraint so that it can be changed by the user
+    # eval(:(@NLparameter($m, $eps == 1e-6))) #eps is a NLparameter, its value (1e-6 by default) can be modified with set_value
     eval(:(@variable($m, $eps)))
     fix(variable_by_name(m, "$eps"), 1e-6) #fix epsilon to default value of 1e-6
 
@@ -168,8 +187,8 @@ function nl_perspective_function(ref, bin_var_ref, i, j, k)
     end
     ϵ = Num(Symbolics.Sym{Float64}(eps))
     λ = Num(Symbolics.Sym{Float64}(Symbol(bin_var_ref)))
-    furman_sawaya1 = Num(Symbolics.Sym{Float64}(gensym())) #this will become: [(1-ϵ)⋅λ + ϵ] (See Furman Sawaya Grossmann perspecive function)
-    furman_sawaya2 = Num(Symbolics.Sym{Float64}(gensym())) #this will become: ϵ⋅(1-λ) (See Furman Sawaya Grossmann perspecive function)
+    FSG1 = Num(Symbolics.Sym{Float64}(gensym())) #this will become: [(1-ϵ)⋅λ + ϵ] (See Furman, Sawaya, Grossmann [2020] perspecive function)
+    FSG2 = Num(Symbolics.Sym{Float64}(gensym())) #this will become: ϵ⋅(1-λ) (See Furman, Sawaya, Grossmann [2020] perspecive function)
 
     #convert ref_str into an Expr and extract comparrison operator (<=, >=, ==),
     #constraint function, and RHS
@@ -182,14 +201,14 @@ function nl_perspective_function(ref, bin_var_ref, i, j, k)
     #use symbolic substitution to obtain the following expression:
     #[(1-ϵ)⋅λ + ϵ]⋅g(v/[(1-ϵ)⋅λ + ϵ]) - ϵ⋅g(0)⋅(1-λ) <= 0
     #first term
-    g1 = furman_sawaya1*substitute(gx, Dict(var => var/furman_sawaya1 for var in sym_vars))
+    g1 = FSG1*substitute(gx, Dict(var => var/FSG1 for var in sym_vars))
     #second term
-    g2 = furman_sawaya2*substitute(gx, Dict(var => 0 for var in sym_vars))
+    g2 = FSG2*substitute(gx, Dict(var => 0 for var in sym_vars))
     #create perspective function and simplify
     pers_func = simplify(g1 - g2, expand = true)
-    #replace furman_sawaya expressions & simplify
-    pers_func = substitute(pers_func, Dict(furman_sawaya1 => (1-ϵ)*λ+ϵ,
-                                           furman_sawaya2 => ϵ*(1-λ)))
+    #replace FSG expressions & simplify
+    pers_func = substitute(pers_func, Dict(FSG1 => (1-ϵ)*λ+ϵ,
+                                           FSG2 => ϵ*(1-λ)))
     pers_func = simplify(pers_func)
 
     #convert pers_func to Expr
@@ -212,30 +231,12 @@ function nl_perspective_function(ref, bin_var_ref, i, j, k)
     #   As of today (5/12/21), JuMP is behind on its support for nonlinear systems.
 
     #NOTE: the new NLconstraint cannot be assigned a name (not an option in add_NL_constraint)
-    # pers_func_name = Symbol("perspective_func_$(disj_name)_$(j)_$(k)")
-end
-
-function lin_perspective_function(ref, bin_var_ref, i, j, k)
-    #check constraint type
-    ref_obj = constraint_object(ref)
-    @assert ref_obj.set isa MOI.LessThan || ref_obj.set isa MOI.GreaterThan || ref_obj.set isa MOI.EqualTo "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
-    for var in ref.model[:original_model_variables]
-        #check var is present in the constraint
-        coeff = normalized_coefficient(ref,var)
-        iszero(coeff) && continue
-        #modify constraint using convex hull
-        rhs = normalized_rhs(ref) #get rhs
-        var_i_ref = variable_by_name(ref.model, "$(var)_$i")
-        set_normalized_rhs(ref,0) #set rhs to 0
-        set_normalized_coefficient(ref, var, 0) #remove original variable
-        set_normalized_coefficient(ref, var_i_ref, coeff) #add disaggregated variable
-        set_normalized_coefficient(ref, bin_var_ref, -rhs) #add binary variable
-    end
+    # pers_func_name = Symbol("perspective_func_$(disj_name)$(j)$(k)")
 end
 
 function replace_JuMPvars!(expr, model)
     if expr isa Symbol
-        return model[expr]
+        return variable_by_name(model, string(expr))
     elseif expr isa Expr
         for i in eachindex(expr.args)
             expr.args[i] = replace_JuMPvars!(expr.args[i], model)
