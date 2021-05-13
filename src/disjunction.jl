@@ -1,4 +1,4 @@
-function add_disjunction(m::Model,disj...;reformulation=:BMR,M=missing)
+function add_disjunction(m::Model,disj...;reformulation=:BMR,M=missing,eps=1e-6)
     @assert m isa Model "A valid JuMP Model must be provided."
     @assert reformulation in [:BMR, :CHR] "Invalid reformulation method passed to keyword argument `:reformulation`. Valid options are :BMR (Big-M Reformulation) and :CHR (Convex-Hull Reormulation)."
 
@@ -8,5 +8,5 @@ function add_disjunction(m::Model,disj...;reformulation=:BMR,M=missing)
     #enforce exclussive OR
     eval(:(@constraint($m,sum($bin_var[i] for i = 1:length($disj)) == 1)))
     #apply reformulation
-    reformulate(m, disj, bin_var, reformulation, M)
+    reformulate(m, disj, bin_var, reformulation, M, eps)
 end

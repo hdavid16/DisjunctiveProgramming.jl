@@ -14,6 +14,12 @@ macro disjunction(args...)
     else
         M = :(missing)
     end
+    eps = filter(i -> i.args[1] == :eps, kw_args)
+    if !isempty(eps)
+        eps = esc(eps[1].args[2])
+    else
+        eps = :(1e-6)
+    end
 
-    :(add_disjunction($m,$(disj...), reformulation = $reformulation, M = $M))
+    :(add_disjunction($m,$(disj...), reformulation = $reformulation, M = $M, eps = $eps))
 end

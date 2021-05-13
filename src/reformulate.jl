@@ -1,13 +1,13 @@
-function reformulate(m, disj, bin_var, reformulation, M)
+function reformulate(m, disj, bin_var, reformulation, M, eps)
     vars = setdiff(all_variables(m), m[bin_var])
     @expression(m, original_model_variables, vars)
     for (i,constr) in enumerate(disj)
         if constr isa Vector || constr isa Tuple
             for (j,constr_j) in enumerate(constr)
-                init_reformulation(m, constr_j, bin_var, reformulation, M, i, j)
+                init_reformulation(m, constr_j, bin_var, reformulation, M, eps, i, j)
             end
         elseif constr isa ConstraintRef || typeof(constr) <: Array || constr isa JuMP.Containers.DenseAxisArray
-            init_reformulation(m, constr, bin_var, reformulation, M, i)
+            init_reformulation(m, constr, bin_var, reformulation, M, eps, i)
         end
     end
     if reformulation == :CHR
@@ -15,7 +15,7 @@ function reformulate(m, disj, bin_var, reformulation, M)
     end
 end
 
-function init_reformulation(m, constr, bin_var, reformulation, M, i, j = missing)
+function init_reformulation(m, constr, bin_var, reformulation, M, eps, i, j = missing)
     if reformulation == :BMR
         if M isa Number || ismissing(M)
             M = M
@@ -33,19 +33,19 @@ function init_reformulation(m, constr, bin_var, reformulation, M, i, j = missing
         end
     end
     if constr isa ConstraintRef
-        eval(:($reformulation($m, $constr, $bin_var, $i, $j; M = $M)))
+        eval(:($reformulation($m, $constr, $bin_var, $i, $j; M = $M, eps = $eps)))
     elseif typeof(constr) <: Array
         for k in Iterators.product([1:s for s in size(constr)]...)
-            eval(:($reformulation($m, $constr, $bin_var, $i, $j, $k; M = $M)))
+            eval(:($reformulation($m, $constr, $bin_var, $i, $j, $k; M = $M, eps = $eps)))
         end
     elseif constr isa JuMP.Containers.DenseAxisArray
         for k in Iterators.product([s for s in constr.axes]...)
-            eval(:($reformulation($m, $constr, $M, $bin_var, $i, $j, $k; M = $M)))
+            eval(:($reformulation($m, $constr, $M, $bin_var, $i, $j, $k; M = $M, eps = $eps)))
         end
     end
 end
 
-function BMR(m, constr, bin_var, i, j, k = missing; M)
+function BMR(m, constr, bin_var, i, j, k = missing; M, eps)
     if ismissing(k)
         @assert is_valid(m,constr) "$constr is not a valid constraint in the model."
         ref = constr
@@ -104,7 +104,7 @@ function apply_interval_arithmetic(ref)
     end
 end
 
-function CHR(m, constr, bin_var, i, j, k = missing; M = missing)
+function CHR(m, constr, bin_var, i, j, k = missing; M = missing, eps)
     if ismissing(k)
         if constr isa NonlinearConstraintRef #NOTE: CAN'T CHECK IF NL CONSTR IS VALID
             # @assert constr in keys(object_dictionary(m)) "$constr is not a named reference in the model."
@@ -137,13 +137,13 @@ function CHR(m, constr, bin_var, i, j, k = missing; M = missing)
     end
     #create convex hull constraint
     if ref isa NonlinearConstraintRef
-        nl_perspective_function(ref, bin_var_ref, i, j, k)
+        nl_perspective_function(ref, bin_var_ref, i, j, k, eps)
     elseif ref isa ConstraintRef
-        lin_perspective_function(ref, bin_var_ref, i, j, k)
+        lin_perspective_function(ref, bin_var_ref, i, j, k, eps)
     end
 end
 
-function lin_perspective_function(ref, bin_var_ref, i, j, k)
+function lin_perspective_function(ref, bin_var_ref, i, j, k, eps)
     #check constraint type
     ref_obj = constraint_object(ref)
     @assert ref_obj.set isa MOI.LessThan || ref_obj.set isa MOI.GreaterThan || ref_obj.set isa MOI.EqualTo "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
@@ -161,7 +161,7 @@ function lin_perspective_function(ref, bin_var_ref, i, j, k)
     end
 end
 
-function nl_perspective_function(ref, bin_var_ref, i, j, k)
+function nl_perspective_function(ref, bin_var_ref, i, j, k, eps)
     #extract info
     m = ref.model
     disj_name = replace("$(bin_var_ref)", "_binary" => "")
@@ -173,19 +173,13 @@ function nl_perspective_function(ref, bin_var_ref, i, j, k)
     ref_str = string(ref)
     @assert length(findall(r"[<>]", ref_str)) <= 1 "$ref must be one of the following: GreaterThan, LessThan, or EqualTo."
 
-    #create and fix epsilon variable for the perspective function (Furman, Sawaya, Grossmann [2020])
-    eps = Symbol("ϵ_$(disj_name)$(j)$(k)") #make eps specific to the constraint so that it can be changed by the user
-    # eval(:(@NLparameter($m, $eps == 1e-6))) #eps is a NLparameter, its value (1e-6 by default) can be modified with set_value
-    eval(:(@variable($m, $eps)))
-    fix(variable_by_name(m, "$eps"), 1e-6) #fix epsilon to default value of 1e-6
-
     #create symbolic variables (using Symbolics.jl v0.1.25)
     sym_vars = []
     for var in vars
         var_sym = Symbol(var)
         push!(sym_vars, eval(:(Symbolics.@variables($var_sym)))[1])
     end
-    ϵ = Num(Symbolics.Sym{Float64}(eps))
+    ϵ = eps #epsilon parameter for perspective function (See Furman, Sawaya, Grossmann [2020] perspecive function)
     λ = Num(Symbolics.Sym{Float64}(Symbol(bin_var_ref)))
     FSG1 = Num(Symbolics.Sym{Float64}(gensym())) #this will become: [(1-ϵ)⋅λ + ϵ] (See Furman, Sawaya, Grossmann [2020] perspecive function)
     FSG2 = Num(Symbolics.Sym{Float64}(gensym())) #this will become: ϵ⋅(1-λ) (See Furman, Sawaya, Grossmann [2020] perspecive function)
