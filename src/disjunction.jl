@@ -8,5 +8,9 @@ function add_disjunction(m::Model,disj...;reformulation=:BMR,M=missing,eps=1e-6)
     #enforce exclussive OR
     eval(:(@constraint($m,sum($bin_var[i] for i = 1:length($disj)) == 1)))
     #apply reformulation
-    reformulate(m, disj, bin_var, reformulation, M, eps)
+    if reformulation == :BMR
+        reformulate(m, disj, bin_var, reformulation, M)
+    elseif reformulation == :CHR
+        reformulate(m, disj, bin_var, reformulation, eps)
+    end
 end

@@ -1,13 +1,13 @@
-function reformulate(m, disj, bin_var, reformulation, M, eps)
+function reformulate(m, disj, bin_var, reformulation, param)
     vars = setdiff(all_variables(m), m[bin_var])
     @expression(m, original_model_variables, vars)
     for (i,constr) in enumerate(disj)
         if constr isa Vector || constr isa Tuple
             for (j,constr_j) in enumerate(constr)
-                init_reformulation(m, constr_j, bin_var, reformulation, M, eps, i, j)
+                init_reformulation(m, constr_j, bin_var, reformulation, param, i, j)
             end
         elseif constr isa ConstraintRef || typeof(constr) <: Array || constr isa JuMP.Containers.DenseAxisArray
-            init_reformulation(m, constr, bin_var, reformulation, M, eps, i)
+            init_reformulation(m, constr, bin_var, reformulation, param, i)
         end
     end
     if reformulation == :CHR
@@ -15,53 +15,40 @@ function reformulate(m, disj, bin_var, reformulation, M, eps)
     end
 end
 
-function init_reformulation(m, constr, bin_var, reformulation, M, eps, i, j = missing)
-    if reformulation == :BMR
-        if M isa Number || ismissing(M)
-            M = M
-        elseif M isa Vector || M isa Tuple
-            if M[i] isa Number
-                M = M[i]
-            elseif M[i] isa Vector || M[i] isa Tuple
-                @assert j <= length(M[i]) "If constraint specific M values are provided, a value must be provided for each constraint in disjunct $i."
-                M = M[i][j]
-            else
-                error("Invalid M parameter provided for disjunct $i.")
-            end
-        else
-            error("Invalid M parameter provided for disjunct $i.")
-        end
-    elseif reformulation == :CHR
-        if eps isa Number || ismissing(eps)
-            eps = eps
-        elseif eps isa Vector || eps isa Tuple
-            if eps[i] isa Number
-                eps = eps[i]
-            elseif eps[i] isa Vector || eps[i] isa Tuple
-                @assert j <= length(eps[i]) "If constraint specific eps values are provided, a value must be provided for each constraint in disjunct $i."
-                eps = eps[i][j]
-            else
-                error("Invalid eps parameter provided for disjunct $i.")
-            end
-        else
-            error("Invalid eps parameter provided for disjunct $i.")
-        end
-    end
-    
+function init_reformulation(m, constr, bin_var, reformulation, param, i, j = missing)
+    param = get_reform_param(param, i, j) #M or eps
     if constr isa ConstraintRef
-        eval(:($reformulation($m, $constr, $bin_var, $i, $j; M = $M, eps = $eps)))
+        eval(:($reformulation($m, $constr, $bin_var, $i, $j, missing, $param)))
     elseif typeof(constr) <: Array
         for k in Iterators.product([1:s for s in size(constr)]...)
-            eval(:($reformulation($m, $constr, $bin_var, $i, $j, $k; M = $M, eps = $eps)))
+            eval(:($reformulation($m, $constr, $bin_var, $i, $j, $k, $param)))
         end
     elseif constr isa JuMP.Containers.DenseAxisArray
         for k in Iterators.product([s for s in constr.axes]...)
-            eval(:($reformulation($m, $constr, $M, $bin_var, $i, $j, $k; M = $M, eps = $eps)))
+            eval(:($reformulation($m, $constr, $M, $bin_var, $i, $j, $k, $param)))
         end
     end
 end
 
-function BMR(m, constr, bin_var, i, j, k = missing; M, eps)
+function get_reform_param(param, i, j)
+    if param isa Number || ismissing(param)
+        param = param
+    elseif param isa Vector || param isa Tuple
+        if param[i] isa Number
+            param = param[i]
+        elseif param[i] isa Vector || param[i] isa Tuple
+            @assert !ismissing(j) "If constraint specific param values are provided, there must be more than one constraint in disjunct $i."
+            @assert j <= length(param[i]) "If constraint specific param values are provided, a value must be provided for each constraint in disjunct $i."
+            param = param[i][j]
+        else
+            error("Invalid param parameter provided for disjunct $i.")
+        end
+    else
+        error("Invalid param parameter provided for disjunct $i.")
+    end
+end
+
+function BMR(m, constr, bin_var, i, j, k, M)
     if ismissing(k)
         @assert is_valid(m,constr) "$constr is not a valid constraint in the model."
         ref = constr
@@ -120,7 +107,7 @@ function apply_interval_arithmetic(ref)
     end
 end
 
-function CHR(m, constr, bin_var, i, j, k = missing; M = missing, eps)
+function CHR(m, constr, bin_var, i, j, k, eps)
     if ismissing(k)
         if constr isa NonlinearConstraintRef #NOTE: CAN'T CHECK IF NL CONSTR IS VALID
             # @assert constr in keys(object_dictionary(m)) "$constr is not a named reference in the model."
