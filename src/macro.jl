@@ -9,17 +9,9 @@ macro disjunction(args...)
         throw(UndefKeywordError(:reformulation))
     end
     M = filter(i -> i.args[1] == :M, kw_args)
-    if !isempty(M)
-        M = esc(M[1].args[2])
-    else
-        M = :(missing)
-    end
+    M = !isempty(M) ? esc(M[1].args[2]) : :(missing)
     eps = filter(i -> i.args[1] == :eps, kw_args)
-    if !isempty(eps)
-        eps = esc(eps[1].args[2])
-    else
-        eps = :(1e-6)
-    end
+    eps = !isempty(eps) ? esc(eps[1].args[2]) : :(1e-6)
 
     :(add_disjunction($m,$(disj...), reformulation = $reformulation, M = $M, eps = $eps))
 end
