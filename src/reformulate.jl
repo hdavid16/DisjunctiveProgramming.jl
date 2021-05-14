@@ -128,6 +128,7 @@ function CHR(m, constr, bin_var, i, j, k, eps)
             eval(:(@variable($m, $LB <= $var_i <= $UB)))
             eval(:(@constraint($m, $LB * $bin_var_ref <= $var_i)))
             eval(:(@constraint($m, $var_i <= $UB * $bin_var_ref)))
+            is_binary(var) && set_binary(m[var_i])
         end
     end
     #create convex hull constraint
