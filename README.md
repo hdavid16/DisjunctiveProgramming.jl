@@ -16,7 +16,7 @@ For the Convex Hull Reformulation, the perspective function proposed in [Furman,
 
 ## Example
 
-The example before is from the [Northwestern University Process Optimization Open Textbook](https://optimization.mccormick.northwestern.edu/index.php/Disjunctive_inequalities).
+The example below is from the [Northwestern University Process Optimization Open Textbook](https://optimization.mccormick.northwestern.edu/index.php/Disjunctive_inequalities).
 
 To perform the Big-M reformulation, `:BMR` is passed to the `reformulation` keyword argument. If nothing is passed to the keyword argument `M`, tight Big-M values will be inferred from the variable bounds using IntervalArithmetic.jl. If `x` is not bounded, Big-M values must be provided for either the whole system (e.g., `M = 10`) or for each of the constraint arrays in the example (e.g., `M = ((10,10),(10,10))`).
 
