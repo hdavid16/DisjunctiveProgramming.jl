@@ -81,16 +81,8 @@ function apply_interval_arithmetic(ref)
     end
     vars = all_variables(ref.model) #get all variable names
     for var in vars
-        if has_upper_bound(var)
-            ub = upper_bound(var)
-        else
-            ub = Inf
-        end
-        if has_lower_bound(var)
-            lb = lower_bound(var)
-        else
-            lb = -Inf
-        end
+        ub = has_upper_bound(var) ? upper_bound(var) : (is_binary(var) ? 1 : Inf)
+        lb = has_lower_bound(var) ? lower_bound(var) : (is_binary(var) ? 0 : Inf)
         ref_func = replace(ref_func, "$var" => "($lb..$ub)")
     end
     func_bounds = eval(Meta.parse(ref_func))
@@ -126,10 +118,10 @@ function CHR(m, constr, bin_var, i, j, k, eps)
     bin_var_ref = variable_by_name(ref.model, string(bin_var[i]))
     for var in m[:original_model_variables]
         #get bounds for disaggregated variable
-        @assert has_upper_bound(var) "Variable $var does not have an upper bound."
-        @assert has_lower_bound(var) "Variable $var does not have a lower bound."
-        UB = upper_bound(var)
-        LB = lower_bound(var)
+        @assert has_upper_bound(var) || is_binary(var) "Variable $var does not have an upper bound."
+        @assert has_lower_bound(var) || is_binary(var) "Variable $var does not have a lower bound."
+        UB = is_binary(var) ? 1 : upper_bound(var)
+        LB = is_binary(var) ? 0 : lower_bound(var)
         #create disaggregated variable
         var_i = Symbol("$(var)_$i")
         if !(var_i in keys(object_dictionary(m)))

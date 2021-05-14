@@ -9,4 +9,4 @@ m = Model()
 @constraint(m, con3, x<=9)
 @constraint(m, con4, 5<=x)
 
-@disjunction(m,(con1,con2),con3,con4,reformulation=:CHR)
+s=@disjunction(m,:y,(con1,con2),con3,con4,reformulation=:BMR)
