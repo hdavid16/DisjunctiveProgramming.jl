@@ -12,17 +12,13 @@ macro disjunction(args...)
     M = !isempty(M) ? esc(M[1].args[2]) : :(missing)
     eps = filter(i -> i.args[1] == :eps, kw_args)
     eps = !isempty(eps) ? esc(eps[1].args[2]) : :(1e-6)
+    name = filter(i -> i.args[1] == :name, kw_args)
+    name = !isempty(name) ? esc(name[1].args[2]) : :(missing)
 
     #get args
     m = esc(pos_args[1])
-    disj_name = pos_args[2]
-    if disj_name isa QuoteNode
-        disj = [esc(a) for a in pos_args[3:end]]
-    elseif isa(disj_name, Symbol) || Meta.isexpr(disj_name, (:tuple,:vect))
-        disj_name = :(Symbol("disj",gensym()))
-        disj = [esc(a) for a in pos_args[2:end]]
-    end
+    disj = [esc(a) for a in pos_args[2:end]]
 
     #build disjunction
-    :(add_disjunction($m, $disj_name, $(disj...), reformulation = $reformulation, M = $M, eps = $eps))
+    :(add_disjunction($m, $(disj...), reformulation = $reformulation, M = $M, eps = $eps, name = $name))
 end
