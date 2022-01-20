@@ -88,7 +88,6 @@ function apply_interval_arithmetic(ref)
     func_bounds = eval(Meta.parse(ref_func))
     if ref_type == :lower
         M = func_bounds.lo - ref_rhs
-
     else
         M = func_bounds.hi - ref_rhs
     end
