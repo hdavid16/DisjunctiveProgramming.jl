@@ -89,7 +89,7 @@ function apply_interval_arithmetic(ref)
         lb = has_lower_bound(var) ? lower_bound(var) : (is_binary(var) ? 0 : Inf)
         interval_map[string(var)] = lb..ub
     end
-    replace_vars!(ref_func_expr, interval_map)
+    ref_func_expr = replace_vars!(ref_func_expr, interval_map)
     #get bounds on the entire expression
     func_bounds = eval(ref_func_expr)
     if ref_type == :lower
