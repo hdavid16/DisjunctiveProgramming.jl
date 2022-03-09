@@ -5,6 +5,9 @@ macro disjunction(args...)
     reformulation = filter(i -> i.args[1] == :reformulation, kw_args)
     if !isempty(reformulation)
         reformulation = reformulation[1].args[2]
+        if length(pos_args[2:end]) < 2
+            throw(DomainError(args, "At least 2 constraints expected"))
+        end
     else
         throw(UndefKeywordError(:reformulation))
     end
@@ -18,7 +21,7 @@ macro disjunction(args...)
     #get args
     m = esc(pos_args[1])
     disj = [esc(a) for a in pos_args[2:end]]
-
+    
     #build disjunction
     :(add_disjunction($m, $(disj...), reformulation = $reformulation, M = $M, eps = $eps, name = $name))
 end

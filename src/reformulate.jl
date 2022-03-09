@@ -212,19 +212,20 @@ function nl_perspective_function(ref, bin_var_ref, i, j, k, eps)
     #operator (not the symbol).
     #This is done to later replace the symbolic variables with JuMP variables,
     #without messing with the math operators.
-    pers_func_expr = Base.remove_linenums!(build_function(op(pers_func,rhs))).args[2].args[1]
+    pers_func_expr = Base.remove_linenums!(build_function(pers_func)).args[2].args[1]
 
     #replace symbolic variables by their JuMP variables
     replace_JuMPvars!(pers_func_expr, m)
     #replace the math operators by symbols
     replace_operators!(pers_func_expr)
-    #add the constraint
-    add_NL_constraint(m, pers_func_expr)
-
-    #NOTE: the NLconstraint defined by `ref` needs to be deleted. However, this
-    #   is not currently possible: https://github.com/jump-dev/JuMP.jl/issues/2355.
-    #   As of today (5/12/21), JuMP is behind on its support for nonlinear systems.
-
+    # determine bounds of original constraint 
+    upper_b = (op == >=) ? Inf : rhs
+    lower_b = (op == <=) ? -Inf : rhs
+    # replace NL constraint currently in the model with the reformulated one
+    new = JuMP._NonlinearConstraint(JuMP._NonlinearExprData(m, pers_func_expr), 
+        lower_b, upper_b)
+    m.nlp_data.nlconstr[ref.index.value] = new
+    
     #NOTE: the new NLconstraint cannot be assigned a name (not an option in add_NL_constraint)
     # pers_func_name = Symbol("perspective_func_$(disj_name)$(j)$(k)")
 end
