@@ -60,9 +60,13 @@ function BMR(m, constr, bin_var, i, j, k, M)
         M = apply_interval_arithmetic(ref)
         @warn "No M value passed for $ref. M = $M was inferred from the variable bounds."
     end
-    add_to_function_constant(ref, -M)
-    bin_var_ref = variable_by_name(ref.model, string(bin_var[i]))
-    set_normalized_coefficient(ref, bin_var_ref , M)
+    if ref isa NonlinearConstraintRef
+        #Add code for Issue #20
+    else
+        add_to_function_constant(ref, -M)
+        bin_var_ref = variable_by_name(ref.model, string(bin_var[i]))
+        set_normalized_coefficient(ref, bin_var_ref , M)
+    end
 end
 
 function apply_interval_arithmetic(ref)
@@ -190,6 +194,7 @@ function nl_perspective_function(ref, bin_var_ref, i, j, k, eps)
     ref_sym = Meta.parse(ref_str)
     ref_expr = ref_sym.args
     op = eval(ref_expr[1]) #comparrison operator
+    @assert op in [>=, <=, ==] "An invalid operator is used in the constraint expression."
     rhs = ref_expr[3] #RHS of constraint
     gx = eval(ref_expr[2]) #convert the LHS of the constraint into a Symbolic function
 
@@ -218,13 +223,11 @@ function nl_perspective_function(ref, bin_var_ref, i, j, k, eps)
     replace_JuMPvars!(pers_func_expr, m)
     #replace the math operators by symbols
     replace_operators!(pers_func_expr)
-    # determine bounds of original constraint 
+    # determine bounds of original constraint (note: if op is ==, both bounds are set to rhs)
     upper_b = (op == >=) ? Inf : rhs
     lower_b = (op == <=) ? -Inf : rhs
     # replace NL constraint currently in the model with the reformulated one
-    new = JuMP._NonlinearConstraint(JuMP._NonlinearExprData(m, pers_func_expr), 
-        lower_b, upper_b)
-    m.nlp_data.nlconstr[ref.index.value] = new
+    m.nlp_data.nlconstr[ref.index.value] = JuMP._NonlinearConstraint(JuMP._NonlinearExprData(m, pers_func_expr), lower_b, upper_b)
     
     #NOTE: the new NLconstraint cannot be assigned a name (not an option in add_NL_constraint)
     # pers_func_name = Symbol("perspective_func_$(disj_name)$(j)$(k)")
