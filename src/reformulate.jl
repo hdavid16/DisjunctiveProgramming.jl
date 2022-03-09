@@ -66,6 +66,7 @@ function BMR(m, constr, bin_var, i, j, k, M)
 end
 
 function apply_interval_arithmetic(ref)
+    #convert constraints into Expr to replace variables with interval sets and determine bounds
     if ref isa NonlinearConstraintRef
         ref_str = string(ref)
         @assert length(findall(r"[<>]", ref_str)) <= 1 "$ref must be one of the following: GreaterThan, LessThan, or EqualTo."
@@ -79,16 +80,20 @@ function apply_interval_arithmetic(ref)
         ref_type = fieldnames(typeof(ref_obj.set))[1]
         ref_rhs = normalized_rhs(ref)
     end
+    ref_func_expr = Meta.parse(ref_func)
+    #create a map of variables to their bounds
+    interval_map = Dict()
     vars = all_variables(ref.model) #get all variable names
     for var in vars
         ub = has_upper_bound(var) ? upper_bound(var) : (is_binary(var) ? 1 : Inf)
         lb = has_lower_bound(var) ? lower_bound(var) : (is_binary(var) ? 0 : Inf)
-        ref_func = replace(ref_func, "$var" => "($lb..$ub)")
+        interval_map[string(var)] = lb..ub
     end
-    func_bounds = eval(Meta.parse(ref_func))
+    ref_func_expr = replace_vars!(ref_func_expr, interval_map)
+    #get bounds on the entire expression
+    func_bounds = eval(ref_func_expr)
     if ref_type == :lower
         M = func_bounds.lo - ref_rhs
-
     else
         M = func_bounds.hi - ref_rhs
     end
@@ -207,27 +212,28 @@ function nl_perspective_function(ref, bin_var_ref, i, j, k, eps)
     #operator (not the symbol).
     #This is done to later replace the symbolic variables with JuMP variables,
     #without messing with the math operators.
-    pers_func_expr = Base.remove_linenums!(build_function(op(pers_func,rhs))).args[2].args[1]
+    pers_func_expr = Base.remove_linenums!(build_function(pers_func)).args[2].args[1]
 
     #replace symbolic variables by their JuMP variables
     replace_JuMPvars!(pers_func_expr, m)
     #replace the math operators by symbols
     replace_operators!(pers_func_expr)
-    #add the constraint
-    add_NL_constraint(m, pers_func_expr)
-
-    #NOTE: the NLconstraint defined by `ref` needs to be deleted. However, this
-    #   is not currently possible: https://github.com/jump-dev/JuMP.jl/issues/2355.
-    #   As of today (5/12/21), JuMP is behind on its support for nonlinear systems.
-
+    # determine bounds of original constraint 
+    upper_b = (op == >=) ? Inf : rhs
+    lower_b = (op == <=) ? -Inf : rhs
+    # replace NL constraint currently in the model with the reformulated one
+    new = JuMP._NonlinearConstraint(JuMP._NonlinearExprData(m, pers_func_expr), 
+        lower_b, upper_b)
+    m.nlp_data.nlconstr[ref.index.value] = new
+    
     #NOTE: the new NLconstraint cannot be assigned a name (not an option in add_NL_constraint)
     # pers_func_name = Symbol("perspective_func_$(disj_name)$(j)$(k)")
 end
 
 function replace_JuMPvars!(expr, model)
-    if expr isa Symbol
+    if expr isa Symbol #replace symbolic variables with JuMP variables
         return variable_by_name(model, string(expr))
-    elseif expr isa Expr
+    elseif expr isa Expr #run recursion
         for i in eachindex(expr.args)
             expr.args[i] = replace_JuMPvars!(expr.args[i], model)
         end
@@ -236,12 +242,27 @@ function replace_JuMPvars!(expr, model)
 end
 
 function replace_operators!(expr)
-    if expr isa Expr
+    if expr isa Expr #run recursion
         for i in eachindex(expr.args)
             expr.args[i] = replace_operators!(expr.args[i])
         end
-    elseif !isa(expr, Symbol) && !isa(expr, Number) && !isa(expr, VariableRef)
+    elseif expr isa Function #replace Function with its symbol
         return Symbol(expr)
+    end
+    expr
+end
+
+function replace_vars!(expr, intervals)
+    if string(expr) in keys(intervals) #check if expression is one of the model variables in the intervals dict
+        return intervals[string(expr)] #replace expression with interval
+    elseif expr isa Expr
+        if length(expr.args) == 1 #run recursive relation on the leaf node on expression tree
+            expr.args[i] = replace_vars!(expr.args[i], intervals)
+        else #run recursive relation on each internal node of the expression tree, but skip the first element, which will always be the operator (this will avoid issues if the user creates a model variable called exp)
+            for i in 2:length(expr.args)
+                expr.args[i] = replace_vars!(expr.args[i], intervals)
+            end
+        end
     end
     expr
 end
