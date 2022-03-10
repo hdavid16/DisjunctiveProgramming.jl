@@ -34,16 +34,25 @@ m = Model()
 @constraint(m, con3[i=1:2], [5,4][i] <= x[i])
 @constraint(m, con4[i=1:2], x[i] <= [9,6][i])
 
-@disjunction(m,(con1,con2),(con3,con4), reformulation=:BMR)
+@disjunction(m,(con1,con2),(con3,con4), reformulation=:BMR, name = :y)
 
-┌ Warning: No M value passed for con1[1] : x[1] <= 3.0. M = 7.0 was inferred from the variable bounds.
-┌ Warning: No M value passed for con1[2] : x[2] <= 4.0. M = 6.0 was inferred from the variable bounds.
-┌ Warning: No M value passed for con2[1] : -x[1] <= 0.0. M = 0.0 was inferred from the variable bounds.
-┌ Warning: No M value passed for con2[2] : -x[2] <= 0.0. M = 0.0 was inferred from the variable bounds.
-┌ Warning: No M value passed for con3[1] : -x[1] <= -5.0. M = 5.0 was inferred from
-the variable bounds.
-┌ Warning: No M value passed for con3[2] : -x[2] <= -4.0. M = 4.0 was inferred from
-the variable bounds.
-┌ Warning: No M value passed for con4[1] : x[1] <= 9.0. M = 1.0 was inferred from the variable bounds.
-┌ Warning: No M value passed for con4[2] : x[2] <= 6.0. M = 4.0 was inferred from the variable bounds.
+print(m)
+
+# Feasibility
+# Subject to
+#  y[1] + y[2] == 1.0
+#  con1[1] : x[1] + 7 y[1] <= 10.0
+#  con1[2] : x[2] + 6 y[1] <= 10.0
+#  con2[1] : -x[1] <= 0.0
+#  con2[2] : -x[2] <= 0.0
+#  con3[1] : -x[1] + 5 y[2] <= 0.0
+#  con3[2] : -x[2] + 4 y[2] <= 0.0
+#  con4[1] : x[1] + y[2] <= 10.0
+#  con4[2] : x[2] + 4 y[2] <= 10.0
+#  x[1] >= 0.0
+#  x[2] >= 0.0
+#  x[1] <= 10.0
+#  x[2] <= 10.0
+#  y[1] binary
+#  y[2] binary
 ```

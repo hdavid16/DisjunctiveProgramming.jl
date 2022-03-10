@@ -94,7 +94,7 @@ function apply_interval_arithmetic(ref)
     ref_func_expr = Meta.parse(ref_func)
     #create a map of variables to their bounds
     interval_map = Dict()
-    vars = all_variables(ref.model) #get all variable names
+    vars = ref.model[:original_model_variables]
     for var in vars
         @assert !is_binary(var) && !is_integer(var) "GDP does not allow mixed-integer or integer constraints inside the disjuncts."
         UB = has_upper_bound(var) ? upper_bound(var) : Inf
@@ -122,11 +122,9 @@ function lin_bigM(ref, bin_var_ref, M)
 end
 
 function nl_bigM(ref, bin_var_ref, M)
-    #extract info
-    vars = ref.model[:original_model_variables]
-
     #create symbolic variables (using Symbolics.jl)
     sym_vars = []
+    vars = ref.model[:original_model_variables]
     for var in vars
         var_sym = Symbol(var)
         push!(sym_vars, eval(:(Symbolics.@variables($var_sym)))[1])
@@ -201,12 +199,10 @@ function lin_perspective_function(ref, bin_var_ref, i)
 end
 
 function nl_perspective_function(ref, bin_var_ref, i, eps)
-    #extract info
-    vars = ref.model[:original_model_variables]
-
     #create symbolic variables (using Symbolics.jl)
     sym_vars = []
     sym_i_vars = []
+    vars = ref.model[:original_model_variables]
     for var in vars
         var_sym = Symbol(var) #original variable
         push!(sym_vars, eval(:(Symbolics.@variables($var_sym)))[1])
