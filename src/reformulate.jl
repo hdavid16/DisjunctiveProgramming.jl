@@ -1,5 +1,9 @@
 function reformulate(m, disj, bin_var, reformulation, param)
     vars = setdiff(all_variables(m), m[bin_var])
+    if any(is_binary.(vars)) || any(is_integer.(vars))
+        @warn "Vanilla GDP does not consider mixed-integer or integer constraints."
+    end
+    @assert !in(:original_model_variables, keys(object_dictionary(m))) ":original_model_variables is a forbidden model object name when using DisjunctiveProgramming.jl."
     @expression(m, original_model_variables, vars)
     for (i,constr) in enumerate(disj)
         if constr isa Vector || constr isa Tuple
@@ -96,9 +100,8 @@ function apply_interval_arithmetic(ref)
     interval_map = Dict()
     vars = ref.model[:original_model_variables]
     for var in vars
-        @assert !is_binary(var) && !is_integer(var) "GDP does not allow mixed-integer or integer constraints inside the disjuncts."
-        UB = has_upper_bound(var) ? upper_bound(var) : Inf
-        LB = has_lower_bound(var) ? lower_bound(var) : -Inf
+        UB = has_upper_bound(var) ? upper_bound(var) : (is_binary(var) ? 1 : Inf)
+        LB = has_lower_bound(var) ? lower_bound(var) : (is_binary(var) ? 0 : -Inf)
         interval_map[string(var)] = LB..UB
     end
     ref_func_expr = replace_vars!(ref_func_expr, interval_map)
@@ -142,27 +145,14 @@ function nl_bigM(ref, bin_var_ref, M)
 end
 
 function CHR!(m, constr, bin_var, i, k, eps)
-    if ismissing(k)
-        if constr isa NonlinearConstraintRef #NOTE: CAN'T CHECK IF NL CONSTR IS VALID
-            # @assert constr in keys(object_dictionary(m)) "$constr is not a named reference in the model."
-        elseif constr isa ConstraintRef
-            @assert is_valid(m,constr) "$constr is not a valid constraint in the model."
-        end
-        ref = constr
-    else
-        if constr isa NonlinearConstraintRef #NOTE: CAN'T CHECK IF NL CONSTR IS VALID
-            # @assert constr in keys(object_dictionary(m)) "$constr is not a named reference in the model."
-        elseif constr isa ConstraintRef
-            @assert is_valid(m,constr[k...]) "$constr is not a valid constraint in the model."
-        end
-        ref = constr[k...]
-    end
-    bin_var_ref = variable_by_name(ref.model, "$bin_var[$i]")
+    ref = ismissing(k) ? constr : constr[k...] #get constraint
+    @assert is_valid(m,ref) "$constr is not a valid constraint in the model."
+    bin_var_ref = variable_by_name(m, "$bin_var[$i]")
+    #disaggregate variables in constr
     for var in m[:original_model_variables]
         #get bounds for disaggregated variable
-        @assert !is_binary(var) && !is_integer(var) "GDP does not allow mixed-integer or integer constraints inside the disjuncts."
-        @assert has_upper_bound(var) "Variable $var does not have an upper bound."
-        UB = upper_bound(var)
+        @assert has_upper_bound(var) || is_binary(var) "Variable $var does not have an upper bound."
+        UB = is_binary(var) ? 1 : upper_bound(var)
         LB = has_lower_bound(var) ? lower_bound(var) : 0 #set lower bound for disaggregated variable to 0 if binary or no lower bound given
         #create disaggregated variable
         var_i = Symbol("$(var)_$i")
@@ -170,6 +160,7 @@ function CHR!(m, constr, bin_var, i, k, eps)
             eval(:(@variable($m, $LB <= $var_i <= $UB)))
             eval(:(@constraint($m, $LB * $bin_var_ref <= $var_i)))
             eval(:(@constraint($m, $var_i <= $UB * $bin_var_ref)))
+            is_binary(var) && set_binary(m[var_i])
         end
     end
     #create convex hull constraint
