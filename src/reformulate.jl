@@ -96,9 +96,10 @@ function apply_interval_arithmetic(ref)
     interval_map = Dict()
     vars = all_variables(ref.model) #get all variable names
     for var in vars
-        ub = has_upper_bound(var) ? upper_bound(var) : (is_binary(var) ? 1 : Inf)
-        lb = has_lower_bound(var) ? lower_bound(var) : (is_binary(var) ? 0 : Inf)
-        interval_map[string(var)] = lb..ub
+        @assert !is_binary(var) && !is_integer(var) "GDP does not allow mixed-integer or integer constraints inside the disjuncts."
+        UB = has_upper_bound(var) ? upper_bound(var) : Inf
+        LB = has_lower_bound(var) ? lower_bound(var) : -Inf
+        interval_map[string(var)] = LB..UB
     end
     ref_func_expr = replace_vars!(ref_func_expr, interval_map)
     #get bounds on the entire expression
@@ -161,9 +162,9 @@ function CHR!(m, constr, bin_var, i, k, eps)
     bin_var_ref = variable_by_name(ref.model, "$bin_var[$i]")
     for var in m[:original_model_variables]
         #get bounds for disaggregated variable
-        @assert has_upper_bound(var) || is_binary(var) "Variable $var does not have an upper bound."
-        # @assert has_lower_bound(var) || is_binary(var) "Variable $var does not have a lower bound."
-        UB = is_binary(var) ? 1 : upper_bound(var)
+        @assert !is_binary(var) && !is_integer(var) "GDP does not allow mixed-integer or integer constraints inside the disjuncts."
+        @assert has_upper_bound(var) "Variable $var does not have an upper bound."
+        UB = upper_bound(var)
         LB = has_lower_bound(var) ? lower_bound(var) : 0 #set lower bound for disaggregated variable to 0 if binary or no lower bound given
         #create disaggregated variable
         var_i = Symbol("$(var)_$i")
@@ -171,7 +172,6 @@ function CHR!(m, constr, bin_var, i, k, eps)
             eval(:(@variable($m, $LB <= $var_i <= $UB)))
             eval(:(@constraint($m, $LB * $bin_var_ref <= $var_i)))
             eval(:(@constraint($m, $var_i <= $UB * $bin_var_ref)))
-            is_binary(var) && set_binary(m[var_i])
         end
     end
     #create convex hull constraint
