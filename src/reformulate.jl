@@ -4,10 +4,10 @@ function reformulate(m, disj, bin_var, reformulation, param)
     for (i,constr) in enumerate(disj)
         if constr isa Vector || constr isa Tuple
             for (j,constr_j) in enumerate(constr)
-                init_reformulation(m, constr_j, bin_var, reformulation, param, i, j)
+                apply_reformulation(m, constr_j, bin_var, reformulation, param, i, j)
             end
         elseif constr isa ConstraintRef || typeof(constr) <: Array || constr isa JuMP.Containers.DenseAxisArray
-            init_reformulation(m, constr, bin_var, reformulation, param, i)
+            apply_reformulation(m, constr, bin_var, reformulation, param, i)
         end
     end
     if reformulation == :CHR
@@ -15,18 +15,26 @@ function reformulate(m, disj, bin_var, reformulation, param)
     end
 end
 
-function init_reformulation(m, constr, bin_var, reformulation, param, i, j = missing)
+function apply_reformulation(m, constr, bin_var, reformulation, param, i, j = missing)
     param = get_reform_param(param, i, j) #M or eps
     if constr isa ConstraintRef
-        eval(:($reformulation($m, $constr, $bin_var, $i, $j, missing, $param)))
+        call_reformulation(reformulation, m, constr, bin_var, i, missing, param)
     elseif typeof(constr) <: Array
         for k in Iterators.product([1:s for s in size(constr)]...)
-            eval(:($reformulation($m, $constr, $bin_var, $i, $j, $k, $param)))
+            call_reformulation(reformulation, m, constr, bin_var, i, k, param)
         end
     elseif constr isa JuMP.Containers.DenseAxisArray
         for k in Iterators.product([s for s in constr.axes]...)
-            eval(:($reformulation($m, $constr, $M, $bin_var, $i, $j, $k, $param)))
+            call_reformulation(reformulation, m, constr, bin_var, i, k, param)
         end
+    end
+end
+
+function call_reformulation(reformulation, m, constr, bin_var, i, k, param)
+    if reformulation == :BMR
+        BMR!(m, constr, bin_var, i, k, param)
+    elseif reformulation == :CHR
+        CHR!(m, constr, bin_var, i, k, param)
     end
 end
 
@@ -48,7 +56,7 @@ function get_reform_param(param, i, j)
     end
 end
 
-function BMR(m, constr, bin_var, i, j, k, M)
+function BMR!(m, constr, bin_var, i, k, M)
     if ismissing(k)
         @assert is_valid(m,constr) "$constr is not a valid constraint in the model."
         ref = constr
@@ -58,14 +66,13 @@ function BMR(m, constr, bin_var, i, j, k, M)
     end
     if ismissing(M)
         M = apply_interval_arithmetic(ref)
-        @warn "No M value passed for $ref. M = $M was inferred from the variable bounds."
+        # @warn "No M value passed for $ref. M = $M was inferred from the variable bounds."
     end
+    bin_var_ref = variable_by_name(ref.model, "$bin_var[$i]")
     if ref isa NonlinearConstraintRef
-        #Add code for Issue #20
-    else
-        add_to_function_constant(ref, -M)
-        bin_var_ref = variable_by_name(ref.model, string(bin_var[i]))
-        set_normalized_coefficient(ref, bin_var_ref , M)
+        nl_bigM(ref, bin_var_ref, M)
+    elseif ref isa ConstraintRef
+        lin_bigM(ref, bin_var_ref, M)
     end
 end
 
@@ -108,7 +115,34 @@ function apply_interval_arithmetic(ref)
     end
 end
 
-function CHR(m, constr, bin_var, i, j, k, eps)
+function lin_bigM(ref, bin_var_ref, M)
+    add_to_function_constant(ref, -M)
+    set_normalized_coefficient(ref, bin_var_ref , M)
+end
+
+function nl_bigM(ref, bin_var_ref, M)
+    #extract info
+    vars = ref.model[:original_model_variables]
+
+    #create symbolic variables (using Symbolics.jl)
+    sym_vars = []
+    for var in vars
+        var_sym = Symbol(var)
+        push!(sym_vars, eval(:(Symbolics.@variables($var_sym)))[1])
+    end
+    bin_var_sym = Symbol(bin_var_ref)
+    sym_bin_var = eval(:(Symbolics.@variables($bin_var_sym)))[1]
+
+    #parse ref
+    op, lhs, rhs = parse_NLconstraint(ref)
+    gx = eval(lhs) #convert the LHS of the constraint into a Symbolic expression
+    gx = gx - M*(1-sym_bin_var) #add bigM
+
+    #update constraint
+    replace_NLconstraint(ref, gx, op, rhs)
+end
+
+function CHR!(m, constr, bin_var, i, k, eps)
     if ismissing(k)
         if constr isa NonlinearConstraintRef #NOTE: CAN'T CHECK IF NL CONSTR IS VALID
             # @assert constr in keys(object_dictionary(m)) "$constr is not a named reference in the model."
@@ -124,7 +158,7 @@ function CHR(m, constr, bin_var, i, j, k, eps)
         end
         ref = constr[k...]
     end
-    bin_var_ref = variable_by_name(ref.model, string(bin_var[i]))
+    bin_var_ref = variable_by_name(ref.model, "$bin_var[$i]")
     for var in m[:original_model_variables]
         #get bounds for disaggregated variable
         @assert has_upper_bound(var) || is_binary(var) "Variable $var does not have an upper bound."
@@ -141,14 +175,14 @@ function CHR(m, constr, bin_var, i, j, k, eps)
         end
     end
     #create convex hull constraint
-    if ref isa NonlinearConstraintRef
-        nl_perspective_function(ref, bin_var_ref, i, j, k, eps)
+    if ref isa NonlinearConstraintRef || constraint_object(ref).func isa QuadExpr
+        nl_perspective_function(ref, bin_var_ref, i, eps)
     elseif ref isa ConstraintRef
-        lin_perspective_function(ref, bin_var_ref, i, j, k, eps)
+        lin_perspective_function(ref, bin_var_ref, i)
     end
 end
 
-function lin_perspective_function(ref, bin_var_ref, i, j, k, eps)
+function lin_perspective_function(ref, bin_var_ref, i)
     #check constraint type
     ref_obj = constraint_object(ref)
     @assert ref_obj.set isa MOI.LessThan || ref_obj.set isa MOI.GreaterThan || ref_obj.set isa MOI.EqualTo "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
@@ -166,42 +200,32 @@ function lin_perspective_function(ref, bin_var_ref, i, j, k, eps)
     end
 end
 
-function nl_perspective_function(ref, bin_var_ref, i, j, k, eps)
+function nl_perspective_function(ref, bin_var_ref, i, eps)
     #extract info
-    m = ref.model
-    disj_name = replace("$(bin_var_ref)", "_binary" => "")
-    vars = m[:original_model_variables]
-    j = ismissing(j) ? "" : "_$j"
-    k = ismissing(k) ? "" : "_$k"
+    vars = ref.model[:original_model_variables]
 
-    #check function has a single comparrison operator (<=, >=, ==)
-    ref_str = string(ref)
-    @assert length(findall(r"[<>]", ref_str)) <= 1 "$ref must be one of the following: GreaterThan, LessThan, or EqualTo."
-
-    #create symbolic variables (using Symbolics.jl v0.1.25)
+    #create symbolic variables (using Symbolics.jl)
     sym_vars = []
+    sym_i_vars = []
     for var in vars
-        var_sym = Symbol(var)
+        var_sym = Symbol(var) #original variable
         push!(sym_vars, eval(:(Symbolics.@variables($var_sym)))[1])
+        var_i_sym = Symbol("$(var)_$i") #disaggregated variable
+        push!(sym_i_vars, eval(:(Symbolics.@variables($var_i_sym)))[1])
     end
     ϵ = eps #epsilon parameter for perspective function (See Furman, Sawaya, Grossmann [2020] perspecive function)
     λ = Num(Symbolics.Sym{Float64}(Symbol(bin_var_ref)))
     FSG1 = Num(Symbolics.Sym{Float64}(gensym())) #this will become: [(1-ϵ)⋅λ + ϵ] (See Furman, Sawaya, Grossmann [2020] perspecive function)
     FSG2 = Num(Symbolics.Sym{Float64}(gensym())) #this will become: ϵ⋅(1-λ) (See Furman, Sawaya, Grossmann [2020] perspecive function)
 
-    #convert ref_str into an Expr and extract comparrison operator (<=, >=, ==),
-    #constraint function, and RHS
-    ref_sym = Meta.parse(ref_str)
-    ref_expr = ref_sym.args
-    op = eval(ref_expr[1]) #comparrison operator
-    @assert op in [>=, <=, ==] "An invalid operator is used in the constraint expression."
-    rhs = ref_expr[3] #RHS of constraint
-    gx = eval(ref_expr[2]) #convert the LHS of the constraint into a Symbolic function
+    #parse ref
+    op, lhs, rhs = parse_NLconstraint(ref)
+    gx = eval(lhs) #convert the LHS of the constraint into a Symbolic expression
 
     #use symbolic substitution to obtain the following expression:
     #[(1-ϵ)⋅λ + ϵ]⋅g(v/[(1-ϵ)⋅λ + ϵ]) - ϵ⋅g(0)⋅(1-λ) <= 0
     #first term
-    g1 = FSG1*substitute(gx, Dict(var => var/FSG1 for var in sym_vars))
+    g1 = FSG1*substitute(gx, Dict(var => var_i/FSG1 for (var,var_i) in zip(sym_vars,sym_i_vars)))
     #second term
     g2 = FSG2*substitute(gx, Dict(var => 0 for var in sym_vars))
     #create perspective function and simplify
@@ -211,26 +235,62 @@ function nl_perspective_function(ref, bin_var_ref, i, j, k, eps)
                                            FSG2 => ϵ*(1-λ)))
     pers_func = simplify(pers_func)
 
-    #convert pers_func to Expr
-    #use build_function from Symbolics.jl to convert pers_func into an Expr
+    replace_NLconstraint(ref, pers_func, op, rhs)
+    
+    #NOTE: the new NLconstraint cannot be assigned a name (not an option in add_NL_constraint)
+    # disj_name = replace("$(bin_var_ref)", "_binary" => "")
+    # j = ismissing(j) ? "" : "_$j"
+    # k = ismissing(k) ? "" : "_$k"
+    # pers_func_name = Symbol("perspective_func_$(disj_name)$(j)$(k)")
+end
+
+function parse_NLconstraint(ref)
+    #check function has a single comparrison operator (<=, >=, ==)
+    ref_str = string(ref)
+    # ref_str = replace(ref_str," = " => " == ") #replace = for == in NLconstraint (for older versions of JuMP)
+    ref_str = split(ref_str,": ")[end] #remove name if Quadratic Constraint has a name
+
+    #convert ref_str into an Expr and extract comparrison operator (<=, >=, ==),
+    #constraint function, and RHS
+    ref_expr = Meta.parse(ref_str).args
+    op = eval(ref_expr[1]) #comparrison operator
+    @assert op in [>=, <=, ==] "$ref must be one of the following: GreaterThan, LessThan, or EqualTo."
+    lhs = ref_expr[2] #LHS of the constraint
+    rhs = ref_expr[3] #RHS of constraint
+
+    return op, lhs, rhs
+end
+
+function replace_NLconstraint(ref, sym_expr, op, rhs)
+    #convert sym_expr to Expr
+    #use build_function from Symbolics.jl to convert sym_expr into an Expr
     #where any operators (i.e. exp, *, <=) are replaced by the actual
     #operator (not the symbol).
     #This is done to later replace the symbolic variables with JuMP variables,
     #without messing with the math operators.
-    pers_func_expr = Base.remove_linenums!(build_function(pers_func)).args[2].args[1]
+    if ref isa NonlinearConstraintRef
+        expr = Base.remove_linenums!(build_function(sym_expr)).args[2].args[1]
+    elseif ref isa ConstraintRef
+        expr = Base.remove_linenums!(build_function(op(sym_expr,rhs))).args[2].args[1]
+    end
 
     #replace symbolic variables by their JuMP variables
-    replace_JuMPvars!(pers_func_expr, m)
+    m = ref.model
+    replace_JuMPvars!(expr, m)
     #replace the math operators by symbols
-    replace_operators!(pers_func_expr)
-    # determine bounds of original constraint (note: if op is ==, both bounds are set to rhs)
-    upper_b = (op == >=) ? Inf : rhs
-    lower_b = (op == <=) ? -Inf : rhs
-    # replace NL constraint currently in the model with the reformulated one
-    m.nlp_data.nlconstr[ref.index.value] = JuMP._NonlinearConstraint(JuMP._NonlinearExprData(m, pers_func_expr), lower_b, upper_b)
-    
-    #NOTE: the new NLconstraint cannot be assigned a name (not an option in add_NL_constraint)
-    # pers_func_name = Symbol("perspective_func_$(disj_name)$(j)$(k)")
+    replace_operators!(expr)
+    if ref isa NonlinearConstraintRef
+        # determine bounds of original constraint (note: if op is ==, both bounds are set to rhs)
+        upper_b = (op == >=) ? Inf : rhs
+        lower_b = (op == <=) ? -Inf : rhs
+        # replace NL constraint currently in the model with the reformulated one
+        m.nlp_data.nlconstr[ref.index.value] = JuMP._NonlinearConstraint(JuMP._NonlinearExprData(m, expr), lower_b, upper_b)
+    elseif ref isa ConstraintRef
+        #add a nonlinear constraint with the perspective function
+        add_NL_constraint(m, expr)
+        #delete old constraint
+        delete(m, ref)
+    end
 end
 
 function replace_JuMPvars!(expr, model)
