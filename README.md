@@ -5,7 +5,7 @@ Generalized Disjunctive Programming extension to JuMP
 
 ```julia
 using Pkg
-Pkg.add("https://github.com/hdavid16/DisjunctiveProgramming.jl")
+Pkg.add("DisjunctiveProgramming")
 ```
 
 ## Disjunctions
