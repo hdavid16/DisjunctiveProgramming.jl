@@ -162,9 +162,9 @@ function CHR!(m, constr, bin_var, i, k, eps)
     for var in m[:original_model_variables]
         #get bounds for disaggregated variable
         @assert has_upper_bound(var) || is_binary(var) "Variable $var does not have an upper bound."
-        @assert has_lower_bound(var) || is_binary(var) "Variable $var does not have a lower bound."
+        # @assert has_lower_bound(var) || is_binary(var) "Variable $var does not have a lower bound."
         UB = is_binary(var) ? 1 : upper_bound(var)
-        LB = is_binary(var) ? 0 : lower_bound(var)
+        LB = has_lower_bound(var) ? lower_bound(var) : 0 #set lower bound for disaggregated variable to 0 if binary or no lower bound given
         #create disaggregated variable
         var_i = Symbol("$(var)_$i")
         if !(var_i in keys(object_dictionary(m)))
@@ -236,12 +236,6 @@ function nl_perspective_function(ref, bin_var_ref, i, eps)
     pers_func = simplify(pers_func)
 
     replace_NLconstraint(ref, pers_func, op, rhs)
-    
-    #NOTE: the new NLconstraint cannot be assigned a name (not an option in add_NL_constraint)
-    # disj_name = replace("$(bin_var_ref)", "_binary" => "")
-    # j = ismissing(j) ? "" : "_$j"
-    # k = ismissing(k) ? "" : "_$k"
-    # pers_func_name = Symbol("perspective_func_$(disj_name)$(j)$(k)")
 end
 
 function parse_NLconstraint(ref)
@@ -338,48 +332,5 @@ function add_disaggregated_constr(m, disj, vars)
             var_i in keys(object_dictionary(m)) && push!(d_vars, m[var_i])
         end
         !isempty(d_vars) && eval(:(@constraint($m, $var == sum($d_vars))))
-    end
-end
-
-################################################################################
-###                             DEPRECATED                                   ###
-################################################################################
-function infer_BigM(ref)
-    constr_set = constraint_object(ref).set
-    set_fields = fieldnames(typeof(constr_set))
-    @assert length(set_fields) == 1 "A reformulation cannot be done on constraint $ref because it is not one of the following GreaterThan, LessThan, or EqualTo."
-    @assert :value in set_fields || :lower in set_fields || :upper in set_fields "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
-    vars = all_variables(ref.model) #get all variable names
-    M = 0 #initialize M
-    for var in vars
-        coeff = normalized_coefficient(ref,var)
-        iszero(coeff) && continue
-        has_bounds = (has_lower_bound(var), has_upper_bound(var))
-        if coeff > 0
-            if :lower in set_fields && has_bounds[1]
-                bound = lower_bound(var)
-            elseif :upper in set_fields || :value in set_fields && has_bounds[2]
-                bound = upper_bound(var)
-            else
-                error("M parameter cannot be infered due to lack of variable bounds for variable $var.")
-            end
-            M += coeff*bound
-        elseif coeff < 0
-            if :lower in set_fields && has_bounds[2]
-                bound = upper_bound(var)
-            elseif :upper in set_fields || :value in set_fields && has_bounds[1]
-                bound = lower_bound(var)
-            else
-                error("M parameter cannot be infered due to lack of variable bounds for variable $var.")
-            end
-            M += coeff*bound
-        end
-    end
-    if :lower in set_fields
-        M -= constr_set.lower
-    elseif :upper in set_fields
-        M -= constr_set.upper
-    elseif :value in set_fields
-        M -= constr_set.value
     end
 end
