@@ -1,21 +1,37 @@
-function reformulate(m, disj, bin_var, reformulation, param)
+function reformulate_disjunction(m, disj, bin_var, reformulation, param)
+    # #update disjunction ids
+    # if :Disjunction_Counter in keys(object_dictionary(m))
+    #     add_to_expression!(m[:Disjunction_Counter], 1) #increase counter by 1
+    # else #first time @disjunction has been run, so initialize at 1
+    #     @expression(m, Disjunction_Counter, AffExpr(1))
+    # end
+    # #get disjunction id #
+    # id = Int(constant(m[:Disjunction_Counter]))
+    #get original variable refs and variable names
     vars = setdiff(all_variables(m), m[bin_var])
-    if any(is_binary.(vars)) || any(is_integer.(vars))
-        @warn "Vanilla GDP does not consider mixed-integer or integer constraints."
+    var_names = unique(Symbol.([split("$var","[")[1] for var in vars]))
+    if !in(:Original_VarRefs, keys(object_dictionary(m)))
+        @expression(m, Original_VarRefs, vars)
     end
-    @assert !in(:original_model_variables, keys(object_dictionary(m))) ":original_model_variables is a forbidden model object name when using DisjunctiveProgramming.jl."
-    @expression(m, original_model_variables, vars)
+    if !in(:Original_VarNames, keys(object_dictionary(m)))
+        @expression(m, Original_VarNames, var_names)
+    end
+    #run reformulation
+    reformulate(m, disj, bin_var, reformulation, param)
+    if reformulation == :CHR
+        add_disaggregated_constr(m, disj, vars)
+    end
+end
+
+function reformulate(m, disj, bin_var, reformulation, param)
     for (i,constr) in enumerate(disj)
-        if constr isa Vector || constr isa Tuple
+        if constr isa Tuple
             for (j,constr_j) in enumerate(constr)
                 apply_reformulation(m, constr_j, bin_var, reformulation, param, i, j)
             end
-        elseif constr isa ConstraintRef || typeof(constr) <: Array || constr isa JuMP.Containers.DenseAxisArray
+        elseif constr isa ConstraintRef || constr isa Array || constr isa Containers.DenseAxisArray || constr isa Containers.SparseAxisArray
             apply_reformulation(m, constr, bin_var, reformulation, param, i)
         end
-    end
-    if reformulation == :CHR
-        add_disaggregated_constr(m, disj, vars)
     end
 end
 
@@ -23,13 +39,17 @@ function apply_reformulation(m, constr, bin_var, reformulation, param, i, j = mi
     param = get_reform_param(param, i, j) #M or eps
     if constr isa ConstraintRef
         call_reformulation(reformulation, m, constr, bin_var, i, missing, param)
-    elseif typeof(constr) <: Array
+    elseif constr isa Array
         for k in Iterators.product([1:s for s in size(constr)]...)
             call_reformulation(reformulation, m, constr, bin_var, i, k, param)
         end
-    elseif constr isa JuMP.Containers.DenseAxisArray
+    elseif constr isa Containers.DenseAxisArray
         for k in Iterators.product([s for s in constr.axes]...)
             call_reformulation(reformulation, m, constr, bin_var, i, k, param)
+        end
+    elseif constr isa Containers.SparseAxisArray
+        for (k, c) in constr.data
+            call_reformulation(reformulation, m, c, bin_var, i, k, param)
         end
     end
 end
@@ -82,23 +102,10 @@ end
 
 function apply_interval_arithmetic(ref)
     #convert constraints into Expr to replace variables with interval sets and determine bounds
-    if ref isa NonlinearConstraintRef
-        ref_str = string(ref)
-        @assert length(findall(r"[<>]", ref_str)) <= 1 "$ref must be one of the following: GreaterThan, LessThan, or EqualTo."
-        ref_func = replace(split(ref_str, r"[=<>]")[1], " " => "")
-        ref_type = occursin(">", ref_str) ? :lower : :upper
-        ref_rhs = 0 #Could be calculated with: parse(Float64,split(ref_str, " ")[end]). NOTE: @NLconstraint will always have a 0 RHS.
-    elseif ref isa ConstraintRef
-        ref_obj = constraint_object(ref)
-        @assert ref_obj.set isa MOI.LessThan || ref_obj.set isa MOI.GreaterThan || ref_obj.set isa MOI.EqualTo "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
-        ref_func = string(ref_obj.func)
-        ref_type = fieldnames(typeof(ref_obj.set))[1]
-        ref_rhs = normalized_rhs(ref)
-    end
-    ref_func_expr = Meta.parse(ref_func)
+    ref_func_expr, ref_type, ref_rhs = parse_ref(ref)
     #create a map of variables to their bounds
     interval_map = Dict()
-    vars = ref.model[:original_model_variables]
+    vars = ref.model[:Original_VarRefs]
     for var in vars
         UB = has_upper_bound(var) ? upper_bound(var) : (is_binary(var) ? 1 : Inf)
         LB = has_lower_bound(var) ? lower_bound(var) : (is_binary(var) ? 0 : -Inf)
@@ -119,6 +126,25 @@ function apply_interval_arithmetic(ref)
     end
 end
 
+function parse_ref(ref)
+    if ref isa NonlinearConstraintRef
+        ref_str = string(ref)
+        @assert length(findall(r"[<>]", ref_str)) <= 1 "$ref must be one of the following: GreaterThan, LessThan, or EqualTo."
+        ref_func = replace(split(ref_str, r"[=<>]")[1], " " => "")
+        ref_type = occursin(">", ref_str) ? :lower : :upper
+        ref_rhs = 0 #Could be calculated with: parse(Float64,split(ref_str, " ")[end]). NOTE: @NLconstraint will always have a 0 RHS.
+    elseif ref isa ConstraintRef
+        ref_obj = constraint_object(ref)
+        @assert ref_obj.set isa MOI.LessThan || ref_obj.set isa MOI.GreaterThan || ref_obj.set isa MOI.EqualTo "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
+        ref_func = string(ref_obj.func)
+        ref_type = fieldnames(typeof(ref_obj.set))[1]
+        ref_rhs = normalized_rhs(ref)
+    end
+    ref_func_expr = Meta.parse(ref_func)
+
+    return ref_func_expr, ref_type, ref_rhs
+end
+
 function lin_bigM(ref, bin_var_ref, M)
     add_to_function_constant(ref, -M)
     set_normalized_coefficient(ref, bin_var_ref , M)
@@ -127,19 +153,29 @@ end
 function nl_bigM(ref, bin_var_ref, M)
     #create symbolic variables (using Symbolics.jl)
     sym_vars = []
-    vars = ref.model[:original_model_variables]
-    for var in vars
-        var_sym = Symbol(var)
+    # vars = ref.model[:Original_VarRefs]
+    # for var in vars
+    #     var_sym = Symbol(var)
+    #     push!(sym_vars, eval(:(Symbolics.@variables($var_sym)))[1])
+    # end
+    var_names = ref.model[:Original_VarNames]
+    for var in var_names
+        if ref.model[var] isa VariableRef
+            var_sym = var
+        elseif ref.model[var] isa Vector{VariableRef}
+            index_string = join([1:s for s in size(ref.model[var])],",")
+            var_sym = Symbol("$var[$index_string]")
+        end
         push!(sym_vars, eval(:(Symbolics.@variables($var_sym)))[1])
     end
     bin_var_sym = Symbol(bin_var_ref)
     sym_bin_var = eval(:(Symbolics.@variables($bin_var_sym)))[1]
-
+    
     #parse ref
     op, lhs, rhs = parse_NLconstraint(ref)
     gx = eval(lhs) #convert the LHS of the constraint into a Symbolic expression
     gx = gx - M*(1-sym_bin_var) #add bigM
-
+    
     #update constraint
     replace_NLconstraint(ref, gx, op, rhs)
 end
@@ -149,18 +185,15 @@ function CHR!(m, constr, bin_var, i, k, eps)
     @assert is_valid(m,ref) "$constr is not a valid constraint in the model."
     bin_var_ref = variable_by_name(m, "$bin_var[$i]")
     #disaggregate variables in constr
-    for var in m[:original_model_variables]
-        #get bounds for disaggregated variable
-        @assert has_upper_bound(var) || is_binary(var) "Variable $var does not have an upper bound."
-        UB = is_binary(var) ? 1 : upper_bound(var)
-        LB = has_lower_bound(var) ? lower_bound(var) : 0 #set lower bound for disaggregated variable to 0 if binary or no lower bound given
-        #create disaggregated variable
-        var_i = Symbol("$(var)_$i")
-        if !(var_i in keys(object_dictionary(m)))
-            eval(:(@variable($m, $LB <= $var_i <= $UB)))
-            eval(:(@constraint($m, $LB * $bin_var_ref <= $var_i)))
-            eval(:(@constraint($m, $var_i <= $UB * $bin_var_ref)))
-            is_binary(var) && set_binary(m[var_i])
+    for var in m[:Original_VarNames]
+        if m[var] isa VariableRef
+
+        elseif m[var] isa Array{VariableRef}
+
+        elseif m[var] isa Containers.DenseAxisArray
+
+        elseif m[var] isa Containers.SparseAxisArray
+
         end
     end
     #create convex hull constraint
@@ -171,11 +204,215 @@ function CHR!(m, constr, bin_var, i, k, eps)
     end
 end
 
+function disaggregate_variables(m, disj, bin_var)
+    #check that variables are bounded
+    var_refs = m[:Original_VarRefs]
+    @assert all((has_upper_bound.(var_refs) .&& has_lower_bound.(var_refs)) .|| is_binary.(var_refs)) "All variables must be bounded to perform the Convex-Hull reformulation."
+    #reformulate variables
+    for var_name in m[:Original_VarNames]
+        var = m[var_name]
+        if var isa VariableRef
+            #get bounds for disaggregated variable
+            UB = is_binary(var) ? 1 : upper_bound(var)
+            LB = is_binary(var) ? 0 : lower_bound(var)
+            #create disaggregated variable and bounding constraints
+            for i in eachindex(disj)
+                var_name_i = Symbol("$(var_name)_$bin_var$i")
+                m[var_name_i] = @variable(
+                    m, 
+                    lower_bound = LB, 
+                    upper_bound = UB, 
+                    binary = is_binary(var), 
+                    integer = is_integer(var),
+                    base_name = "$var_name_i"
+                )
+                lb_constr = LB * m[bin_var][i] - m[var_name_i]
+                @constraint(m, lb_constr <= 0)
+                ub_constr = m[var_name_i] - UB * m[bin_var][i]
+                @constraint(m, ub_constr <= 0)
+                # bin_var_ref = m[bin_var][i]
+                # eval(:(@variable($m, $LB <= $var_name_i <= $UB))) #NOTE: explicit bounds are defined in this case
+                # eval(:(@constraint($m, $LB * $bin_var_ref <= $var_name_i)))
+                # eval(:(@constraint($m, $var_name_i <= $UB * $bin_var_ref)))
+                # is_binary(var) && set_binary(m[var_name_i])
+            end
+        else
+            #initialize UB and LB with same container type as variable
+            if var isa Containers.SparseAxisArray
+                idxs = keys(var.data)
+                UB = Containers.SparseAxisArray(Dict(idx => 0. for idx in idxs))
+                LB = Containers.SparseAxisArray(Dict(idx => 0. for idx in idxs))
+                # dim = typeof(var).parameters[2]
+                # idx_str = join([unique(getindex.(idxs,i)) for i in 1:dim],",")
+            elseif var isa Array{VariableRef} || var isa Containers.DenseAxisArray
+                idxs = Iterators.product(axes(var)...)
+                UB = zeros(size(var))
+                LB = zeros(size(var))
+                # idx_str = join(axes(var),",")
+                if var isa Containers.DenseAxisArray
+                    UB = Containers.DenseAxisArray(UB, axes(var)...)
+                    LB = Containers.DenseAxisArray(LB, axes(var)...)
+                end
+            end
+            #populate UB and LB
+            for idx in eachindex(var)
+                var_ref = var[idx]
+                UB[idx] = is_binary(var_ref) ? 1 : upper_bound(var_ref)
+                LB[idx] = is_binary(var_ref) ? 0 : lower_bound(var_ref)
+            end
+            for i in eachindex(disj)
+                #disaggregate variable
+                var_name_i = Symbol("$(var_name)_$bin_var$i")
+                if var isa Containers.SparseAxisArray
+                    var_i_dict = Dict(
+                        idx => @variable(
+                            m,
+                            lower_bound = LB[idx],
+                            upper_bound = UB[idx],
+                            binary = is_binary(var[idx]),
+                            integer = is_integer(var[idx]),
+                            base_name="$var_name_i[$(join(idx,","))]"
+                        )
+                        for idx in idxs
+                    )
+                    m[var_name_i] = Containers.SparseAxisArray(var_i_dict)
+                elseif var isa Array{VariableRef} || var isa Containers.DenseAxisArray
+                    var_i_array = [
+                        @variable(
+                            m,
+                            lower_bound = LB[idx...],
+                            upper_bound = UB[idx...],
+                            binary = is_binary(var[idx...]),
+                            integer = is_integer(var[idx...]),
+                            base_name="$var_name_i[$(join(idx,","))]"
+                        )
+                        for idx in idxs
+                    ]
+                    # var_i_array = reshape(var_i_vector, size(var))
+                    if var isa Containers.DenseAxisArray
+                        var_i_array = Containers.DenseAxisArray(var_i_array, axes(var)...)
+                    end
+                    m[var_name_i] = var_i_array
+                end
+                lb_constr = LB * m[bin_var][i] .- m[var_name_i]
+                @constraint(m, lb_constr .<= 0)
+                ub_constr = m[var_name_i] .- UB * m[bin_var][i]
+                @constraint(m, ub_constr .<= 0)
+                # eval(Meta.parse("@variable(m, $var_name_i[$idx_str])")) 
+                # #add bounds and bounding consraints on disaggregated variable
+                # for idx in eachindex(var)
+                #     set_lower_bound(m[var_name_i][idx], LB[idx])
+                #     set_upper_bound(m[var_name_i][idx], UB[idx])
+                #     is_binary(var[idx]) && set_binary(m[var_name_i][idx])
+                #     is_integer(var[idx]) && set_integer(m[var_name_i][idx])
+                # end
+                # bin_var_ref = m[bin_var][i]
+                # var_ref_i = m[var_name_i]
+                # eval(:(@constraint($m, $LB * $bin_var_ref .<= $var_ref_i)))
+                # eval(:(@constraint($m, $var_ref_i .<= $UB * $bin_var_ref)))
+                # all(is_binary.(var)) && set_binary.(var_ref_i)
+            end
+        # elseif var isa Array{VariableRef}
+        #     #get bounds for disaggregated variable
+        #     UB = zeros(size(var))
+        #     LB = zeros(size(var))
+        #     for idx in eachindex(var)
+        #         var_ref = var[idx]
+        #         UB[idx] = is_binary(var_ref) ? 1 : upper_bound(var_ref)
+        #         LB[idx] = is_binary(var_ref) ? 0 : lower_bound(var_ref)
+        #     end
+        #     idx_str = join([1:s for s in size(var)],",")
+        #     #create disaggregated variable and bounding constraints
+        #     for i in eachindex(disj)
+        #         #disaggregate variable
+        #         var_name_i = Symbol("$(var_name)_$bin_var$i")
+        #         eval(Meta.parse("@variable(m, $var_name_i[$idx_str])")) 
+        #         #add bounds and bounding consraints on disaggregated variable
+        #         bin_var_ref = m[bin_var][i]
+        #         var_ref_i = m[var_name_i]
+        #         for idx in eachindex(var)
+        #             set_lower_bound(var_ref_i[idx], LB[idx])
+        #             set_upper_bound(var_ref_i[idx], UB[idx])
+        #         end
+        #         eval(:(@constraint($m, $LB * $bin_var_ref .<= $var_ref_i)))
+        #         eval(:(@constraint($m, $var_ref_i .<= $UB * $bin_var_ref)))
+        #         all(is_binary.(var)) && set_binary.(var_ref_i)
+        #     end
+        # elseif var isa Array{VariableRef} || var isa Containers.DenseAxisArray
+        #     idxs = join(axes(var), ", ")
+        #     eval(Meta.parse("Containers.@container(UB[$idxs], 0.)"))
+        #     eval(Meta.parse("Containers.@container(LB[$idxs], 0.)"))
+        #     for idx in eachindex(var)
+        #         var_ref = var[idx]
+        #         UB[idx] = is_binary(var_ref) ? 1 : upper_bound(var_ref)
+        #         LB[idx] = is_binary(var_ref) ? 0 : lower_bound(var_ref)
+        #     end
+        #     for i in eachindex(disj)
+        #         #create disaggregated variable for each disjunct
+        #         var_name_i = Symbol("$(var_name)_$i")
+        #         eval(Meta.parse("@variable(m, $var_name_i[$idxs])")) #NOTE: the disaggregated variable won't have explicit bounds; these are enforced by the constraints
+        #         #add bounding constraints for disaggregated variable
+        #         bin_var_ref = m[bin_var][i]
+        #         var_ref_i = m[var_name_i]
+        #         eval(:(@constraint($m, $LB * $bin_var_ref .<= $var_ref_i)))
+        #         eval(:(@constraint($m, $var_ref_i .<= $UB * $bin_var_ref)))
+        #         all(is_binary.(var)) && set_binary.(var_ref_i)
+        #     end
+        # elseif var isa Union{Containers.DenseAxisArray, Containers.SparseAxisArray}
+        #     if var isa Containers.SparseAxisArray
+        #         idxs = keys(var.data)
+        #         idxs = collect(idxs)
+        #     else #Array or DenseAxisArray
+        #         idxs = Iterators.product(axes(var)...)
+        #         idxs = reshape(collect(idxs),prod(size(idxs)),)
+        #     end
+        #     Containers.@container(UB[idx = idxs], 0.)
+        #     Containers.@container(LB[idx = idxs], 0.)
+        #     for idx in idxs#eachindex(var)
+        #         var_ref = var[idx...]#var[idx]
+        #         UB[idx] = is_binary(var_ref) ? 1 : upper_bound(var_ref)
+        #         LB[idx] = is_binary(var_ref) ? 0 : lower_bound(var_ref)
+        #     end
+        #     for i in eachindex(disj)
+        #         #create disaggregated variable for each disjunct
+        #         var_name_i = Symbol("$(var_name)_$bin_var$i")
+        #         eval(Meta.parse("@variable(m, $var_name_i[$idxs])")) 
+        #         #NOTE: disaggregated variable is indexed differently than original variable (issues when summing disaggregated to get original variable)
+        #         #add bounds and bounding constraints for disaggregated variable
+        #         bin_var_ref = m[bin_var][i]
+        #         var_ref_i = m[var_name_i]
+        #         for idx in idxs#eachindex(var)
+        #             set_lower_bound(var_ref_i[idx], LB[idx])
+        #             set_upper_bound(var_ref_i[idx], UB[idx])
+        #         end
+        #         eval(:(@constraint($m, $LB * $bin_var_ref .<= $var_ref_i)))
+        #         eval(:(@constraint($m, $var_ref_i .<= $UB * $bin_var_ref)))
+        #         all(is_binary.(var)) && set_binary.(var_ref_i)
+        #     end
+        end
+    end
+end
+
+function disaggregate_variable(m, var)
+    #get bounds for disaggregated variable
+    @assert has_upper_bound(var) || is_binary(var) "Variable $var does not have an upper bound."
+    UB = is_binary(var) ? 1 : upper_bound(var)
+    LB = has_lower_bound(var) ? lower_bound(var) : 0 #set lower bound for disaggregated variable to 0 if binary or no lower bound given
+    #create disaggregated variable
+    var_i = Symbol("$(var)_$i")
+    if !(var_i in keys(object_dictionary(m)))
+        eval(:(@variable($m, 0 <= $var_i <= $UB)))
+        eval(:(@constraint($m, $LB * $bin_var_ref <= $var_i)))
+        eval(:(@constraint($m, $var_i <= $UB * $bin_var_ref)))
+        is_binary(var) && set_binary(m[var_i])
+    end
+end
+
 function lin_perspective_function(ref, bin_var_ref, i)
     #check constraint type
     ref_obj = constraint_object(ref)
     @assert ref_obj.set isa MOI.LessThan || ref_obj.set isa MOI.GreaterThan || ref_obj.set isa MOI.EqualTo "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
-    for var in ref.model[:original_model_variables]
+    for var in ref.model[:Original_VarRefs]
         #check var is present in the constraint
         coeff = normalized_coefficient(ref,var)
         iszero(coeff) && continue
@@ -193,11 +430,24 @@ function nl_perspective_function(ref, bin_var_ref, i, eps)
     #create symbolic variables (using Symbolics.jl)
     sym_vars = []
     sym_i_vars = []
-    vars = ref.model[:original_model_variables]
-    for var in vars
-        var_sym = Symbol(var) #original variable
+    # vars = ref.model[:Original_VarRefs]
+    # for var in vars
+    #     var_sym = Symbol(var) #original variable
+    #     push!(sym_vars, eval(:(Symbolics.@variables($var_sym)))[1])
+    #     var_i_sym = Symbol("$(var)_$i") #disaggregated variable
+    #     push!(sym_i_vars, eval(:(Symbolics.@variables($var_i_sym)))[1])
+    # end
+    var_names = ref.model[:Original_VarNames]
+    for var in var_names
+        if ref.model[var] isa VariableRef
+            var_sym = var
+            var_i_sym = Symbol("$(var)_$i") #disaggregated variable
+        elseif ref.model[var] isa Vector{VariableRef}
+            index_string = join([1:s for s in size(ref.model[var])],",")
+            var_sym = Symbol("$var[$index_string]")
+            var_i_sym = Symbol("$(var)_$i[$index_string]")
+        end
         push!(sym_vars, eval(:(Symbolics.@variables($var_sym)))[1])
-        var_i_sym = Symbol("$(var)_$i") #disaggregated variable
         push!(sym_i_vars, eval(:(Symbolics.@variables($var_i_sym)))[1])
     end
     ϵ = eps #epsilon parameter for perspective function (See Furman, Sawaya, Grossmann [2020] perspecive function)
@@ -254,12 +504,13 @@ function replace_NLconstraint(ref, sym_expr, op, rhs)
     elseif ref isa ConstraintRef
         expr = Base.remove_linenums!(build_function(op(sym_expr,rhs))).args[2].args[1]
     end
-
+    
     #replace symbolic variables by their JuMP variables
     m = ref.model
     replace_JuMPvars!(expr, m)
     #replace the math operators by symbols
     replace_operators!(expr)
+    #update constraint
     if ref isa NonlinearConstraintRef
         # determine bounds of original constraint (note: if op is ==, both bounds are set to rhs)
         upper_b = (op == >=) ? Inf : rhs
@@ -278,8 +529,14 @@ function replace_JuMPvars!(expr, model)
     if expr isa Symbol #replace symbolic variables with JuMP variables
         return variable_by_name(model, string(expr))
     elseif expr isa Expr #run recursion
-        for i in eachindex(expr.args)
-            expr.args[i] = replace_JuMPvars!(expr.args[i], model)
+        if expr.args[1] == getindex
+            var = expr.args[2]
+            idx = join(expr.args[3:end],",")
+            expr = variable_by_name(model, "$var[$idx]")
+        else
+            for i in eachindex(expr.args)
+                expr.args[i] = replace_JuMPvars!(expr.args[i], model)
+            end
         end
     end
     expr
