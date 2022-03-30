@@ -183,24 +183,11 @@ end
 function CHR!(m, constr, bin_var, i, k, eps)
     ref = ismissing(k) ? constr : constr[k...] #get constraint
     @assert is_valid(m,ref) "$constr is not a valid constraint in the model."
-    bin_var_ref = variable_by_name(m, "$bin_var[$i]")
-    #disaggregate variables in constr
-    for var in m[:Original_VarNames]
-        if m[var] isa VariableRef
-
-        elseif m[var] isa Array{VariableRef}
-
-        elseif m[var] isa Containers.DenseAxisArray
-
-        elseif m[var] isa Containers.SparseAxisArray
-
-        end
-    end
     #create convex hull constraint
     if ref isa NonlinearConstraintRef || constraint_object(ref).func isa QuadExpr
-        nl_perspective_function(ref, bin_var_ref, i, eps)
+        nl_perspective_function(ref, bin_var, i, eps)
     elseif ref isa ConstraintRef
-        lin_perspective_function(ref, bin_var_ref, i)
+        lin_perspective_function(ref, bin_var, i)
     end
 end
 
@@ -211,241 +198,134 @@ function disaggregate_variables(m, disj, bin_var)
     #reformulate variables
     for var_name in m[:Original_VarNames]
         var = m[var_name]
+        #define UB and LB
         if var isa VariableRef
-            #get bounds for disaggregated variable
-            UB = is_binary(var) ? 1 : upper_bound(var)
-            LB = is_binary(var) ? 0 : lower_bound(var)
-            #create disaggregated variable and bounding constraints
-            for i in eachindex(disj)
-                var_name_i = Symbol("$(var_name)_$bin_var$i")
-                m[var_name_i] = @variable(
-                    m, 
-                    lower_bound = LB, 
-                    upper_bound = UB, 
-                    binary = is_binary(var), 
-                    integer = is_integer(var),
-                    base_name = "$var_name_i"
-                )
-                lb_constr = LB * m[bin_var][i] - m[var_name_i]
-                @constraint(m, lb_constr <= 0)
-                ub_constr = m[var_name_i] - UB * m[bin_var][i]
-                @constraint(m, ub_constr <= 0)
-                # bin_var_ref = m[bin_var][i]
-                # eval(:(@variable($m, $LB <= $var_name_i <= $UB))) #NOTE: explicit bounds are defined in this case
-                # eval(:(@constraint($m, $LB * $bin_var_ref <= $var_name_i)))
-                # eval(:(@constraint($m, $var_name_i <= $UB * $bin_var_ref)))
-                # is_binary(var) && set_binary(m[var_name_i])
-            end
-        else
+            LB, UB = get_bounds(var)
+        elseif var isa Array{VariableRef} || var isa Containers.DenseAxisArray || var isa Containers.SparseAxisArray
             #initialize UB and LB with same container type as variable
-            if var isa Containers.SparseAxisArray
-                idxs = keys(var.data)
-                UB = Containers.SparseAxisArray(Dict(idx => 0. for idx in idxs))
-                LB = Containers.SparseAxisArray(Dict(idx => 0. for idx in idxs))
-                # dim = typeof(var).parameters[2]
-                # idx_str = join([unique(getindex.(idxs,i)) for i in 1:dim],",")
-            elseif var isa Array{VariableRef} || var isa Containers.DenseAxisArray
+            if var isa Array{VariableRef} || var isa Containers.DenseAxisArray
                 idxs = Iterators.product(axes(var)...)
-                UB = zeros(size(var))
-                LB = zeros(size(var))
-                # idx_str = join(axes(var),",")
+                LB, UB = zeros(size(var)), zeros(size(var))
                 if var isa Containers.DenseAxisArray
-                    UB = Containers.DenseAxisArray(UB, axes(var)...)
                     LB = Containers.DenseAxisArray(LB, axes(var)...)
+                    UB = Containers.DenseAxisArray(UB, axes(var)...)
                 end
+            elseif var isa Containers.SparseAxisArray
+                idxs = keys(var.data)
+                LB = Containers.SparseAxisArray(Dict(idx => 0. for idx in idxs))
+                UB = Containers.SparseAxisArray(Dict(idx => 0. for idx in idxs))
             end
             #populate UB and LB
             for idx in eachindex(var)
-                var_ref = var[idx]
-                UB[idx] = is_binary(var_ref) ? 1 : upper_bound(var_ref)
-                LB[idx] = is_binary(var_ref) ? 0 : lower_bound(var_ref)
+                LB[idx], UB[idx] = get_bounds(var[idx])
             end
-            for i in eachindex(disj)
-                #disaggregate variable
-                var_name_i = Symbol("$(var_name)_$bin_var$i")
-                if var isa Containers.SparseAxisArray
-                    var_i_dict = Dict(
-                        idx => @variable(
-                            m,
-                            lower_bound = LB[idx],
-                            upper_bound = UB[idx],
-                            binary = is_binary(var[idx]),
-                            integer = is_integer(var[idx]),
-                            base_name="$var_name_i[$(join(idx,","))]"
-                        )
-                        for idx in idxs
-                    )
-                    m[var_name_i] = Containers.SparseAxisArray(var_i_dict)
-                elseif var isa Array{VariableRef} || var isa Containers.DenseAxisArray
-                    var_i_array = [
-                        @variable(
-                            m,
-                            lower_bound = LB[idx...],
-                            upper_bound = UB[idx...],
-                            binary = is_binary(var[idx...]),
-                            integer = is_integer(var[idx...]),
-                            base_name="$var_name_i[$(join(idx,","))]"
-                        )
-                        for idx in idxs
-                    ]
-                    # var_i_array = reshape(var_i_vector, size(var))
-                    if var isa Containers.DenseAxisArray
-                        var_i_array = Containers.DenseAxisArray(var_i_array, axes(var)...)
-                    end
-                    m[var_name_i] = var_i_array
+        end
+        #disaggregate variable and add bounding constraints
+        for i in eachindex(disj)
+            var_name_i = Symbol("$(var_name)_$bin_var$i")
+            if var isa VariableRef
+                #create and register anonymous variable
+                m[var_name_i] = add_disaggregated_variable(m, LB, UB, var, "$var_name_i")
+            elseif var isa Array{VariableRef} || var isa Containers.DenseAxisArray
+                #create array of anonymous variables
+                var_i_array = [
+                    add_disaggregated_variable(m, LB[idx...], UB[idx...], var[idx...], "$var_name_i[$(join(idx,","))]")
+                    for idx in idxs
+                ]
+                #containerize if DenseAxisArray
+                if var isa Containers.DenseAxisArray
+                    var_i_array = Containers.DenseAxisArray(var_i_array, axes(var)...)
                 end
-                lb_constr = LB * m[bin_var][i] .- m[var_name_i]
-                @constraint(m, lb_constr .<= 0)
-                ub_constr = m[var_name_i] .- UB * m[bin_var][i]
-                @constraint(m, ub_constr .<= 0)
-                # eval(Meta.parse("@variable(m, $var_name_i[$idx_str])")) 
-                # #add bounds and bounding consraints on disaggregated variable
-                # for idx in eachindex(var)
-                #     set_lower_bound(m[var_name_i][idx], LB[idx])
-                #     set_upper_bound(m[var_name_i][idx], UB[idx])
-                #     is_binary(var[idx]) && set_binary(m[var_name_i][idx])
-                #     is_integer(var[idx]) && set_integer(m[var_name_i][idx])
-                # end
-                # bin_var_ref = m[bin_var][i]
-                # var_ref_i = m[var_name_i]
-                # eval(:(@constraint($m, $LB * $bin_var_ref .<= $var_ref_i)))
-                # eval(:(@constraint($m, $var_ref_i .<= $UB * $bin_var_ref)))
-                # all(is_binary.(var)) && set_binary.(var_ref_i)
+                #register disaggregated variable
+                m[var_name_i] = var_i_array
+            elseif var isa Containers.SparseAxisArray
+                #create dictionary of anonymous variables
+                var_i_dict = Dict(
+                    idx => add_disaggregated_variable(m, LB[idx], UB[idx], var[idx], "$var_name_i[$(join(idx,","))]")
+                    for idx in idxs
+                )
+                #register disaggregated variable
+                m[var_name_i] = Containers.SparseAxisArray(var_i_dict)
             end
-        # elseif var isa Array{VariableRef}
-        #     #get bounds for disaggregated variable
-        #     UB = zeros(size(var))
-        #     LB = zeros(size(var))
-        #     for idx in eachindex(var)
-        #         var_ref = var[idx]
-        #         UB[idx] = is_binary(var_ref) ? 1 : upper_bound(var_ref)
-        #         LB[idx] = is_binary(var_ref) ? 0 : lower_bound(var_ref)
-        #     end
-        #     idx_str = join([1:s for s in size(var)],",")
-        #     #create disaggregated variable and bounding constraints
-        #     for i in eachindex(disj)
-        #         #disaggregate variable
-        #         var_name_i = Symbol("$(var_name)_$bin_var$i")
-        #         eval(Meta.parse("@variable(m, $var_name_i[$idx_str])")) 
-        #         #add bounds and bounding consraints on disaggregated variable
-        #         bin_var_ref = m[bin_var][i]
-        #         var_ref_i = m[var_name_i]
-        #         for idx in eachindex(var)
-        #             set_lower_bound(var_ref_i[idx], LB[idx])
-        #             set_upper_bound(var_ref_i[idx], UB[idx])
-        #         end
-        #         eval(:(@constraint($m, $LB * $bin_var_ref .<= $var_ref_i)))
-        #         eval(:(@constraint($m, $var_ref_i .<= $UB * $bin_var_ref)))
-        #         all(is_binary.(var)) && set_binary.(var_ref_i)
-        #     end
-        # elseif var isa Array{VariableRef} || var isa Containers.DenseAxisArray
-        #     idxs = join(axes(var), ", ")
-        #     eval(Meta.parse("Containers.@container(UB[$idxs], 0.)"))
-        #     eval(Meta.parse("Containers.@container(LB[$idxs], 0.)"))
-        #     for idx in eachindex(var)
-        #         var_ref = var[idx]
-        #         UB[idx] = is_binary(var_ref) ? 1 : upper_bound(var_ref)
-        #         LB[idx] = is_binary(var_ref) ? 0 : lower_bound(var_ref)
-        #     end
-        #     for i in eachindex(disj)
-        #         #create disaggregated variable for each disjunct
-        #         var_name_i = Symbol("$(var_name)_$i")
-        #         eval(Meta.parse("@variable(m, $var_name_i[$idxs])")) #NOTE: the disaggregated variable won't have explicit bounds; these are enforced by the constraints
-        #         #add bounding constraints for disaggregated variable
-        #         bin_var_ref = m[bin_var][i]
-        #         var_ref_i = m[var_name_i]
-        #         eval(:(@constraint($m, $LB * $bin_var_ref .<= $var_ref_i)))
-        #         eval(:(@constraint($m, $var_ref_i .<= $UB * $bin_var_ref)))
-        #         all(is_binary.(var)) && set_binary.(var_ref_i)
-        #     end
-        # elseif var isa Union{Containers.DenseAxisArray, Containers.SparseAxisArray}
-        #     if var isa Containers.SparseAxisArray
-        #         idxs = keys(var.data)
-        #         idxs = collect(idxs)
-        #     else #Array or DenseAxisArray
-        #         idxs = Iterators.product(axes(var)...)
-        #         idxs = reshape(collect(idxs),prod(size(idxs)),)
-        #     end
-        #     Containers.@container(UB[idx = idxs], 0.)
-        #     Containers.@container(LB[idx = idxs], 0.)
-        #     for idx in idxs#eachindex(var)
-        #         var_ref = var[idx...]#var[idx]
-        #         UB[idx] = is_binary(var_ref) ? 1 : upper_bound(var_ref)
-        #         LB[idx] = is_binary(var_ref) ? 0 : lower_bound(var_ref)
-        #     end
-        #     for i in eachindex(disj)
-        #         #create disaggregated variable for each disjunct
-        #         var_name_i = Symbol("$(var_name)_$bin_var$i")
-        #         eval(Meta.parse("@variable(m, $var_name_i[$idxs])")) 
-        #         #NOTE: disaggregated variable is indexed differently than original variable (issues when summing disaggregated to get original variable)
-        #         #add bounds and bounding constraints for disaggregated variable
-        #         bin_var_ref = m[bin_var][i]
-        #         var_ref_i = m[var_name_i]
-        #         for idx in idxs#eachindex(var)
-        #             set_lower_bound(var_ref_i[idx], LB[idx])
-        #             set_upper_bound(var_ref_i[idx], UB[idx])
-        #         end
-        #         eval(:(@constraint($m, $LB * $bin_var_ref .<= $var_ref_i)))
-        #         eval(:(@constraint($m, $var_ref_i .<= $UB * $bin_var_ref)))
-        #         all(is_binary.(var)) && set_binary.(var_ref_i)
-        #     end
+            #apply bounding constraints on disaggregated variable
+            lb_constr = LB * m[bin_var][i] .- m[var_name_i]
+            @constraint(m, lb_constr .<= 0)
+            ub_constr = m[var_name_i] .- UB * m[bin_var][i]
+            @constraint(m, ub_constr .<= 0)
         end
     end
 end
 
-function disaggregate_variable(m, var)
-    #get bounds for disaggregated variable
-    @assert has_upper_bound(var) || is_binary(var) "Variable $var does not have an upper bound."
+function get_bounds(var::VariableRef)
+    LB = is_binary(var) ? 0 : lower_bound(var)
     UB = is_binary(var) ? 1 : upper_bound(var)
-    LB = has_lower_bound(var) ? lower_bound(var) : 0 #set lower bound for disaggregated variable to 0 if binary or no lower bound given
-    #create disaggregated variable
-    var_i = Symbol("$(var)_$i")
-    if !(var_i in keys(object_dictionary(m)))
-        eval(:(@variable($m, 0 <= $var_i <= $UB)))
-        eval(:(@constraint($m, $LB * $bin_var_ref <= $var_i)))
-        eval(:(@constraint($m, $var_i <= $UB * $bin_var_ref)))
-        is_binary(var) && set_binary(m[var_i])
-    end
+
+    return LB, UB
 end
 
-function lin_perspective_function(ref, bin_var_ref, i)
+function add_disaggregated_variable(m, LB, UB, var, base_name)
+    #********
+    #NOTE: NEED TO CHECK IF DISAGGREGATED VARIABLE ALREADY exists
+    #********
+    @variable(
+        m, 
+        lower_bound = LB, 
+        upper_bound = UB, 
+        binary = is_binary(var), 
+        integer = is_integer(var),
+        base_name = base_name
+    )
+end
+
+function lin_perspective_function(ref, bin_var, i)
     #check constraint type
     ref_obj = constraint_object(ref)
     @assert ref_obj.set isa MOI.LessThan || ref_obj.set isa MOI.GreaterThan || ref_obj.set isa MOI.EqualTo "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
-    for var in ref.model[:Original_VarRefs]
-        #check var is present in the constraint
-        coeff = normalized_coefficient(ref,var)
-        iszero(coeff) && continue
-        #modify constraint using convex hull
-        rhs = normalized_rhs(ref) #get rhs
-        var_i_ref = variable_by_name(ref.model, "$(var)_$i")
-        set_normalized_rhs(ref,0) #set rhs to 0
-        set_normalized_coefficient(ref, var, 0) #remove original variable
-        set_normalized_coefficient(ref, var_i_ref, coeff) #add disaggregated variable
-        set_normalized_coefficient(ref, bin_var_ref, -rhs) #add binary variable
+    bin_var_ref = ref.model[bin_var][i]
+    for var_name in ref.model[:Original_VarNames]
+        var = ref.model[var_name]
+        var_name_i = Symbol("$(var_name)_$bin_var$i")
+        var_i = ref.model[var_name_i]
+        if var isa VariableRef
+            add_lin_perspective_function(ref, bin_var_ref, var, var_i)
+        else
+            for idx in eachindex(var)
+                add_lin_perspective_function(ref, bin_var_ref, var[idx], var_i[idx])
+            end
+        end
     end
 end
 
-function nl_perspective_function(ref, bin_var_ref, i, eps)
+function add_lin_perspective_function(ref, bin_var_ref, var_ref, var_i_ref)
+    #check var_ref is present in the constraint
+    coeff = normalized_coefficient(ref,var_ref)
+    iszero(coeff) && return #if not present, exit
+    #modify constraint using convex hull
+    rhs = normalized_rhs(ref) #get rhs
+    set_normalized_rhs(ref, 0) #set rhs to 0
+    set_normalized_coefficient(ref, var_ref, 0) #remove original variable
+    set_normalized_coefficient(ref, var_i_ref, coeff) #add disaggregated variable
+    set_normalized_coefficient(ref, bin_var_ref, -rhs) #add binary variable
+end
+
+function nl_perspective_function(ref, bin_var, i, eps)
     #create symbolic variables (using Symbolics.jl)
     sym_vars = []
     sym_i_vars = []
-    # vars = ref.model[:Original_VarRefs]
-    # for var in vars
-    #     var_sym = Symbol(var) #original variable
-    #     push!(sym_vars, eval(:(Symbolics.@variables($var_sym)))[1])
-    #     var_i_sym = Symbol("$(var)_$i") #disaggregated variable
-    #     push!(sym_i_vars, eval(:(Symbolics.@variables($var_i_sym)))[1])
-    # end
-    var_names = ref.model[:Original_VarNames]
-    for var in var_names
-        if ref.model[var] isa VariableRef
-            var_sym = var
-            var_i_sym = Symbol("$(var)_$i") #disaggregated variable
-        elseif ref.model[var] isa Vector{VariableRef}
+    bin_var_ref = ref.model[bin_var][i]
+    for var_name in ref.model[:Original_VarNames]
+        var = ref.model[var_name]
+        var_name_i = Symbol("$(var_name)_$bin_var$i")
+        var_i = ref.model[var_name_i]
+        if var isa VariableRef
+            var_sym = var_name
+            var_i_sym = var_name_i #disaggregated variable
+        elseif var isa Array{VariableRef}
             index_string = join([1:s for s in size(ref.model[var])],",")
-            var_sym = Symbol("$var[$index_string]")
-            var_i_sym = Symbol("$(var)_$i[$index_string]")
+            var_sym = Symbol("$var_name[$index_string]")
+            var_i_sym = Symbol("$var_name_i[$index_string]")
+        else
+            error("Symbolic manipulation not possible for DenseAxisArray or SparseAxisArray variables.")
         end
         push!(sym_vars, eval(:(Symbolics.@variables($var_sym)))[1])
         push!(sym_i_vars, eval(:(Symbolics.@variables($var_i_sym)))[1])
