@@ -5,6 +5,9 @@ function add_disjunction(m::Model,disj...;reformulation,M=missing,eps=1e-6,name=
     #create binary indicator variables for each disjunction
     disj_name = ismissing(name) ? Symbol("disj",gensym()) : name
     #check if indicator variable with that name already exists
+    #**********
+    #NOTE: Can the binary variable already be defined? Binary variables must be unique as their name is used in the disaggregated variables
+    #**********
     if disj_name in keys(object_dictionary(m))
         #check that the existing name is for a valid binary variable that can be used for the disjunction
         type_check = m[disj_name] isa Vector{VariableRef} #check it is a variable
@@ -20,5 +23,5 @@ function add_disjunction(m::Model,disj...;reformulation,M=missing,eps=1e-6,name=
     eval(:(@constraint($m,sum($disj_var[i] for i = 1:length($disj)) == 1)))
     #apply reformulation
     param = reformulation == :BMR ? M : eps
-    reformulate(m, disj, disj_name, reformulation, param)
+    reformulate_disjunction(m, disj, disj_name, reformulation, param)
 end

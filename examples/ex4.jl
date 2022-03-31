@@ -12,6 +12,11 @@ m = Model()
 @constraint(m, con6, x[2] <= 6)
 
 M = (10,(10,10,10))
-@disjunction(m,(con1,con2,con3),(con4,con5,con6),
-                reformulation=:BMR,
-                M=M)
+@disjunction(
+    m,
+    (con1,con2,con3),
+    (con4,con5,con6),
+    reformulation=:BMR,
+    M=M,
+    name=:y
+)

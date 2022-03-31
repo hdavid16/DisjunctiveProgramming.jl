@@ -14,6 +14,12 @@ Disjunctions can be applied to standard JuMP models with constraints of that are
 
 For the Convex Hull Reformulation, the perspective function proposed in [Furman, et al. [2020]](https://link.springer.com/article/10.1007/s10589-020-00176-0) is used.
 
+NOTE: `:Original_VarRefs` and `:Original_VarNames` are forbidden model object names when using DisjunctiveProgramming.jl.
+
+## Caveats
+
+Due to limitations in [Symbolics.jl](https://symbolics.juliasymbolics.org/dev/manual/variables/), does not support JuMP models that have variable containers that are `DenseAxisArrays` or `SparseAxisArrays` for use in nonlinear constraints.
+
 ## Example
 
 The example below is from the [Northwestern University Process Optimization Open Textbook](https://optimization.mccormick.northwestern.edu/index.php/Disjunctive_inequalities).
