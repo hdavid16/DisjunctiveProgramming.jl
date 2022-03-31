@@ -53,7 +53,6 @@ end
 function parse_NLconstraint(ref)
     #check function has a single comparrison operator (<=, >=, ==)
     ref_str = string(ref)
-    # ref_str = replace(ref_str," = " => " == ") #replace = for == in NLconstraint (for older versions of JuMP)
     ref_str = split(ref_str,": ")[end] #remove name if Quadratic Constraint has a name
 
     #convert ref_str into an Expr and extract comparrison operator (<=, >=, ==),
@@ -116,8 +115,10 @@ function replace_Symvars!(expr, model)
 end
 
 function replace_JuMPvars!(expr, model)
-    if expr isa Symbol #replace symbolic variables with JuMP variables
-        return variable_by_name(model, string(expr))
+    #replace symbolic variables with JuMP variables
+    if expr isa Symbol
+        var = variable_by_name(model, string(expr))
+        !isnothing(var) && return var
     elseif expr isa Expr #run recursion
         for i in eachindex(expr.args)
             expr.args[i] = replace_JuMPvars!(expr.args[i], model)
