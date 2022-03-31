@@ -25,7 +25,7 @@ end
 
 function nonlinear_bigM(ref, bin_var, M, i)
     #create symbolic variables (using Symbolics.jl)
-    for var_ref in ref.model[:Original_VarRefs]
+    for var_ref in ref.model[:gdp_variable_refs]
         var_sym = Symbol(var_ref)
         eval(:(Symbolics.@variables($var_sym)[1]))
     end

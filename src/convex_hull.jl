@@ -11,10 +11,10 @@ end
 
 function disaggregate_variables(m, disj, bin_var)
     #check that variables are bounded
-    var_refs = m[:Original_VarRefs]
+    var_refs = m[:gdp_variable_refs]
     @assert all((has_upper_bound.(var_refs) .&& has_lower_bound.(var_refs)) .|| is_binary.(var_refs)) "All variables must be bounded to perform the Convex-Hull reformulation."
     #reformulate variables
-    for var_name in m[:Original_VarNames]
+    for var_name in m[:gdp_variable_names]
         var = m[var_name]
         #define UB and LB
         if var isa VariableRef
@@ -67,18 +67,26 @@ function disaggregate_variables(m, disj, bin_var)
             end
             #apply bounding constraints on disaggregated variable
             lb_constr = LB * m[bin_var][i] .- m[var_name_i]
-            @constraint(m, lb_constr .<= 0)
+            m[Symbol(var_name_i,"_lb")] = @constraint(m, lb_constr .<= 0)
             ub_constr = m[var_name_i] .- UB * m[bin_var][i]
-            @constraint(m, ub_constr .<= 0)
+            m[Symbol(var_name_i,"_ub")] = @constraint(m, ub_constr .<= 0)
         end
     end
 end
 
+function sum_disaggregated_variables(m, disj, bin_var)
+    for var_name in m[:gdp_variable_names]
+        var = m[var_name]
+        dis_vars = []
+        for i in eachindex(disj)
+            var_name_i = Symbol("$(var_name)_$bin_var$i")
+            push!(dis_vars, m[var_name_i])
+        end
+        m[Symbol(var_name,"_aggregation")] = @constraint(m, var .== sum.(dis_vars))
+    end
+end
+
 function add_disaggregated_variable(m, LB, UB, var, base_name)
-    #********
-    #NOTE: NEED TO CHECK IF DISAGGREGATED VARIABLE ALREADY exists
-    #(happens if an error has occurred during disaggregation or if binary variable has already been used)
-    #********
     @variable(
         m, 
         lower_bound = LB, 
@@ -95,7 +103,7 @@ function linear_perspective_function(ref, bin_var, i)
     @assert ref_obj.set isa MOI.LessThan || ref_obj.set isa MOI.GreaterThan || ref_obj.set isa MOI.EqualTo "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
     bin_var_ref = ref.model[bin_var][i]
     #replace each variable with its disaggregated version
-    for var_ref in ref.model[:Original_VarRefs]
+    for var_ref in ref.model[:gdp_variable_refs]
         #get disaggregated variable reference
         var_name_i = replace(string(var_ref), "[" => "_$bin_var$i[")
         var_i_ref = variable_by_name(ref.model, var_name_i)
@@ -115,7 +123,7 @@ end
 function nonlinear_perspective_function(ref, bin_var, i, eps)
     #create symbolic variables (using Symbolics.jl)
     sym_vars = Dict()
-    for var_ref in ref.model[:Original_VarRefs]
+    for var_ref in ref.model[:gdp_variable_refs]
         #get disaggregated variable reference
         var_name_i = replace(string(var_ref), "[" => "_$bin_var$i[")
         var_sym = Symbol(var_ref)
@@ -145,18 +153,4 @@ function nonlinear_perspective_function(ref, bin_var, i, eps)
                                            FSG2 => ϵ*(1-λ)))
     pers_func = simplify(pers_func)
     replace_NLconstraint(ref, pers_func, op, rhs)
-end
-
-function add_disaggregated_constr(m, disj, vars)
-    #****************
-    #NOTE: Need to extend to Container variables
-    #****************
-    for var in vars
-        d_vars = []
-        for i in 1:length(disj)
-            var_i = Symbol("$(var)_$i")
-            var_i in keys(object_dictionary(m)) && push!(d_vars, m[var_i])
-        end
-        !isempty(d_vars) && eval(:(@constraint($m, $var == sum($d_vars))))
-    end
 end

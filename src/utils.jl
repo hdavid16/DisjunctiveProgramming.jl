@@ -10,7 +10,7 @@ function apply_interval_arithmetic(ref)
     ref_func_expr, ref_type, ref_rhs = parse_constraint(ref)
     #create a map of variables to their bounds
     interval_map = Dict()
-    vars = ref.model[:Original_VarRefs]
+    vars = ref.model[:gdp_variable_refs]
     for var in vars
         UB = has_upper_bound(var) ? upper_bound(var) : (is_binary(var) ? 1 : Inf)
         LB = has_lower_bound(var) ? lower_bound(var) : (is_binary(var) ? 0 : -Inf)
@@ -87,7 +87,7 @@ function replace_NLconstraint(ref, sym_expr, op, rhs)
     replace_operators!(expr)
     #update constraint
     if ref isa NonlinearConstraintRef
-        # determine bounds of original constraint (note: if op is ==, both bounds are set to rhs)
+        # determine bounds of original constraint (if op is ==, both bounds are set to rhs)
         upper_b = (op == >=) ? Inf : rhs
         lower_b = (op == <=) ? -Inf : rhs
         # replace NL constraint currently in the model with the reformulated one

@@ -8,6 +8,4 @@ m = Model()
 nl_con1 = @NLconstraint(m, exp(x[1]) >= 1)
 nl_con2 = @NLconstraint(m, exp(x[2]) <= 2)
 
-@disjunction(m, nl_con1, nl_con2, reformulation=:BMR, name=:z)
-
-print(m)
+@disjunction(m, nl_con1, nl_con2, reformulation=:CHR, name=:z)

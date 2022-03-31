@@ -2,20 +2,18 @@ function reformulate_disjunction(m, disj, bin_var, reformulation, param)
     #get original variable refs and variable names
     vars = setdiff(all_variables(m), m[bin_var])
     var_names = unique(Symbol.([split("$var","[")[1] for var in vars]))
-    if !in(:Original_VarRefs, keys(object_dictionary(m)))
-        @expression(m, Original_VarRefs, vars)
+    if !in(:gdp_variable_refs, keys(object_dictionary(m)))
+        @expression(m, gdp_variable_refs, vars)
     end
-    if !in(:Original_VarNames, keys(object_dictionary(m)))
-        @expression(m, Original_VarNames, var_names)
+    if !in(:gdp_variable_names, keys(object_dictionary(m)))
+        @expression(m, gdp_variable_names, var_names)
     end
     #run reformulation
     if reformulation == :CHR
         disaggregate_variables(m, disj, bin_var)
+        sum_disaggregated_variables(m, disj, bin_var)
     end
     reformulate(m, disj, bin_var, reformulation, param)
-    if reformulation == :CHR
-        add_disaggregated_constr(m, disj, vars)
-    end
 end
 
 function reformulate(m, disj, bin_var, reformulation, param)
