@@ -14,6 +14,8 @@ function reformulate_disjunction(m, disj, bin_var, reformulation, param)
         sum_disaggregated_variables(m, disj, bin_var)
     end
     reformulate(m, disj, bin_var, reformulation, param)
+
+    # return m[bin_var]
 end
 
 function reformulate(m, disj, bin_var, reformulation, param)

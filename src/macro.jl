@@ -22,3 +22,29 @@ macro disjunction(args...)
     #build disjunction
     :(add_disjunction($m, $(disj...), reformulation = $reformulation, M = $M, eps = $eps, name = $name))
 end
+
+function add_disjunction(m::Model,disj...;reformulation,M=missing,eps=1e-6,name=missing)
+    @assert m isa Model "A valid JuMP Model must be provided."
+    @assert reformulation in [:BMR, :CHR] "Invalid reformulation method passed to keyword argument `:reformulation`. Valid options are :BMR (Big-M Reformulation) and :CHR (Convex-Hull Reormulation)."
+    @assert length(disj) > 1 "At least 2 disjuncts must be included."
+    #create binary indicator variables for each disjunction
+    disj_name = ismissing(name) ? Symbol("disj",gensym()) : name
+    @assert !in(disj_name, keys(object_dictionary(m))) "The disjunction name $disj_name already exists as a model object. Specify a name that is not present in the model's object_dictionary."
+    #create variable if it doesn't exist
+    m[disj_name] = @variable(m, [eachindex(disj)], Bin, base_name = string(disj_name))    
+    #apply reformulation
+    param = reformulation == :BMR ? M : eps
+    reformulate_disjunction(m, disj, disj_name, reformulation, param)
+end
+
+macro proposition(m, expr)
+    #get args
+    m = esc(m)
+    expr = Expr(:quote, expr)
+    :(add_logical_proposition($m, $expr))
+end
+
+function add_logical_proposition(m::Model, expr::Expr)
+    @assert m isa Model "A valid JuMP Model must be provided."
+    to_cnf!(m, expr)
+end
