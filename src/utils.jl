@@ -16,7 +16,7 @@ function apply_interval_arithmetic(ref)
         LB = has_lower_bound(var) ? lower_bound(var) : (is_binary(var) ? 0 : -Inf)
         interval_map[string(var)] = LB..UB
     end
-    ref_func_expr = replace_vars!(ref_func_expr, interval_map)
+    ref_func_expr = replace_intevals!(ref_func_expr, interval_map)
     #get bounds on the entire expression
     func_bounds = eval(ref_func_expr)
     if ref_type == :lower
@@ -99,10 +99,13 @@ function replace_NLconstraint(ref, sym_expr, op, rhs)
     end
 end
 
-function replace_Symvars!(expr, model)
+function replace_Symvars!(expr, model; force_binary = false)
+    #replace JuMP variables with symbolic variables
     if expr isa Expr
         name = join(split(string(expr)," "))
-        if !isnothing(variable_by_name(model, name))
+        var = variable_by_name(model, name)
+        if !isnothing(var)
+            force_binary && @assert is_binary(var) "Only binary variables are allowed in $expr."
             expr = Symbol(name)
         else
             for i in eachindex(expr.args)
@@ -129,6 +132,7 @@ function replace_JuMPvars!(expr, model)
 end
 
 function replace_operators!(expr)
+    #replace operators with their symbol. NOTE: Is this still needed for the CHR of nl constraints? (check this)
     if expr isa Expr #run recursion
         for i in eachindex(expr.args)
             expr.args[i] = replace_operators!(expr.args[i])
@@ -140,15 +144,16 @@ function replace_operators!(expr)
     return expr
 end
 
-function replace_vars!(expr, intervals)
+function replace_intevals!(expr, intervals)
+    #replace variables with their intervals
     if string(expr) in keys(intervals) #check if expression is one of the model variables in the intervals dict
         return intervals[string(expr)] #replace expression with interval
     elseif expr isa Expr
         if length(expr.args) == 1 #run recursive relation on the leaf node on expression tree
-            expr.args[i] = replace_vars!(expr.args[i], intervals)
+            expr.args[i] = replace_intevals!(expr.args[i], intervals)
         else #run recursive relation on each internal node of the expression tree, but skip the first element, which will always be the operator (this will avoid issues if the user creates a model variable called exp)
             for i in 2:length(expr.args)
-                expr.args[i] = replace_vars!(expr.args[i], intervals)
+                expr.args[i] = replace_intevals!(expr.args[i], intervals)
             end
         end
     end

@@ -3,7 +3,7 @@ function to_cnf!(m::Model, expr::Expr)
     #NOTE: Check if already in CNF?
     #********
     expr_copy = copy(expr)
-    replace_Symvars!(expr, m)
+    replace_Symvars!(expr, m; force_binary = true)
     eliminate_equivalence!(expr)
     eliminate_implication!(expr)
     move_negations_inwards!(expr)
