@@ -43,10 +43,10 @@ macro proposition(m, expr)
     #get args
     m = esc(m)
     expr = Expr(:quote, expr)
-    :(add_logical_proposition($m, $expr))
+    :(add_proposition($m, $expr))
 end
 
-function add_logical_proposition(m::Model, expr::Expr)
+function add_proposition(m::Model, expr::Expr)
     @assert m isa Model "A valid JuMP Model must be provided."
     to_cnf!(m, expr)
 end

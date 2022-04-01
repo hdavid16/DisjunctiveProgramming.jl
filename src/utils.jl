@@ -99,13 +99,13 @@ function replace_NLconstraint(ref, sym_expr, op, rhs)
     end
 end
 
-function replace_Symvars!(expr, model; force_binary = false)
+function replace_Symvars!(expr, model; logical_proposition = false)
     #replace JuMP variables with symbolic variables
     if expr isa Expr
         name = join(split(string(expr)," "))
         var = variable_by_name(model, name)
         if !isnothing(var)
-            force_binary && @assert is_binary(var) "Only binary variables are allowed in $expr."
+            logical_proposition && @assert is_binary(var) "Only binary variables are allowed in $expr."
             expr = Symbol(name)
         else
             for i in eachindex(expr.args)

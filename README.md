@@ -14,7 +14,9 @@ Disjunctions can be applied to standard JuMP models with constraints of that are
 
 For the Convex Hull Reformulation, the perspective function proposed in [Furman, et al. [2020]](https://link.springer.com/article/10.1007/s10589-020-00176-0) is used.
 
-NOTE: `:gdp_variable_refs` and `:gdp_variable_names` are forbidden model object names when using DisjunctiveProgramming.jl.
+For empty disjuncts, use `nothing`.
+
+NOTE: `:gdp_variable_refs` and `:gdp_variable_names` are forbidden model object names when using DisjunctiveProgramming.jl. They are used to store the variable names and variable references in the original model.
 
 ## Caveats
 

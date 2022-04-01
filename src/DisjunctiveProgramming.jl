@@ -1,8 +1,8 @@
 module DisjunctiveProgramming
 
-using JuMP, IntervalArithmetic, Symbolics
+using JuMP, IntervalArithmetic, Symbolics, Suppressor
 
-export add_disjunction
+export add_disjunction, add_proposition
 export @disjunction, @proposition
 
 include("logic.jl")
