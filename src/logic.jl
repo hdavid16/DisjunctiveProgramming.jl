@@ -6,7 +6,6 @@ function to_cnf!(m::Model, expr::Expr)
     replace_Symvars!(expr, m)
     eliminate_equivalence!(expr)
     eliminate_implication!(expr)
-    eliminate_xor!(expr)
     move_negations_inwards!(expr)
     clause_list = [:()]
     wrong_clauses = clause_list
@@ -56,25 +55,6 @@ function eliminate_implication!(expr)
         end
         for i in eachindex(expr.args)
             expr.args[i] = eliminate_implication!(expr.args[i])
-        end
-    end
-
-    return expr
-end
-
-function eliminate_xor!(expr)
-    # A ⊻ B = ¬(A ⇔ B) = (A ∨ B) ∧ ¬(A ∧ B)
-    if expr isa Expr
-        if expr.args[1] == :⊻
-            @assert length(expr.args) == 3 "Implication cannot have more than two clauses."
-            A = expr.args[2]
-            B = expr.args[3]
-            expr.args[1] = :∧
-            expr.args[2] = :($A ∨ $B)
-            expr.args[3] = :(¬$A ∨ ¬$B)
-        end
-        for i in eachindex(expr.args)
-            expr.args[i] = eliminate_xor!(expr.args[i])
         end
     end
 
