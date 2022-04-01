@@ -10,6 +10,6 @@ m = Model()
 @constraint(m, con4, 5<=x)
 
 @disjunction(m,(con1,con2),con3,con4,reformulation=:CHR,name=:y)
-@proposition(m, y[1] ⊻ y[2] ⊻ y[3])
+# @proposition(m, y[1] ⊻ y[2] ⊻ y[3])
 
 print(m)

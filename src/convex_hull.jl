@@ -66,10 +66,8 @@ function disaggregate_variables(m, disj, bin_var)
                 m[var_name_i] = Containers.SparseAxisArray(var_i_dict)
             end
             #apply bounding constraints on disaggregated variable
-            lb_constr = LB * m[bin_var][i] .- m[var_name_i]
-            m[Symbol(var_name_i,"_lb")] = @constraint(m, lb_constr .<= 0)
-            ub_constr = m[var_name_i] .- UB * m[bin_var][i]
-            m[Symbol(var_name_i,"_ub")] = @constraint(m, ub_constr .<= 0)
+            m[Symbol(var_name_i,"_lb")] = @constraint(m, LB * m[bin_var][i] .- m[var_name_i] .<= 0)
+            m[Symbol(var_name_i,"_ub")] = @constraint(m, m[var_name_i] .- UB * m[bin_var][i] .<= 0)
         end
     end
 end

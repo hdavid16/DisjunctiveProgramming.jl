@@ -31,7 +31,9 @@ function add_disjunction(m::Model,disj...;reformulation,M=missing,eps=1e-6,name=
     disj_name = ismissing(name) ? Symbol("disj",gensym()) : name
     @assert !in(disj_name, keys(object_dictionary(m))) "The disjunction name $disj_name already exists as a model object. Specify a name that is not present in the model's object_dictionary."
     #create variable if it doesn't exist
-    m[disj_name] = @variable(m, [eachindex(disj)], Bin, base_name = string(disj_name))    
+    m[disj_name] = @variable(m, [eachindex(disj)], Bin, base_name = string(disj_name))
+    #add xor constraint on binary variable
+    m[Symbol("XOR(",disj_name,")")] = @constraint(m, sum(m[disj_name][i] for i in eachindex(disj)) == 1)
     #apply reformulation
     param = reformulation == :BMR ? M : eps
     reformulate_disjunction(m, disj, disj_name, reformulation, param)
