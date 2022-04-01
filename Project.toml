@@ -10,7 +10,7 @@ Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
 IntervalArithmetic = "0.20"
-JuMP = "0.22"
+JuMP = "1"
 Symbolics = "4"
 julia = "1"
 
