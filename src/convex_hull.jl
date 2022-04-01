@@ -80,7 +80,7 @@ function sum_disaggregated_variables(m, disj, bin_var)
             var_name_i = Symbol("$(var_name)_$bin_var$i")
             push!(dis_vars, m[var_name_i])
         end
-        m[Symbol(var_name,"_aggregation")] = @constraint(m, var .== sum.(dis_vars))
+        m[Symbol(var_name,"_aggregation")] = @constraint(m, var .== sum(dis_vars))
     end
 end
 
@@ -103,7 +103,11 @@ function linear_perspective_function(ref, bin_var, i)
     #replace each variable with its disaggregated version
     for var_ref in ref.model[:gdp_variable_refs]
         #get disaggregated variable reference
-        var_name_i = replace(string(var_ref), "[" => "_$bin_var$i[")
+        if occursin("[", string(var_ref))
+            var_name_i = replace(string(var_ref), "[" => "_$bin_var$i[")
+        else
+            var_name_i = "$(var_ref)_$bin_var$i"
+        end
         var_i_ref = variable_by_name(ref.model, var_name_i)
         #check var_ref is present in the constraint
         coeff = normalized_coefficient(ref, var_ref)
