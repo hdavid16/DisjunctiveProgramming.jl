@@ -1,30 +1,37 @@
 function to_cnf!(m::Model, expr::Expr)
-    #********
-    #NOTE: Check if already in CNF?
-    #********
-    expr_copy = copy(expr)
-    replace_Symvars!(expr, m; force_binary = true)
-    eliminate_equivalence!(expr)
-    eliminate_implication!(expr)
-    move_negations_inwards!(expr)
-    clause_list = [:()]
-    wrong_clauses = clause_list
-    while !isempty(wrong_clauses)
-        distribute_and_over_or!(expr)
-        clause_list = extract_clauses(expr)
-        wrong_clauses = filter(i -> occursin("∧",string(i)), clause_list)
-    end
-    # @assert isempty(wrong_clauses) "AND operator found in one or more clauses:\n$(join(wrong_clauses,"\n"))."
-    unique!(clause_list)
+    expr_name = Symbol(expr) #get name to register reformulated logical proposition
+    replace_Symvars!(expr, m; logical_proposition = true) #replace all JuMP variables with Symbolic variables
+    check_logical_proposition(expr) #check that valid boolean symbols and variables are used in the logical proposition
+    eliminate_equivalence!(expr) #eliminate ⇔
+    eliminate_implication!(expr) #eliminmate ⇒
+    move_negations_inwards!(expr) #expand ¬
+    clause_list = distribute_and_over_or_recursively!(expr) #distribute ∧ over ∨ recursively
+    @assert !isempty(clause_list) "Conversion to CNF failed."
+    #replace symbolic variables with JuMP variables and boolean operators with their algebraic counterparts
     for clause in clause_list
         replace_JuMPvars!(clause, m)
         replace_logic_operators!(clause)
     end
-    lhs = [eval(clause) for clause in clause_list]
+    #generate and simplify JuMP expressions for the lhs of the algebraic constraints
+    lhs = eval.(clause_list)
     drop_zeros!.(lhs)
     unique!(lhs)
-    clause_sym = Symbol(expr_copy)
-    m[clause_sym] = @constraint(m, [i = eachindex(lhs)], lhs[i] >= 1)
+    #generate JuMP constraints for the logical proposition
+    if length(lhs) == 1
+        m[expr_name] = @constraint(m, lhs[1] >= 1)
+    else
+        m[expr_name] = @constraint(m, [i = eachindex(lhs)], lhs[i] >= 1)
+    end
+end
+
+function check_logical_proposition(expr)
+    #NOTE: this is quick and dirty (uses Suppressor.jl). A more robust approach should traverse the expression tree to verify that only valid boolean symbols and model variables are used.
+    dump_str = @capture_out dump(expr, maxdepth = typemax(Int)) #caputre dump
+    dump_arr = split(dump_str,"\n") #split by \n
+    filter!(i -> occursin("1:",i), dump_arr) #filter only first args in each subexpression
+    @assert all(occursin.("1: Symbol ",dump_arr)) "Logical expression does not use valid Boolean symbols: ∨, ∧, ¬, ⇒, ⇔."
+    operator_list = map(i -> split(i, "Symbol ")[2], dump_arr)
+    @assert isempty(setdiff(operator_list, ["∨", "∧", "¬", "⇒", "⇔", "variables"])) "Logical expression does not use valid model variables or allowed Boolean symbols (∨, ∧, ¬, ⇒, ⇔)."
 end
 
 function eliminate_equivalence!(expr)
@@ -153,6 +160,17 @@ function extract_clauses(expr)
     end
 
     return clauses
+end
+
+function distribute_and_over_or_recursively!(expr)
+    distribute_and_over_or!(expr)
+    clause_list = extract_clauses(expr)
+    wrong_clauses = filter(i -> occursin("∧",string(i)), clause_list)
+    if !isempty(wrong_clauses)
+        clause_list = distribute_and_over_or_recursively!(expr)
+    end
+
+    return unique!(clause_list)
 end
 
 function replace_logic_operators!(expr)
