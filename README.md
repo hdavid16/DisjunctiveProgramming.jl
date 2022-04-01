@@ -54,7 +54,7 @@ print(m)
 Feasibility
 Subject to
  y[1] + y[2] == 1.0 #XOR constraint
- y[1] + y[2] >= 1.0 #from the logical proposition
+ y[1] + y[2] >= 1.0 #reformulated logical proposition (redundant here)
  con1[1] : x[1] + 7 y[1] <= 10.0
  con1[2] : x[2] + 6 y[1] <= 10.0
  con2[1] : -x[1] <= 0.0
