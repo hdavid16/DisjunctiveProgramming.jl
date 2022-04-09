@@ -34,13 +34,11 @@ end
 function parse_constraint(ref)
     if ref isa NonlinearConstraintRef
         ref_str = string(ref)
-        @assert length(findall(r"[<>]", ref_str)) <= 1 "$ref must be one of the following: GreaterThan, LessThan, or EqualTo."
         ref_func = replace(split(ref_str, r"[=<>]")[1], " " => "")
         ref_type = occursin(">", ref_str) ? :lower : :upper
         ref_rhs = 0 #Could be calculated with: parse(Float64,split(ref_str, " ")[end]). NOTE: @NLconstraint will always have a 0 RHS.
     elseif ref isa ConstraintRef
         ref_obj = constraint_object(ref)
-        @assert ref_obj.set isa MOI.LessThan || ref_obj.set isa MOI.GreaterThan || ref_obj.set isa MOI.EqualTo "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
         ref_func = string(ref_obj.func)
         ref_type = fieldnames(typeof(ref_obj.set))[1]
         ref_rhs = normalized_rhs(ref)
@@ -59,7 +57,6 @@ function parse_NLconstraint(ref)
     #constraint function, and RHS
     ref_expr = Meta.parse(ref_str).args
     op = eval(ref_expr[1]) #comparrison operator
-    @assert op in [>=, <=, ==] "$ref must be one of the following: GreaterThan, LessThan, or EqualTo."
     lhs = ref_expr[2] #LHS of the constraint
     rhs = ref_expr[3] #RHS of constraint
 
@@ -118,11 +115,10 @@ function replace_Symvars!(expr, model; logical_proposition = false)
 end
 
 function replace_JuMPvars!(expr, model)
-    #replace symbolic variables with JuMP variables
-    if expr isa Symbol
-        var = variable_by_name(model, string(expr))
-        !isnothing(var) && return var
-    elseif expr isa Expr #run recursion
+    #replace symbolic variables and any matching expressions with JuMP variables
+    var = variable_by_name(model, string(expr))
+    !isnothing(var) && return var
+    if expr isa Expr #run recursion
         for i in eachindex(expr.args)
             expr.args[i] = replace_JuMPvars!(expr.args[i], model)
         end

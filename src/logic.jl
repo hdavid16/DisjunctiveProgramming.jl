@@ -18,9 +18,9 @@ function to_cnf!(m::Model, expr::Expr)
     unique!(lhs)
     #generate JuMP constraints for the logical proposition
     if length(lhs) == 1
-        m[expr_name] = @constraint(m, lhs[1] >= 1)
+        m[expr_name] = @constraint(m, lhs[1] >= 1, base_name = string(expr_name))
     else
-        m[expr_name] = @constraint(m, [i = eachindex(lhs)], lhs[i] >= 1)
+        m[expr_name] = @constraint(m, [i = eachindex(lhs)], lhs[i] >= 1, base_name = string(expr_name))
     end
 end
 

@@ -1,9 +1,7 @@
 function BMR!(m, constr, bin_var, i, k, M)
     if ismissing(k)
-        @assert is_valid(m,constr) "$constr is not a valid constraint in the model."
         ref = constr
     else
-        @assert is_valid(m,constr[k...]) "$constr is not a valid constraint in the model."
         ref = constr[k...]
     end
     if ismissing(M)

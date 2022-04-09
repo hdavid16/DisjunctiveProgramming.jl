@@ -1,6 +1,5 @@
 function CHR!(m, constr, bin_var, i, k, eps)
     ref = ismissing(k) ? constr : constr[k...] #get constraint
-    @assert is_valid(m,ref) "$constr is not a valid constraint in the model."
     #create convex hull constraint
     if ref isa NonlinearConstraintRef || constraint_object(ref).func isa QuadExpr
         nonlinear_perspective_function(ref, bin_var, i, eps)
@@ -66,8 +65,10 @@ function disaggregate_variables(m, disj, bin_var)
                 m[var_name_i] = Containers.SparseAxisArray(var_i_dict)
             end
             #apply bounding constraints on disaggregated variable
-            m[Symbol(var_name_i,"_lb")] = @constraint(m, LB * m[bin_var][i] .- m[var_name_i] .<= 0)
-            m[Symbol(var_name_i,"_ub")] = @constraint(m, m[var_name_i] .- UB * m[bin_var][i] .<= 0)
+            var_i_lb = "$(var_name_i)_lb" 
+            var_i_ub = "$(var_name_i)_ub" 
+            m[Symbol(var_i_lb)] = @constraint(m, LB * m[bin_var][i] .- m[var_name_i] .<= 0, base_name = var_i_lb)
+            m[Symbol(var_i_ub)] = @constraint(m, m[var_name_i] .- UB * m[bin_var][i] .<= 0, base_name = var_i_ub)
         end
     end
 end
@@ -80,7 +81,8 @@ function sum_disaggregated_variables(m, disj, bin_var)
             var_name_i = Symbol("$(var_name)_$bin_var$i")
             push!(dis_vars, m[var_name_i])
         end
-        m[Symbol(var_name,"_aggregation")] = @constraint(m, var .== sum(dis_vars))
+        aggr_con = "$(var_name)_aggregation"
+        m[Symbol(aggr_con)] = @constraint(m, var .== sum(dis_vars), base_name = aggr_con)
     end
 end
 
@@ -97,8 +99,6 @@ end
 
 function linear_perspective_function(ref, bin_var, i)
     #check constraint type
-    ref_obj = constraint_object(ref)
-    @assert ref_obj.set isa MOI.LessThan || ref_obj.set isa MOI.GreaterThan || ref_obj.set isa MOI.EqualTo "$ref must be one the following: GreaterThan, LessThan, or EqualTo."
     bin_var_ref = ref.model[bin_var][i]
     #replace each variable with its disaggregated version
     for var_ref in ref.model[:gdp_variable_refs]
