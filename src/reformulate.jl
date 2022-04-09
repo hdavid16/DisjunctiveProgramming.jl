@@ -1,4 +1,6 @@
 function reformulate_disjunction(m, disj, bin_var, reformulation, param)
+    #check disj
+    disj = check_disjunction(m, disj)
     #get original variable refs and variable names
     vars = setdiff(all_variables(m), m[bin_var])
     var_names = unique(Symbol.([split("$var","[")[1] for var in vars]))
@@ -20,11 +22,11 @@ end
 
 function reformulate(m, disj, bin_var, reformulation, param)
     for (i,constr) in enumerate(disj)
-        if constr isa Tuple
+        if constr isa Tuple #NOTE: Make it so that it must be bundled in a Tuple (not Array), to avoid confusing it with a Variable Array
             for (j,constr_j) in enumerate(constr)
                 apply_reformulation(m, constr_j, bin_var, reformulation, param, i, j)
             end
-        elseif constr isa ConstraintRef || constr isa Array || constr isa Containers.DenseAxisArray || constr isa Containers.SparseAxisArray
+        elseif constr isa Union{ConstraintRef, Array, Containers.DenseAxisArray, Containers.SparseAxisArray}
             apply_reformulation(m, constr, bin_var, reformulation, param, i)
         end
     end
@@ -34,17 +36,9 @@ function apply_reformulation(m, constr, bin_var, reformulation, param, i, j = mi
     param = get_reform_param(param, i, j) #M or eps
     if constr isa ConstraintRef
         call_reformulation(reformulation, m, constr, bin_var, i, missing, param)
-    elseif constr isa Array
-        for k in Iterators.product([1:s for s in size(constr)]...)
+    elseif constr isa Union{Array, Containers.DenseAxisArray, Containers.SparseAxisArray}
+        for k in eachindex(constr)
             call_reformulation(reformulation, m, constr, bin_var, i, k, param)
-        end
-    elseif constr isa Containers.DenseAxisArray
-        for k in Iterators.product([s for s in constr.axes]...)
-            call_reformulation(reformulation, m, constr, bin_var, i, k, param)
-        end
-    elseif constr isa Containers.SparseAxisArray
-        for (k, c) in constr.data
-            call_reformulation(reformulation, m, c, bin_var, i, k, param)
         end
     end
 end

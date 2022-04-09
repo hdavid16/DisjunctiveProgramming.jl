@@ -10,7 +10,7 @@ Pkg.add("DisjunctiveProgramming")
 
 ## Disjunctions
 
-After defining a JuMP model, disjunctions can be added to the model by specifying which of the original JuMP model constraints should be assigned to each disjunction. The constraints that are assigned to the disjunctions will no longer be general model constraints, but will belong to the disjunction that they are assigned to. These constraints must be either `GreaterThan`, `LessThan`, or `EqualTo` constraints. Constraints that are of `Interval` type are currently not supported. It is assumed that the disjuncts belonging to a disjunction are proper disjunctions (mutually exclussive) and only one of them will be selected.
+After defining a JuMP model, disjunctions can be added to the model by specifying which of the original JuMP model constraints should be assigned to each disjunction. The constraints that are assigned to the disjunctions will no longer be general model constraints, but will belong to the disjunction that they are assigned to. These constraints must be either `GreaterThan`, `LessThan`, `EqualTo`, or `Interval` constraints. Constraints that are of `Interval` type are split into two constraints (one for each bound). It is assumed that the disjuncts belonging to a disjunction are proper disjunctions (mutually exclussive) and only one of them will be selected (`XOR`).
 
 When a disjunction is defined using the `@disjunction` macro, the disjunctions are reformulated to algebraic constraints via either,
 - The Big-M method (when `reformulation = :BMR` in the `@disjunction` macro) 
@@ -48,34 +48,29 @@ using JuMP
 using DisjunctiveProgramming
 
 m = Model()
-@variable(m, 0<=x[1:2]<=10)
+@variable(m, -1<=x<=10)
 
-@constraint(m, con1[i=1:2], x[i] <= [3,4][i])
-@constraint(m, con2[i=1:2], zeros(2)[i] <= x[i])
-@constraint(m, con3[i=1:2], [5,4][i] <= x[i])
-@constraint(m, con4[i=1:2], x[i] <= [9,6][i])
+@constraint(m, con1, 0 <= x <= 3)
+@constraint(m, con2, 5 <= x <= 9)
 
-@disjunction(m,(con1,con2),(con3,con4), reformulation=:BMR, name = :y)
-@proposition(m, y[1] ∨ y[2])
+@disjunction(m,con1,con2,reformulation=:BMR,name=:y)
+@proposition(m, y[1] ∨ y[2]) #this is a redundant proposition
 
 print(m)
 
+┌ Warning: con1 : x in [0.0, 3.0] uses the `MOI.Interval` set. Each instance of the interval set has been split into two constraints, one for each bound.
+┌ Warning: con2 : x in [5.0, 9.0] uses the `MOI.Interval` set. Each instance of the interval set has been split into two constraints, one for each bound.
+
 Feasibility
 Subject to
- y[1] + y[2] == 1.0 #XOR constraint
- y[1] + y[2] >= 1.0 #reformulated logical proposition (redundant here)
- con1[1] : x[1] + 7 y[1] <= 10.0
- con1[2] : x[2] + 6 y[1] <= 10.0
- con2[1] : -x[1] <= 0.0
- con2[2] : -x[2] <= 0.0
- con3[1] : -x[1] + 5 y[2] <= 0.0
- con3[2] : -x[2] + 4 y[2] <= 0.0
- con4[1] : x[1] + y[2] <= 10.0
- con4[2] : x[2] + 4 y[2] <= 10.0
- x[1] >= 0.0
- x[2] >= 0.0
- x[1] <= 10.0
- x[2] <= 10.0
+ XOR(y) : y[1] + y[2] == 1.0
+ y[1] ∨ y[2] : y[1] + y[2] >= 1.0
+ con1[lb] : -x + y[1] <= 1.0
+ con1[ub] : x + 7 y[1] <= 10.0
+ con2[lb] : -x + 6 y[2] <= 1.0
+ con2[ub] : x + y[2] <= 10.0
+ x >= -1.0
+ x <= 10.0
  y[1] binary
  y[2] binary
 ```

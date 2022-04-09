@@ -33,7 +33,8 @@ function add_disjunction(m::Model,disj...;reformulation::Symbol,M=missing,ϵ=1e-
     #create variable if it doesn't exist
     m[disj_name] = @variable(m, [eachindex(disj)], Bin, base_name = string(disj_name))
     #add xor constraint on binary variable
-    m[Symbol("XOR(",disj_name,")")] = @constraint(m, sum(m[disj_name][i] for i in eachindex(disj)) == 1)
+    xor_con = "XOR($disj_name)"
+    m[Symbol(xor_con)] = @constraint(m, sum(m[disj_name][i] for i in eachindex(disj)) == 1, base_name = xor_con)
     #apply reformulation
     param = reformulation == :BMR ? M : ϵ
     reformulate_disjunction(m, disj, disj_name, reformulation, param)

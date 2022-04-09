@@ -2,20 +2,11 @@ using JuMP
 using DisjunctiveProgramming
 
 m = Model()
-@variable(m, -1<=x<=10)
+@variable(m, -10 ≤ x[1:2] ≤ 10)
 
-@constraint(m, con1, x<=3)
-@constraint(m, con2, 0<=x)
-@constraint(m, con3, x<=9)
-@constraint(m, con4, 5<=x)
+nl_con1 = @NLconstraint(m, exp(x[1]) >= 1)
+nl_con2 = @NLconstraint(m, exp(x[2]) <= 2)
 
-M = 10
-@disjunction(
-    m,
-    (con1,con2),
-    con3,
-    con4,
-    reformulation=:BMR,
-    M=M,
-    name=:y
-)
+@disjunction(m, nl_con1, nl_con2, reformulation=:CHR, name=:z)
+
+print(m)
