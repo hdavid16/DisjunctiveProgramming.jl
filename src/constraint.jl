@@ -2,23 +2,6 @@ is_interval_constraint(con_ref::ConstraintRef{<:AbstractModel}) = constraint_obj
 is_interval_constraint(con_ref::NonlinearConstraintRef) = count(i -> i == :(<=), Meta.parse(string(con_ref)).args) == 2
 JuMP.name(con_ref::NonlinearConstraintRef) = ""
 
-function check_disjunction(m, disj)
-    disj_new = [] #create a new array where the disjunction will be copied to so that we can split constraints that use an Interval set
-    for constr in disj
-        if constr isa Tuple #NOTE: Make it so that it must be bundled in a Tuple (not Array), to avoid confusing it with a Variable Array
-            constr_list = []
-            for constr_j in constr
-                push!(constr_list, check_constraint!(m, constr_j))
-            end
-            push!(disj_new, Tuple(constr_list))
-        elseif constr isa Union{ConstraintRef, Array, Containers.DenseAxisArray, Containers.SparseAxisArray}
-            push!(disj_new, check_constraint!(m, constr))
-        end
-    end
-
-    return disj_new
-end
-
 function check_constraint!(m, constr)
     @assert all(is_valid.(m, constr)) "$constr is not a valid constraint."
     split_flag = false
@@ -55,8 +38,10 @@ function check_constraint!(m, constr)
         end
     end
 
-    split_flag && @warn "$constr uses the `MOI.Interval` set. Each instance of the interval set has been split into two constraints, one for each bound."
-    delete_original_constraint!(m, constr)
+    if split_flag
+        @warn "$(split(string(constr),"}")[end]) uses the `MOI.Interval` set. Each instance of the interval set has been split into two constraints, one for each bound."
+        delete_original_constraint!(m, constr)
+    end
 
     return new_constr
 end

@@ -1,4 +1,4 @@
-function BMR!(m, constr, bin_var, i, k, M)
+function BMR!(constr, bin_var, i, k, M)
     if ismissing(k)
         ref = constr
     else

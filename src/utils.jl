@@ -70,6 +70,7 @@ function replace_NLconstraint(ref, sym_expr, op, rhs)
     #operator (not the symbol).
     #This is done to later replace the symbolic variables with JuMP variables,
     #without messing with the math operators.
+    #NOTE: Maybe not necessary anymore due to implementation of replace_JuMPvars
     if ref isa NonlinearConstraintRef
         expr = Base.remove_linenums!(build_function(sym_expr)).args[2].args[1]
     elseif ref isa ConstraintRef
@@ -98,16 +99,15 @@ end
 
 function replace_Symvars!(expr, model; logical_proposition = false)
     #replace JuMP variables with symbolic variables
+    name = join(split(string(expr)," "))
+    var = variable_by_name(model, name)
+    if !isnothing(var)
+        logical_proposition && @assert is_binary(var) "Only binary variables are allowed in $expr."
+        return Symbol(name)
+    end
     if expr isa Expr
-        name = join(split(string(expr)," "))
-        var = variable_by_name(model, name)
-        if !isnothing(var)
-            logical_proposition && @assert is_binary(var) "Only binary variables are allowed in $expr."
-            expr = Symbol(name)
-        else
-            for i in eachindex(expr.args)
-                expr.args[i] = replace_Symvars!(expr.args[i], model)
-            end
+        for i in eachindex(expr.args)
+            expr.args[i] = replace_Symvars!(expr.args[i], model)
         end
     end
 
@@ -156,3 +156,40 @@ function replace_intevals!(expr, intervals)
 
     return expr
 end
+
+function symbolic_variable(var_ref)
+    var_sym = Symbol(var_ref)
+    return eval(:(Symbolics.@variables($var_sym)[1]))
+end
+
+function name_disaggregated(var_ref, bin_var, i)
+    #get disaggregated variable reference
+    if occursin("[", string(var_ref))
+        var_name_i = replace(string(var_ref), "[" => "_$bin_var$i[")
+    else
+        var_name_i = "$(var_ref)_$bin_var$i"
+    end
+
+    return var_name_i
+end
+
+# function is_linear_func(expr::Expr, m)
+#     m = eval(m)
+#     if expr.head == :call
+#         func = expr.args[2] isa Number ? expr.args[3] : expr.args[2]
+#     elseif expr.head == :comparison
+#         func = expr.args[3]
+#     end
+#     sym_vars = symbolic_variable.(all_variables(m))
+#     func = eval(replace_Symvars!(func, m))
+#     try
+#         # eval(func)
+#         replace_JuMPvars!(func, m)
+#         return true
+#     catch e
+#         if e isa ErrorException
+#             return false
+#         end
+#     end
+#     # Symbolics.islinear(func, sym_vars)
+# end

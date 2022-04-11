@@ -1,4 +1,4 @@
-function CHR!(m, constr, bin_var, i, k, eps)
+function CHR!(constr, bin_var, i, k, eps)
     ref = ismissing(k) ? constr : constr[k...] #get constraint
     #create convex hull constraint
     if ref isa NonlinearConstraintRef || constraint_object(ref).func isa QuadExpr
@@ -103,11 +103,7 @@ function linear_perspective_function(ref, bin_var, i)
     #replace each variable with its disaggregated version
     for var_ref in ref.model[:gdp_variable_refs]
         #get disaggregated variable reference
-        if occursin("[", string(var_ref))
-            var_name_i = replace(string(var_ref), "[" => "_$bin_var$i[")
-        else
-            var_name_i = "$(var_ref)_$bin_var$i"
-        end
+        var_name_i = name_disaggregated(var_ref, bin_var, i)
         var_i_ref = variable_by_name(ref.model, var_name_i)
         #check var_ref is present in the constraint
         coeff = normalized_coefficient(ref, var_ref)
@@ -124,14 +120,10 @@ end
 
 function nonlinear_perspective_function(ref, bin_var, i, eps)
     #create symbolic variables (using Symbolics.jl)
-    sym_vars = Dict()
-    for var_ref in ref.model[:gdp_variable_refs]
-        #get disaggregated variable reference
-        var_name_i = replace(string(var_ref), "[" => "_$bin_var$i[")
-        var_sym = Symbol(var_ref)
-        var_i_sym = Symbol(var_name_i)
-        sym_vars[eval(:(Symbolics.@variables($var_sym)[1]))] = eval(:(Symbolics.@variables($var_i_sym)[1]))
-    end
+    sym_vars = Dict(
+        symbolic_variable(var_ref) => symbolic_variable(name_disaggregated(var_ref, bin_var, i))
+        for var_ref in ref.model[:gdp_variable_refs]
+    )
     ϵ = eps #epsilon parameter for perspective function (See Furman, Sawaya, Grossmann [2020] perspecive function)
     bin_var_sym = Symbol("$bin_var[$i]")
     λ = Num(Symbolics.Sym{Float64}(bin_var_sym))
@@ -147,7 +139,9 @@ function nonlinear_perspective_function(ref, bin_var, i, eps)
     #first term
     g1 = FSG1*substitute(gx, Dict(var => var_i/FSG1 for (var,var_i) in sym_vars))
     #second term
-    g2 = FSG2*substitute(gx, Dict(var => 0 for var in keys(sym_vars)))
+    g0 = substitute(gx, Dict(var => 0 for var in keys(sym_vars)))
+    @assert !isinf(g0.val) "Convex-hull reformulation has failed for non-linear constraint $ref: $gx is not defined at 0. Perspective function is undetermined."
+    g2 = FSG2*g0
     #create perspective function and simplify
     pers_func = simplify(g1 - g2, expand = true)
     #replace FSG expressions & simplify
