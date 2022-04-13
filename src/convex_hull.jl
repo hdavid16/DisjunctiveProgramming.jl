@@ -74,16 +74,26 @@ function disaggregate_variables(m, disj, bin_var)
 end
 
 function sum_disaggregated_variables(m, disj, bin_var)
-    for var_name in m[:gdp_variable_names]
-        var = m[var_name]
+    for var in m[:gdp_variable_refs]
         dis_vars = []
         for i in eachindex(disj)
-            var_name_i = Symbol("$(var_name)_$bin_var$i")
-            push!(dis_vars, m[var_name_i])
+            var_name_i = name_disaggregated(var, bin_var, i)
+            var_i = variable_by_name(m, var_name_i)
+            push!(dis_vars, var_i)
         end
-        aggr_con = "$(var_name)_aggregation"
-        m[Symbol(aggr_con)] = @constraint(m, var .== sum(dis_vars), base_name = aggr_con)
+        aggr_con = "$(var)_$(bin_var)_aggregation"
+        m[Symbol(aggr_con)] = @constraint(m, var == sum(dis_vars), base_name = aggr_con)
     end
+    # for var_name in m[:gdp_variable_names]
+    #     var = m[var_name]
+    #     dis_vars = []
+    #     for i in eachindex(disj)
+    #         var_name_i = Symbol("$(var_name)_$bin_var$i")
+    #         push!(dis_vars, m[var_name_i])
+    #     end
+    #     aggr_con = "$(var_name)_$(bin_var)_aggregation"
+    #     m[Symbol(aggr_con)] = @constraint(m, var .== sum(dis_vars), base_name = aggr_con)
+    # end
 end
 
 function add_disaggregated_variable(m, LB, UB, var, base_name)
