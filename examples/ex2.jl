@@ -12,7 +12,7 @@ m = Model()
     begin
         con2[i=1:2], [5,4][i] ≤ x[i] ≤ [9,6][i]
     end,
-    reformulation = :BMR,
+    reformulation = :big_m,
     name = :y
 )
 print(m)
@@ -34,5 +34,9 @@ print(m)
 #  x[2] >= -5.0                             <- variable bounds
 #  x[1] <= 10.0                             <- variable bounds
 #  x[2] <= 10.0                             <- variable bounds
+#  y[1] >= 0.0                              <- lower bound on binary
+#  y[2] >= 0.0                              <- lower bound on binary
+#  y[1] <= 1.0                              <- upper bound on binary
+#  y[2] <= 1.0                              <- upper bound on binary
 #  y[1] binary                              <- indicator variable (1st disjunct) is binary
 #  y[2] binary                              <- indicator variable (2nd disjunct) is binary

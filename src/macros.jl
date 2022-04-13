@@ -8,11 +8,11 @@ macro disjunction(m, args...)
     if !isempty(reformulation)
         reformulation = reformulation[1].args[2]
         reformulation_kind = eval(reformulation)
-        @assert reformulation_kind in [:BMR, :CHR] "Invalid reformulation method passed to keyword argument `:reformulation`. Valid options are :BMR (Big-M Reformulation) and :CHR (Convex-Hull Reormulation)."
-        if reformulation_kind == :BMR
+        @assert reformulation_kind in [:big_m, :convex_hull] "Invalid reformulation method passed to keyword argument `:reformulation`. Valid options are :big_m (Big-M Reformulation) and :convex_hull (Convex-Hull Reormulation)."
+        if reformulation_kind == :big_m
             M = filter(i -> i.args[1] == :M, kw_args)
             param = !isempty(M) ? M[1].args[2] : :(missing)
-        elseif reformulation_kind == :CHR
+        elseif reformulation_kind == :convex_hull
             ϵ = filter(i -> i.args[1] == :ϵ, kw_args)
             param = !isempty(ϵ) ? ϵ[1].args[2] : :(1e-6)
         else
@@ -66,13 +66,31 @@ function add_disjunction_constraint(m, d, dname)
                 @constraints($m,$d)
             catch e
                 if e isa ErrorException
-                    for di in $d
-                        add_nonlinear_constraint($m,di)
-                    end
+                    @NLconstraints($m,$d)
                 else
                     throw(e)
                 end
             end
+            # for di in $d
+            #     try
+            #         if Meta.isexpr(di, :call)
+            #             op, lhs, rhs = d.args
+            #             set = op == :(<=) ? MOI.LessThan(0) : MOI.GreaterThan(0)
+            #             func = lhs - rhs
+            #         elseif Meta.isexpr(di, :comparison)
+            #             lb, op1, func, op2, ub = d.args
+            #             @assert op1 == op2
+            #             set = op1 == :(<=) ? MOI.Interval(lb,ub) : MOI.Interval(ub,lb)
+            #         end
+            #         add_constraint($m, ScalarConstraint(func,set), $dname)
+            #     catch e
+            #         if e isa ErrorException
+            #             add_nonlinear_constraint($m,di)
+            #         else
+            #             throw(e)
+            #         end
+            #     end
+            # end
         end
     elseif Meta.isexpr(d, (:call, :comparison))
         d = quote
@@ -80,11 +98,29 @@ function add_disjunction_constraint(m, d, dname)
                 @constraint($m,$dname,$d)
             catch e
                 if e isa ErrorException
-                    add_nonlinear_constraint($m,$d)
+                    @NLconstraint($m,$d)
                 else
                     throw(e)
                 end
             end
+            # try
+            #     if Meta.isexpr($d, :call)
+            #         op, lhs, rhs = d.args
+            #         set = op == :(<=) ? MOI.LessThan(0) : MOI.GreaterThan(0)
+            #         func = lhs - rhs
+            #     elseif Meta.isexpr($d, :comparison)
+            #         lb, op1, func, op2, ub = d.args
+            #         @assert op1 == op2
+            #         set = op1 == :(<=) ? MOI.Interval(lb,ub) : MOI.Interval(ub,lb)
+            #     end
+            #     add_constraint($m, ScalarConstraint(func,set), $dname)
+            # catch e
+            #     if e isa ErrorException
+            #         add_nonlinear_constraint($m,$d)
+            #     else
+            #         throw(e)
+            #     end
+            # end
         end
     end
     
@@ -93,7 +129,7 @@ end
 
 function add_disjunction!(m::Model,disj...;reformulation::Symbol,M=missing,ϵ=1e-6,name=missing)
     #run checks
-    @assert reformulation in [:BMR, :CHR] "Invalid reformulation method passed to keyword argument `:reformulation`. Valid options are :BMR (Big-M Reformulation) and :CHR (Convex-Hull Reormulation)."
+    @assert reformulation in [:big_m, :convex_hull] "Invalid reformulation method passed to keyword argument `:reformulation`. Valid options are :big_m (Big-M Reformulation) and :convex_hull (Convex-Hull Reormulation)."
     @assert length(disj) > 1 "At least 2 disjuncts must be included. If there is an empty disjunct, use `nothing`."
 
     #create binary indicator variables for each disjunction
@@ -108,7 +144,7 @@ function add_disjunction!(m::Model,disj...;reformulation::Symbol,M=missing,ϵ=1e
     m[Symbol(xor_con)] = @constraint(m, sum(m[bin_var]) == 1, base_name = xor_con)
     
     #apply reformulation
-    param = reformulation == :BMR ? M : ϵ
+    param = reformulation == :big_m ? M : ϵ
     reformulate_disjunction(m, disj; bin_var, reformulation, param)
 end
 

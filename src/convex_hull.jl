@@ -1,4 +1,4 @@
-function CHR!(constr, bin_var, i, k, eps)
+function convex_hull_reformulation!!(constr, bin_var, i, k, eps)
     ref = ismissing(k) ? constr : constr[k...] #get constraint
     #create convex hull constraint
     if ref isa NonlinearConstraintRef || constraint_object(ref).func isa QuadExpr

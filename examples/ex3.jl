@@ -5,6 +5,10 @@ m = Model()
 @variable(m, -5 ≤ x ≤ 10)
 @disjunction(
     m,
+    # begin
+    #     exp(x) ≤ 2
+    #     -3 ≤ x
+    # end,
     (
         exp(x) ≤ 2,
         -3 ≤ x
@@ -13,7 +17,7 @@ m = Model()
         3 ≤ exp(x)
         5 ≤ x
     end,
-    reformulation=:CHR,
+    reformulation=:convex_hull,
     name=:z
 )
 print(m)

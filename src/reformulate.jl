@@ -11,7 +11,7 @@ function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, para
         @expression(m, gdp_variable_names, var_names)
     end
     #run reformulation
-    if reformulation == :CHR
+    if reformulation == :convex_hull
         disaggregate_variables(m, disj, bin_var)
         sum_disaggregated_variables(m, disj, bin_var)
     end
@@ -83,10 +83,10 @@ function apply_reformulation(constr, bin_var, reformulation, param, i, j = missi
 end
 
 function call_reformulation(reformulation, constr, bin_var, i, k, param)
-    if reformulation == :BMR
-        BMR!(constr, bin_var, i, k, param)
-    elseif reformulation == :CHR
-        CHR!(constr, bin_var, i, k, param)
+    if reformulation == :big_m
+        big_m_reformulation!!(constr, bin_var, i, k, param)
+    elseif reformulation == :convex_hull
+        convex_hull_reformulation!!(constr, bin_var, i, k, param)
     end
 end
 

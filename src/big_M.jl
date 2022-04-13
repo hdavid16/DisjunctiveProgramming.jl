@@ -1,4 +1,4 @@
-function BMR!(constr, bin_var, i, k, M)
+function big_m_reformulation!!(constr, bin_var, i, k, M)
     if ismissing(k)
         ref = constr
     else

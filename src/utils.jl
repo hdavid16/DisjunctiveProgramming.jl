@@ -128,7 +128,7 @@ function replace_JuMPvars!(expr, model)
 end
 
 function replace_operators!(expr)
-    #replace operators with their symbol. NOTE: Is this still needed for the CHR of nl constraints? (check this)
+    #replace operators with their symbol. NOTE: Is this still needed for the convex_hull_reformulation! of nl constraints? (check this)
     if expr isa Expr #run recursion
         for i in eachindex(expr.args)
             expr.args[i] = replace_operators!(expr.args[i])
