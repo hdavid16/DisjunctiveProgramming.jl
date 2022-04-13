@@ -17,6 +17,22 @@ function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, para
     end
     reformulate(disj, bin_var, reformulation, param)
 
+    #show new constraints as a Dict
+    new_constraints = Dict{Symbol,Any}(
+        Symbol(bin_var,"[$i]") => disj[i] for i in eachindex(disj)
+    )
+    new_constraints[Symbol(bin_var,"_XOR")] = constraint_by_name(m, "XOR(disj_$bin_var)")
+    for var in vars
+        agg_con_name = "$(var)_$(bin_var)_aggregation"
+        agg_con = constraint_by_name(m, agg_con_name)
+        if !isnothing(agg_con)
+            new_constraints[Symbol(agg_con_name)] = agg_con
+        end
+    end
+    return new_constraints
+
+    #remove model.optimize_hook ?
+
     # return m[bin_var]
 end
 
@@ -26,7 +42,13 @@ function check_disjunction!(m, disj)
         if constr isa Tuple #NOTE: Make it so that it must be bundled in a Tuple (not Array), to avoid confusing it with a Variable Array
             constr_list = []
             for constr_j in constr
-                push!(constr_list, check_constraint!(m, constr_j))
+                if constr_j isa Tuple #if using a begin..end block, a tuple of constraints is created (loop through these)
+                    for constr_jk in constr_j
+                        push!(constr_list, check_constraint!(m, constr_jk))
+                    end
+                else
+                    push!(constr_list, check_constraint!(m, constr_j))
+                end
             end
             push!(disj_new, Tuple(constr_list))
         elseif constr isa Union{ConstraintRef, Array, Containers.DenseAxisArray, Containers.SparseAxisArray}
