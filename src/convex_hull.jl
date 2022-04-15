@@ -77,7 +77,7 @@ function sum_disaggregated_variables(m, disj, bin_var)
     for var in m[:gdp_variable_refs]
         dis_vars = []
         for i in eachindex(disj)
-            var_name_i = name_disaggregated(var, bin_var, i)
+            var_name_i = name_disaggregated_variable(var, bin_var, i)
             var_i = variable_by_name(m, var_name_i)
             push!(dis_vars, var_i)
         end
@@ -113,7 +113,7 @@ function linear_perspective_function(ref, bin_var, i)
     #replace each variable with its disaggregated version
     for var_ref in ref.model[:gdp_variable_refs]
         #get disaggregated variable reference
-        var_name_i = name_disaggregated(var_ref, bin_var, i)
+        var_name_i = name_disaggregated_variable(var_ref, bin_var, i)
         var_i_ref = variable_by_name(ref.model, var_name_i)
         #check var_ref is present in the constraint
         coeff = normalized_coefficient(ref, var_ref)
@@ -131,7 +131,7 @@ end
 function nonlinear_perspective_function(ref, bin_var, i, eps)
     #create symbolic variables (using Symbolics.jl)
     sym_vars = Dict(
-        symbolic_variable(var_ref) => symbolic_variable(name_disaggregated(var_ref, bin_var, i))
+        symbolic_variable(var_ref) => symbolic_variable(name_disaggregated_variable(var_ref, bin_var, i))
         for var_ref in ref.model[:gdp_variable_refs]
     )
     ϵ = eps #epsilon parameter for perspective function (See Furman, Sawaya, Grossmann [2020] perspecive function)

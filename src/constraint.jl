@@ -92,9 +92,11 @@ function split_interval_constraint(m, constr, constr_name = name(constr))
             lb = constr_obj.set.lower
             ub = constr_obj.set.upper
             ex = constr_obj.func
+            lb_name = name_split_constraint(constr_name, :lb)
+            ub_name = name_split_constraint(constr_name, :ub)
             return [
-                @constraint(m, lb <= ex, base_name = "$(constr_name)[lb]"),
-                @constraint(m, ex <= ub, base_name = "$(constr_name)[ub]")
+                @constraint(m, lb <= ex, base_name = lb_name),
+                @constraint(m, ex <= ub, base_name = ub_name)
             ]
         end
     end

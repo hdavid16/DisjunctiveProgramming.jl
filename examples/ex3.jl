@@ -37,6 +37,10 @@ print(m)
 #  x <= 10.0                                    <- upper-bound on x
 #  x_z1 <= 10.0                                 <- upper-bound on x_z1 (disaggregated x in 1st disjunct)
 #  x_z2 <= 10.0                                 <- upper-bound on x_z2 (disaggregated x in 2nd disjunct)
+#  z[1] >= 0.0                                  <- lower bound on binary
+#  z[2] >= 0.0                                  <- lower bound on binary
+#  z[1] <= 1.0                                  <- upper bound on binary
+#  z[2] <= 1.0                                  <- upper bound on binary
 #  z[1] binary                                  <- indicator variable (1st disjunct) is binary
 #  z[2] binary                                  <- indicator variable (2nd disjunct) is binary
 #  Perspective Functions:

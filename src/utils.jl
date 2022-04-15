@@ -162,7 +162,7 @@ function symbolic_variable(var_ref)
     return eval(:(Symbolics.@variables($var_sym)[1]))
 end
 
-function name_disaggregated(var_ref, bin_var, i)
+function name_disaggregated_variable(var_ref, bin_var, i)
     #get disaggregated variable reference
     if occursin("[", string(var_ref))
         var_name_i = replace(string(var_ref), "[" => "_$bin_var$i[")
@@ -171,6 +171,17 @@ function name_disaggregated(var_ref, bin_var, i)
     end
 
     return var_name_i
+end
+
+function name_split_constraint(con_name, side)
+    #get disaggregated variable reference
+    if occursin("[", string(con_name))
+        con_name = replace(string(con_name), "]" => ",$side]")
+    else
+        con_name = "$(con_name)[$side]"
+    end
+
+    return con_name
 end
 
 # function is_linear_func(expr::Expr, m)
