@@ -1,6 +1,7 @@
 using Test
 using JuMP
 using DisjunctiveProgramming
+using Symbolics
 
 @testset "linear constraints" begin
 
