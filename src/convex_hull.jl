@@ -1,4 +1,4 @@
-function convex_hull_reformulation!!(constr, bin_var, i, k, eps)
+function convex_hull_reformulation!(constr, bin_var, i, k, eps)
     ref = ismissing(k) ? constr : constr[k...] #get constraint
     #create convex hull constraint
     if ref isa NonlinearConstraintRef || constraint_object(ref).func isa QuadExpr
@@ -99,8 +99,8 @@ end
 function add_disaggregated_variable(m, LB, UB, var, base_name)
     @variable(
         m, 
-        lower_bound = LB, 
-        upper_bound = UB, 
+        lower_bound = min(LB,0), 
+        upper_bound = max(UB,0), 
         binary = is_binary(var), 
         integer = is_integer(var),
         base_name = base_name
