@@ -22,11 +22,10 @@ function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, para
         Symbol(bin_var,"[$i]") => disj[i] for i in eachindex(disj)
     )
     new_constraints[Symbol(bin_var,"_XOR")] = constraint_by_name(m, "XOR(disj_$bin_var)")
-    for var in vars
-        agg_con_name = "$(var)_$(bin_var)_aggregation"
-        agg_con = constraint_by_name(m, agg_con_name)
-        if !isnothing(agg_con)
-            new_constraints[Symbol(agg_con_name)] = agg_con
+    if reformulation == :convex_hull
+        for var in m[:gdp_variable_refs]
+            agg_con_name = "$(var)_$(bin_var)_aggregation"
+            new_constraints[Symbol(agg_con_name)] = constraint_by_name(m, agg_con_name)
         end
     end
     return new_constraints
@@ -53,6 +52,8 @@ function check_disjunction!(m, disj)
             push!(disj_new, Tuple(constr_list))
         elseif constr isa Union{ConstraintRef, Array, Containers.DenseAxisArray, Containers.SparseAxisArray}
             push!(disj_new, check_constraint!(m, constr))
+        elseif isnothing(constr)
+            push!(disj_new, constr)
         end
     end
 
@@ -84,9 +85,9 @@ end
 
 function call_reformulation(reformulation, constr, bin_var, i, k, param)
     if reformulation == :big_m
-        big_m_reformulation!!(constr, bin_var, i, k, param)
+        big_m_reformulation!(constr, bin_var, i, k, param)
     elseif reformulation == :convex_hull
-        convex_hull_reformulation!!(constr, bin_var, i, k, param)
+        convex_hull_reformulation!(constr, bin_var, i, k, param)
     end
 end
 

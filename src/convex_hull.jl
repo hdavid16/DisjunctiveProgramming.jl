@@ -13,11 +13,17 @@ function disaggregate_variables(m, disj, bin_var)
     var_refs = m[:gdp_variable_refs]
     @assert all((has_upper_bound.(var_refs) .&& has_lower_bound.(var_refs)) .|| is_binary.(var_refs)) "All variables must be bounded to perform the Convex-Hull reformulation."
     #reformulate variables
+    obj_dict = object_dictionary(m)
+    bounds_dict = :variable_bounds_dict in keys(obj_dict) ? obj_dict[:variable_bounds_dict] : Dict() #NOTE: should pass as an keyword argument
     for var_name in m[:gdp_variable_names]
         var = m[var_name]
         #define UB and LB
         if var isa VariableRef
-            LB, UB = get_bounds(var)
+            if string(var) in keys(bounds_dict)
+                LB, UB = bounds_dict[string(var)]
+            else
+                LB, UB = get_bounds(var)
+            end
         elseif var isa Array{VariableRef} || var isa Containers.DenseAxisArray || var isa Containers.SparseAxisArray
             #initialize UB and LB with same container type as variable
             if var isa Array{VariableRef} || var isa Containers.DenseAxisArray
@@ -34,7 +40,11 @@ function disaggregate_variables(m, disj, bin_var)
             end
             #populate UB and LB
             for idx in eachindex(var)
-                LB[idx], UB[idx] = get_bounds(var[idx])
+                if string(var[idx]) in keys(bounds_dict)
+                    LB[idx], UB[idx] = bounds_dict[string(var[idx])]
+                else
+                    LB[idx], UB[idx] = get_bounds(var[idx])
+                end
             end
         end
         #disaggregate variable and add bounding constraints

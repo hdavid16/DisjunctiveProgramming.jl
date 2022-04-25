@@ -10,11 +10,18 @@ function apply_interval_arithmetic(ref)
     ref_func_expr, ref_type, ref_rhs = parse_constraint(ref)
     #create a map of variables to their bounds
     interval_map = Dict()
-    vars = ref.model[:gdp_variable_refs]
+    vars = all_variables(ref.model)#ref.model[:gdp_variable_refs]
+    obj_dict = object_dictionary(ref.model)
+    bounds_dict = :variable_bounds_dict in keys(obj_dict) ? obj_dict[:variable_bounds_dict] : Dict() #NOTE: should pass as an keyword argument
     for var in vars
-        UB = has_upper_bound(var) ? upper_bound(var) : (is_binary(var) ? 1 : Inf)
-        LB = has_lower_bound(var) ? lower_bound(var) : (is_binary(var) ? 0 : -Inf)
-        interval_map[string(var)] = LB..UB
+        if string(var) in keys(bounds_dict)
+            bnds = bounds_dict[string(var)]
+            interval_map[string(var)] = bnds[1]..bnds[2]
+        else
+            UB = has_upper_bound(var) ? upper_bound(var) : (is_binary(var) ? 1 : Inf)
+            LB = has_lower_bound(var) ? lower_bound(var) : (is_binary(var) ? 0 : -Inf)
+            interval_map[string(var)] = LB..UB
+        end
     end
     ref_func_expr = replace_intevals!(ref_func_expr, interval_map)
     #get bounds on the entire expression
@@ -34,12 +41,13 @@ end
 function parse_constraint(ref)
     if ref isa NonlinearConstraintRef
         ref_str = string(ref)
-        ref_func = replace(split(ref_str, r"[=<>]")[1], " " => "")
+        ref_func = replace(split(ref_str, r"[=<>]")[1], " " => "") #remove operator and spaces
         ref_type = occursin(">", ref_str) ? :lower : :upper
         ref_rhs = 0 #Could be calculated with: parse(Float64,split(ref_str, " ")[end]). NOTE: @NLconstraint will always have a 0 RHS.
     elseif ref isa ConstraintRef
         ref_obj = constraint_object(ref)
-        ref_func = string(ref_obj.func)
+        ref_str = string(ref_obj.func)
+        ref_func = replace(ref_str, " " => "") #remove spaces
         ref_type = fieldnames(typeof(ref_obj.set))[1]
         ref_rhs = normalized_rhs(ref)
     end
