@@ -1,4 +1,4 @@
-function big_m_reformulation!!(constr, bin_var, i, k, M)
+function big_m_reformulation!(constr, bin_var, i, k, M)
     if ismissing(k)
         ref = constr
     else
@@ -7,6 +7,8 @@ function big_m_reformulation!!(constr, bin_var, i, k, M)
     if ismissing(M)
         M = apply_interval_arithmetic(ref)
         # @warn "No M value passed for $ref. M = $M was inferred from the variable bounds."
+    elseif !ismissing(k)
+        M = M[k]
     end
     if ref isa NonlinearConstraintRef
         nonlinear_bigM(ref, bin_var, M, i)
