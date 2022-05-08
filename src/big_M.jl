@@ -1,13 +1,15 @@
 function big_m_reformulation!(constr, bin_var, i, k, M)
     if ismissing(k)
         ref = constr
+    elseif k isa CartesianIndex
+        ref = constr[k]
     else
         ref = constr[k...]
     end
     if ismissing(M)
         M = apply_interval_arithmetic(ref)
         # @warn "No M value passed for $ref. M = $M was inferred from the variable bounds."
-    elseif !ismissing(k)
+    elseif !ismissing(k) && !isa(M,Real)
         M = M[k]
     end
     if ref isa NonlinearConstraintRef

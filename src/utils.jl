@@ -150,8 +150,9 @@ end
 
 function replace_intevals!(expr, intervals)
     #replace variables with their intervals
-    if string(expr) in keys(intervals) #check if expression is one of the model variables in the intervals dict
-        return intervals[string(expr)] #replace expression with interval
+    expr_str = replace(string(expr), " " => "") #remove any blank space
+    if expr_str in keys(intervals) #check if expression is one of the model variables in the intervals dict
+        return intervals[expr_str] #replace expression with interval
     elseif expr isa Expr
         if length(expr.args) == 1 #run recursive relation on the leaf node on expression tree
             expr.args[i] = replace_intevals!(expr.args[i], intervals)
