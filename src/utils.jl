@@ -150,7 +150,7 @@ end
 
 function replace_intevals!(expr, intervals)
     #replace variables with their intervals
-    expr_str = replace(string(expr), ", " => ",") #remove any blank space
+    expr_str = replace(string(expr), ", " => ",") #remove any blank space after index commas
     if expr_str in keys(intervals) #check if expression is one of the model variables in the intervals dict
         return intervals[expr_str] #replace expression with interval
     elseif expr isa Expr
