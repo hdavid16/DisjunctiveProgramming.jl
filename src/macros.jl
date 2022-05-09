@@ -132,20 +132,22 @@ function add_disjunction!(m::Model,disj...;reformulation::Symbol,M=missing,ϵ=1e
     @assert reformulation in [:big_m, :convex_hull] "Invalid reformulation method passed to keyword argument `:reformulation`. Valid options are :big_m (Big-M Reformulation) and :convex_hull (Convex-Hull Reormulation)."
     @assert length(disj) > 1 "At least 2 disjuncts must be included. If there is an empty disjunct, use `nothing`."
 
-    #create binary indicator variables for each disjunction
+    #get kw_args and set defaults if missing
+    param = reformulation == :big_m ? M : ϵ
     bin_var = ismissing(name) ? Symbol("disj",gensym()) : name
-    @assert !in(bin_var, keys(object_dictionary(m))) "The disjunction name $bin_var is already registered in the model. Specify new name."
+    disj_name = ismissing(name) ? bin_var : Symbol("disj_",name)
     
-    #create indicator variable
-    m[bin_var] = @variable(m, [eachindex(disj)], Bin, base_name = string(bin_var))
-    
-    #add xor constraint on binary variable
-    xor_con = "XOR($bin_var)"
-    m[Symbol(xor_con)] = @constraint(m, sum(m[bin_var]) == 1, base_name = xor_con)
+    #XOR constraint name
+    xor_con = "XOR($disj_name)"
     
     #apply reformulation
-    param = reformulation == :big_m ? M : ϵ
-    reformulate_disjunction(m, disj; bin_var, reformulation, param)
+    @assert !in(bin_var, keys(object_dictionary(m))) "The disjunction name $bin_var is already registered in the model. Specify new name."
+    #create indicator variable
+    m[bin_var] = @variable(m, [eachindex(disj)], Bin, base_name = string(bin_var), lower_bound = 0, upper_bound = 1)
+    #add xor constraint on binary variable
+    m[Symbol(xor_con)] = @constraint(m, sum(m[bin_var]) == 1, base_name = xor_con)
+    #reformulate disjunction
+    reformulate_disjunction(m, disj...; bin_var, reformulation, param)
 end
 
 macro proposition(m, expr)
