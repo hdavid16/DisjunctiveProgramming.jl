@@ -8,8 +8,8 @@ export @disjunction, @proposition
 include("constraint.jl")
 include("logic.jl")
 include("utils.jl")
-include("big_M.jl")
-include("convex_hull.jl")
+include("bigm.jl")
+include("hull.jl")
 include("reformulate.jl")
 include("macros.jl")
 

@@ -1,8 +1,52 @@
 function get_bounds(var::VariableRef)
     LB = is_binary(var) ? 0 : lower_bound(var)
     UB = is_binary(var) ? 1 : upper_bound(var)
-
     return LB, UB
+end
+function get_bounds(var::VariableRef, bounds_dict::Dict)
+    if string(var) in keys(bounds_dict)
+        return bounds_dict[string(var)]
+    else
+        return get_bounds(var)
+    end
+end
+function get_bounds(var::AbstractArray, bounds_dict::Dict, LB, UB)
+    #populate UB and LB
+    for idx in eachindex(var)
+        LB[idx], UB[idx] = get_bounds(var[idx], bounds_dict)
+    end
+    return LB, UB
+end
+function get_bounds(var::Array{VariableRef}, bounds_dict::Dict)
+    #initialize
+    LB, UB = zeros(size(var)), zeros(size(var))
+    return get_bounds(var, bounds_dict, LB, UB)
+end
+function get_bounds(var::Containers.DenseAxisArray, bounds_dict::Dict)
+    #initialize
+    LB = Containers.DenseAxisArray(zeros(size(var)), axes(var)...)
+    UB = Containers.DenseAxisArray(zeros(size(var)), axes(var)...)
+    return get_bounds(var, bounds_dict, LB, UB)
+end
+function get_gounds(var::Containers.SparseAxisArray, bounds_dict::Dict)
+    #initialize
+    idxs = keys(var.data)
+    LB = Containers.SparseAxisArray(Dict(idx => 0. for idx in idxs))
+    UB = Containers.SparseAxisArray(Dict(idx => 0. for idx in idxs))
+    return get_bounds(var, bounds_dict, LB, UB)
+end
+
+get_keys(arr::Containers.SparseAxisArray) = keys(arr.data)
+get_keys(arr) = Iterators.product(axes(arr)...)
+
+get_reform_param(param::Missing, args...; constr) = 
+    apply_interval_arithmetic(constr)
+get_reform_param(param::Number, args...; kwargs...) = param
+get_reform_param(param::Union{Vector,Tuple}, i::Int, args...; kwargs...) =
+    get_reform_param(param[i], args...; kwargs...)
+function get_reform_param(param::Dict, args...; kwargs...)
+    arg_list = [arg for arg in args if !ismissing(arg)] #remove mising if j or k are missing
+    get_reform_param(param[arg_list...]; kwargs...)
 end
 
 function apply_interval_arithmetic(ref)
@@ -136,7 +180,7 @@ function replace_JuMPvars!(expr, model)
 end
 
 function replace_operators!(expr)
-    #replace operators with their symbol. NOTE: Is this still needed for the convex_hull_reformulation! of nl constraints? (check this)
+    #replace operators with their symbol. NOTE: Is this still needed for the hull_reformulation! of nl constraints? (check this)
     if expr isa Expr #run recursion
         for i in eachindex(expr.args)
             expr.args[i] = replace_operators!(expr.args[i])

@@ -8,11 +8,11 @@ macro disjunction(m, args...)
     if !isempty(reformulation)
         reformulation = reformulation[1].args[2]
         reformulation_kind = eval(reformulation)
-        @assert reformulation_kind in [:big_m, :convex_hull] "Invalid reformulation method passed to keyword argument `:reformulation`. Valid options are :big_m (Big-M Reformulation) and :convex_hull (Convex-Hull Reormulation)."
+        @assert reformulation_kind in [:big_m, :hull] "Invalid reformulation method passed to keyword argument `:reformulation`. Valid options are :big_m (Big-M Reformulation) and :hull (Hull Reformulation)."
         if reformulation_kind == :big_m
             M = filter(i -> i.args[1] == :M, kw_args)
             param = !isempty(M) ? M[1].args[2] : :(missing)
-        elseif reformulation_kind == :convex_hull
+        elseif reformulation_kind == :hull
             ϵ = filter(i -> i.args[1] == :ϵ, kw_args)
             param = !isempty(ϵ) ? ϵ[1].args[2] : :(1e-6)
         else
@@ -129,7 +129,7 @@ end
 
 function add_disjunction!(m::Model,disj...;reformulation::Symbol,M=missing,ϵ=1e-6,name=missing)
     #run checks
-    @assert reformulation in [:big_m, :convex_hull] "Invalid reformulation method passed to keyword argument `:reformulation`. Valid options are :big_m (Big-M Reformulation) and :convex_hull (Convex-Hull Reormulation)."
+    @assert reformulation in [:big_m, :hull] "Invalid reformulation method passed to keyword argument `:reformulation`. Valid options are :big_m (Big-M Reformulation) and :hull (Hull Reformulation)."
     @assert length(disj) > 1 "At least 2 disjuncts must be included. If there is an empty disjunct, use `nothing`."
 
     #get kw_args and set defaults if missing
