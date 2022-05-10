@@ -47,7 +47,7 @@ function parse_constraint(ref)
     elseif ref isa ConstraintRef
         ref_obj = constraint_object(ref)
         ref_str = string(ref_obj.func)
-        ref_func = replace(ref_str, " " => "") #remove spaces
+        ref_func = replace(ref_str, " " => "", "²" => "^2") #remove spaces
         ref_type = fieldnames(typeof(ref_obj.set))[1]
         ref_rhs = normalized_rhs(ref)
     end
