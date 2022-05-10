@@ -1,3 +1,12 @@
+"""
+    reformulate_disjunction(m::Model, disj...; bin_var, reformulation, param)
+
+Reformulate disjunction on a JuMP model.
+
+    reformulate_disjunction(disj, bin_var, reformulation, param)
+
+Reformulate disjunction.
+"""
 function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, param)
     #check disj
     disj = [check_constraint!(m, constr) for constr in disj]#check_disjunction!(m, disj)
@@ -15,7 +24,7 @@ function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, para
         disaggregate_variables(m, disj, bin_var)
         sum_disaggregated_variables(m, disj, bin_var)
     end
-    reformulate(disj, bin_var, reformulation, param)
+    reformulate_disjunction(disj, bin_var, reformulation, param)
 
     #show new constraints as a Dict
     new_constraints = Dict{Symbol,Any}(
@@ -34,110 +43,39 @@ function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, para
 
     # return m[bin_var]
 end
-
-# function check_disjunction!(m, disj)
-#     disj_new = [] #create a new array where the disjunction will be copied to so that we can split constraints that use an Interval set
-#     for constr in disj
-#         push!(disj_new, check_constraint!(m, constr))
-#     end
-
-#     return disj_new
-# end
-
-# function check_disjunction!(m, disj)
-#     disj_new = [] #create a new array where the disjunction will be copied to so that we can split constraints that use an Interval set
-#     for constr in disj
-#         if constr isa Tuple #NOTE: Make it so that it must be bundled in a Tuple (not Array), to avoid confusing it with a Variable Array
-#             constr_list = []
-#             for constr_j in constr
-#                 if constr_j isa Tuple #if using a begin..end block, a tuple of constraints is created (loop through these)
-#                     for constr_jk in constr_j
-#                         push!(constr_list, check_constraint!(m, constr_jk))
-#                     end
-#                 else
-#                     push!(constr_list, check_constraint!(m, constr_j))
-#                 end
-#             end
-#             push!(disj_new, Tuple(constr_list))
-#         elseif constr isa Union{ConstraintRef, Array, Containers.DenseAxisArray, Containers.SparseAxisArray}
-#             push!(disj_new, check_constraint!(m, constr))
-#         elseif isnothing(constr)
-#             push!(disj_new, constr)
-#         end
-#     end
-
-#     return disj_new
-# end
-
-# function reformulate(disj, bin_var, reformulation, param)
-#     for (i,constr) in enumerate(disj)
-#         if constr isa Tuple #NOTE: Make it so that it must be bundled in a Tuple (not Array), to avoid confusing it with a Variable Array
-#             for (j,constr_j) in enumerate(constr)
-#                 apply_reformulation(constr_j, bin_var, reformulation, param, i, j)
-#             end
-#         elseif constr isa Union{ConstraintRef, Array, Containers.DenseAxisArray, Containers.SparseAxisArray}
-#             apply_reformulation(constr, bin_var, reformulation, param, i)
-#         end
-#     end
-# end
-
-function reformulate(disj, bin_var, reformulation, param)
+function reformulate_disjunction(disj, bin_var, reformulation, param)
     for (i,constr) in enumerate(disj)
-        apply_reformulation(constr, bin_var, reformulation, param, i)
+        reformulate_constraint(constr, bin_var, reformulation, param, i)
     end
 end
 
-function apply_reformulation(constr::Tuple, bin_var, reformulation, param, i)
+"""
+    reformulate_constraint(constr::Tuple, bin_var, reformulation, param, i)
+
+Reformulate a Tuple of constraints.
+
+    reformulate_constraint(constr::AbstractArray, bin_var, reformulation, param, i, j = missing)
+
+Reformulate a block of constraints.
+
+    reformulate_constraint(constr::ConstraintRef, bin_var, reformulation, param, i, j = missing, k = missing)
+
+Reformulate a constraint.
+"""
+function reformulate_constraint(constr::Tuple, bin_var, reformulation, param, i)
     for (j,constr_j) in enumerate(constr)
-        apply_reformulation(constr_j, bin_var, reformulation, param, i, j)
+        reformulate_constraint(constr_j, bin_var, reformulation, param, i, j)
     end
 end
-
-function apply_reformulation(constr::AbstractArray, bin_var, reformulation, param, i, j = missing)
+function reformulate_constraint(constr::AbstractArray, bin_var, reformulation, param, i, j = missing)
     for k in eachindex(constr)
-        apply_reformulation(constr[k], bin_var, reformulation, param, i, j, k)
+        reformulate_constraint(constr[k], bin_var, reformulation, param, i, j, k)
     end
 end
-
-function apply_reformulation(constr::ConstraintRef, bin_var, reformulation, param, i, j = missing, k = missing)
-    call_reformulation(reformulation, constr, bin_var, param, i, j, k)
-end
-
-# function apply_reformulation(constr, bin_var, reformulation, param, i, j = missing)
-#     param = get_reform_param(param, i, j) #M or eps
-#     if constr isa ConstraintRef
-#         call_reformulation(reformulation, constr, bin_var, i, missing, param)
-#     elseif constr isa Union{Array, Containers.DenseAxisArray, Containers.SparseAxisArray}
-#         for k in eachindex(constr)
-#             call_reformulation(reformulation, constr, bin_var, i, k, param)
-#         end
-#     end
-# end
-
-function call_reformulation(reformulation, constr, bin_var, param, i, j, k)
+function reformulate_constraint(constr::ConstraintRef, bin_var, reformulation, param, i, j = missing, k = missing)
     if reformulation == :big_m
         big_m_reformulation!(constr, bin_var, param, i, j, k)
     elseif reformulation == :hull
         hull_reformulation!(constr, bin_var, param, i, j, k)
     end
 end
-
-# function get_reform_param(param, i, j)
-#     if param isa Number || ismissing(param)
-#         param = param
-#     elseif param isa Union{Vector,Tuple}
-#         if param[i] isa Number
-#             param = param[i]
-#         elseif param[i] isa Union{Vector,Tuple}
-#             @assert !ismissing(j) "If constraint specific param values are provided, there must be more than one constraint in disjunct $i."
-#             @assert j <= length(param[i]) "If constraint specific param values are provided, a value must be provided for each constraint in disjunct $i."
-#             param = param[i][j]
-#         else
-#             error("Invalid param parameter provided for disjunct $i.")
-#         end
-#     else
-#         error("Invalid param parameter provided for disjunct $i.")
-#     end
-
-#     return param
-# end

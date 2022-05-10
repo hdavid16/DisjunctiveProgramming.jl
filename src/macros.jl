@@ -1,3 +1,8 @@
+"""
+    disjunction(m, args...)
+
+Add disjunction macro.
+"""
 macro disjunction(m, args...)
     #get disjunction (pos_args) and keyword arguments
     pos_args, kw_args, _ = Containers._extract_kw_args(args)
@@ -28,7 +33,7 @@ macro disjunction(m, args...)
         name = :(Symbol("disj",gensym()))
         disj_name = eval(name)
     end
-
+    
     #create constraints for each disjunction
     disj_names = [Symbol("$(disj_name)[$i]") for i in eachindex(pos_args)]
     disjunction = []
@@ -59,6 +64,11 @@ macro disjunction(m, args...)
     return esc(code)
 end
 
+"""
+    add_disjunction_constraint(m, d, dname)
+
+Add disjunction constraint with name dname.
+"""
 function add_disjunction_constraint(m, d, dname)
     if Meta.isexpr(d, :block)
         d = quote
@@ -71,26 +81,6 @@ function add_disjunction_constraint(m, d, dname)
                     throw(e)
                 end
             end
-            # for di in $d
-            #     try
-            #         if Meta.isexpr(di, :call)
-            #             op, lhs, rhs = d.args
-            #             set = op == :(<=) ? MOI.LessThan(0) : MOI.GreaterThan(0)
-            #             func = lhs - rhs
-            #         elseif Meta.isexpr(di, :comparison)
-            #             lb, op1, func, op2, ub = d.args
-            #             @assert op1 == op2
-            #             set = op1 == :(<=) ? MOI.Interval(lb,ub) : MOI.Interval(ub,lb)
-            #         end
-            #         add_constraint($m, ScalarConstraint(func,set), $dname)
-            #     catch e
-            #         if e isa ErrorException
-            #             add_nonlinear_constraint($m,di)
-            #         else
-            #             throw(e)
-            #         end
-            #     end
-            # end
         end
     elseif Meta.isexpr(d, (:call, :comparison))
         d = quote
@@ -103,30 +93,17 @@ function add_disjunction_constraint(m, d, dname)
                     throw(e)
                 end
             end
-            # try
-            #     if Meta.isexpr($d, :call)
-            #         op, lhs, rhs = d.args
-            #         set = op == :(<=) ? MOI.LessThan(0) : MOI.GreaterThan(0)
-            #         func = lhs - rhs
-            #     elseif Meta.isexpr($d, :comparison)
-            #         lb, op1, func, op2, ub = d.args
-            #         @assert op1 == op2
-            #         set = op1 == :(<=) ? MOI.Interval(lb,ub) : MOI.Interval(ub,lb)
-            #     end
-            #     add_constraint($m, ScalarConstraint(func,set), $dname)
-            # catch e
-            #     if e isa ErrorException
-            #         add_nonlinear_constraint($m,$d)
-            #     else
-            #         throw(e)
-            #     end
-            # end
         end
     end
     
     return d
 end
 
+"""
+    add_disjunction!(m::Model,disj...;reformulation::Symbol,M=missing,ϵ=1e-6,name=missing)
+
+Add disjunction and reformulate.
+"""
 function add_disjunction!(m::Model,disj...;reformulation::Symbol,M=missing,ϵ=1e-6,name=missing)
     #run checks
     @assert reformulation in [:big_m, :hull] "Invalid reformulation method passed to keyword argument `:reformulation`. Valid options are :big_m (Big-M Reformulation) and :hull (Hull Reformulation)."
@@ -150,6 +127,11 @@ function add_disjunction!(m::Model,disj...;reformulation::Symbol,M=missing,ϵ=1e
     reformulate_disjunction(m, disj...; bin_var, reformulation, param)
 end
 
+"""
+    proposition(m, expr)
+
+Add logical proposition macro.
+"""
 macro proposition(m, expr)
     #get args
     expr = QuoteNode(expr)
@@ -158,6 +140,11 @@ macro proposition(m, expr)
     return esc(code)
 end
 
+"""
+    add_proposition!(m::Model, expr::Expr)
+
+Add logical proposition expression to a JuMP model.
+"""
 function add_proposition!(m::Model, expr::Expr)
     @assert m isa Model "A valid JuMP Model must be provided."
     to_cnf!(m, expr)
