@@ -30,25 +30,13 @@ end
 
 Get bounds on a variable.
 
-    get_bounds(var::VariableRef, bounds_dict::Dict)
+    get_bounds(var, bounds_dict::Dict)
 
-Get bounds on a variable. Check if a bounds dictionary has ben provided with bounds for that value.
+Get bounds on a variable. Check if a bounds dictionary has been provided with bounds for that value.
 
-    get_bounds(var::AbstractArray, bounds_dict::Dict, LB, UB)
+    get_bounds(var::AbstractArray{VariableRef}, bounds_dict::Dict, LB, UB)
     
 Update lower bound `LB` and upper bound `UB` on a variable container.
-    
-    get_bounds(var::Array{VariableRef}, bounds_dict::Dict)
-    
-Get lower and upper bounds on a variable array.
-    
-    get_bounds(var::Containers.DenseAxisArray, bounds_dict::Dict)
-    
-Get lower and upper bounds on a variable DenseAxisArray.
-    
-    get_gounds(var::Containers.SparseAxisArray, bounds_dict::Dict)
-
-Get lower and upper bounds on a variable SparseAxisArray.
 """
 function get_bounds(var::VariableRef)
     LB = has_lower_bound(var) ? lower_bound(var) : (is_binary(var) ? 0 : -Inf)
@@ -62,7 +50,7 @@ function get_bounds(var::VariableRef, bounds_dict::Dict)
         return get_bounds(var)
     end
 end
-function get_bounds(var::AbstractArray, bounds_dict::Dict, LB, UB)
+function get_bounds(var::AbstractArray{VariableRef}, bounds_dict::Dict, LB, UB)
     #populate UB and LB
     for idx in eachindex(var)
         LB[idx], UB[idx] = get_bounds(var[idx], bounds_dict)

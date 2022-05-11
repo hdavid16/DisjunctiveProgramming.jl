@@ -9,21 +9,13 @@ JuMP.name(con_ref::NonlinearConstraintRef) = ""
 
 Check constraints in a disjunction Tuple.
 
-    check_constraint!(m::Model, constr_j::Union{Tuple,Array}, constr_list::Vector)
+    check_constraint!(m::Model, constr_j, constr_list::Vector)
 
-Check constraints in a nested Tuple or Array of constraints and update `constr_list`.
+Check nested constraint and update `constr_list`.
 
-    check_constraint!(m::Model, constr_j::ConstraintRef, constr_list::Vector)
-
-Check constraint `constr_j` in position `j` of a disjunct and update `constr_list`.
-
-    check_constraint!(m::Model, constr::ConstraintRef)
+    check_constraint!(m::Model, constr)
 
 Check constraint in a Model.
-
-    check_constraint!(m::Model, constr::AbstractArray)
-
-Check constraint block in a model.
 
     check_constraint!(m::Model, constr::Nothing)
 
@@ -34,8 +26,11 @@ function check_constraint!(m::Model, constr::Tuple)
     map(constr_j -> check_constraint!(m, constr_j, constr_list), constr)
     return Tuple(constr_list)
 end
-function check_constraint!(m::Model, constr_j::Union{Tuple,Array}, constr_list::Vector)
+function check_constraint!(m::Model, constr_j::Tuple, constr_list::Vector)
     map(constr_jk -> check_constraint!(m, constr_jk, constr_list), constr_j)
+end
+function check_constraint!(m::Model, constr_j::AbstractArray{<:ConstraintRef}, constr_list::Vector)
+    push!(constr_list, check_constraint!(m, constr_j))
 end
 function check_constraint!(m::Model, constr_j::ConstraintRef, constr_list::Vector)
     push!(constr_list, check_constraint!(m, constr_j))
@@ -54,7 +49,7 @@ function check_constraint!(m::Model, constr::ConstraintRef)
     end
     return new_constr
 end
-function check_constraint!(m::Model, constr::AbstractArray)
+function check_constraint!(m::Model, constr::AbstractArray{<:ConstraintRef})
     @assert all(is_valid.(m, constr)) "$constr is not a valid constraint."
     if !any(is_interval_constraint.(constr)) && !any(is_equality_constraint.(constr))
         new_constr = constr
@@ -87,19 +82,15 @@ Split a nonlinear constraint that is an Interval or EqualTo constraint.
 
     split_constraint(m::Model, constr::ConstraintRef, constr_name::String = name(constr))
 
-Split a linear or quadratic constraint that is MOI.Interval or MOI.EqualTo.
+Split a linear or quadratic constraint.
+
+    split_constraint(m::Model, constr_obj::ScalarConstraint, lb_name::String, ub_name::String)
+
+Split a constraint that is a MOI.EqualTo or MOI.Interval.
 
     split_constraint(m::Model, func::Union{AffExpr,QuadExpr}, lb::Float64, ub::Float64, lb_name::String, ub_name::String)
 
 Create split constraint for linear or quadratic constraint.
-
-    split_constraint(m::Model, constr_obj::ScalarConstraint{T,<:MOI.EqualTo}, lb_name::String, ub_name::String)
-
-Split a constraint that is a MOI.EqualTo.
-
-    split_constraint(m::Model, constr_obj::ScalarConstraint{T,<:MOI.Interval}, lb_name::String, ub_name::String)
-
-Split a constraint that is a MOI.Interval
 
     split_constraint(m::Model, constr::ConstraintRef, constr_func_expr::Expr, lb::Float64, ub::Float64)
 
@@ -168,7 +159,7 @@ split_constraint(args...) = nothing
 
 delete_original_constraint!(m::Model, constr::ConstraintRef) = delete(m,constr)
 delete_original_constraint!(m::Model, constr::NonlinearConstraintRef) = nothing
-delete_original_constraint!(m::Model, constr::AbstractArray) = map(c -> delete_original_constraint!(m,c), constr)
+delete_original_constraint!(m::Model, constr::AbstractArray{<:ConstraintRef}) = map(c -> delete_original_constraint!(m,c), constr)
 
 """
     parse_constraint(constr::ConstraintRef)

@@ -7,7 +7,7 @@ Perform Big-M reformulation on a linear or quadratic constraint at index k of co
 
 Perform Big-M reformulaiton on a nonlinear constraint at index k of constraint j in disjunct i.
 
-    big_m_reformulation!(constr::AbstractArray, bin_var, M, i, j, k)
+    big_m_reformulation!(constr::AbstractArray{<:ConstraintRef}, bin_var, M, i, j, k)
 
 Perform Big-M reformulation on a constraint at index k of constraint j in disjunct i.
 """
@@ -36,5 +36,5 @@ function big_m_reformulation!(constr::NonlinearConstraintRef, bin_var, M, i, j, 
     #update constraint
     replace_constraint(constr, gx, op, rhs)
 end
-big_m_reformulation!(constr::AbstractArray, bin_var, M, i, j, k) =
+big_m_reformulation!(constr::AbstractArray{<:ConstraintRef}, bin_var, M, i, j, k) =
     big_m_reformulation(constr[k], bin_var, M, i, j, k)

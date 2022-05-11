@@ -10,7 +10,7 @@ Apply the hull reformulation to a linear constraint.
 
 Apply the hull reformulation to a nonlinear constraint (includes quadratic) at index k of constraint j in disjunct i.
 
-    hull_reformulation!(constr::AbstractArray, bin_var, eps, i, j, k)
+    hull_reformulation!(constr::AbstractArray{<:ConstraintRef}, bin_var, eps, i, j, k)
 
 Call the hull reformulation on a constraint at index k of constraint j in disjunct i.
 """
@@ -68,7 +68,7 @@ function hull_reformulation!(constr::ConstraintRef, bin_var, eps, i, j, k)
     pers_func = simplify(pers_func)
     replace_constraint(constr, pers_func, op, rhs)
 end
-hull_reformulation!(constr::AbstractArray, bin_var, eps, i, j, k) = 
+hull_reformulation!(constr::AbstractArray{<:ConstraintRef}, bin_var, eps, i, j, k) = 
     hull_reformulation!(constr[k], bin_var, eps, i, j, k)
 
 """
@@ -107,7 +107,7 @@ end
 
 Disaggreagate a variable with lower bound `LB`, upper bound `UB`, and name `base_name`.
 
-    add_disaggregated_variable(m::Model, var::AbstractArray, LB, UB, base_name)
+    add_disaggregated_variable(m::Model, var::AbstractArray{VariableRef}, LB, UB, base_name)
 
 Disaggregate a variable block stored in an Array or DenseAxisArray.
 
@@ -125,7 +125,7 @@ function add_disaggregated_variable(m::Model, var::VariableRef, LB, UB, base_nam
         base_name = base_name
     )
 end
-function add_disaggregated_variable(m::Model, var::AbstractArray, LB, UB, base_name)
+function add_disaggregated_variable(m::Model, var::AbstractArray{VariableRef}, LB, UB, base_name)
     idxs = Iterators.product(axes(var)...)
     var_i_array = [
         add_disaggregated_variable(m, var[idx...], LB[idx...], UB[idx...], "$base_name[$(join(idx,","))]")

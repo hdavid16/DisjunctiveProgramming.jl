@@ -54,7 +54,7 @@ end
 
 Reformulate a Tuple of constraints.
 
-    reformulate_constraint(constr::AbstractArray, bin_var, reformulation, param, i, j = missing)
+    reformulate_constraint(constr::AbstractArray{<:ConstraintRef}, bin_var, reformulation, param, i, j = missing)
 
 Reformulate a block of constraints.
 
@@ -67,7 +67,7 @@ function reformulate_constraint(constr::Tuple, bin_var, reformulation, param, i)
         reformulate_constraint(constr_j, bin_var, reformulation, param, i, j)
     end
 end
-function reformulate_constraint(constr::AbstractArray, bin_var, reformulation, param, i, j = missing)
+function reformulate_constraint(constr::AbstractArray{<:ConstraintRef}, bin_var, reformulation, param, i, j = missing)
     for k in eachindex(constr)
         reformulate_constraint(constr[k], bin_var, reformulation, param, i, j, k)
     end
@@ -79,3 +79,4 @@ function reformulate_constraint(constr::ConstraintRef, bin_var, reformulation, p
         hull_reformulation!(constr, bin_var, param, i, j, k)
     end
 end
+reformulate_constraint(args...) = nothing
