@@ -18,7 +18,7 @@ After defining a JuMP model, disjunctions can be added to the model by using the
 5. `Tuple` of expressions accepted by options 1 and/or 3.
 
 NOTES: 
-- Vectorized constraints (using `.` notation) are not currently supported. The current workarround is to first create the constraint with the `@constraint` macro and then use the `add_disjunction`, instead of the `@disjunction` macro. The `add_disjunction` function receives the same arguments as the `@disjunction` macro, with the exception that instead of creating the constraints in the disjunctions, references to previously created constraints are used for the disjuncts.
+- Vectorized constraints (using `.` notation) are not currently supported. The current workarround is to first create the constraint with the `@constraint` macro and then use the `add_disjunction!`, instead of the `@disjunction` macro. The `add_disjunction!` function receives the same arguments as the `@disjunction` macro, with the exception that instead of creating the constraints in the disjunctions, references to previously created constraints are used for the disjuncts.
 - Any constraints that are of `EqualTo` type are split into two constraints (e.g., `f(x) == 0` -> `0 <= f(x) <= 0`). This is necessary only for the Big-M reformulation of equality constraints, but is currently applied regardless of the reformulation technique.
 - Any constraints that are of `Interval` type are split into two constraints (one for each bound).
 - It is assumed that the disjuncts belonging to a disjunction are proper disjunctions (mutually exclussive) and only one of them will be selected (`XOR`).
