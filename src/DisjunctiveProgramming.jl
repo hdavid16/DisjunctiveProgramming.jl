@@ -1,17 +1,31 @@
 module DisjunctiveProgramming
 
-using JuMP, IntervalArithmetic, Symbolics, Suppressor
+# Import dependencies
+import JuMP
 
-export add_disjunction!, add_proposition!, reformulate_disjunction
-export @disjunction, @proposition
+# Create aliases
+const _MOI = JuMP.MOI
+const _MOIUC = JuMP.MOIU.CleverDicts
 
-include("constraint.jl")
-include("logic.jl")
-include("bounds.jl")
-include("utils.jl")
-include("bigm.jl")
-include("hull.jl")
-include("reformulate.jl")
-include("macros.jl")
+# Load in the source files
+include("datatypes.jl")
+include("model.jl")
+include("constraints.jl")
+include("optimize.jl")
 
-end # module
+# Define additional stuff that should not be exported
+const _EXCLUDE_SYMBOLS = [Symbol(@__MODULE__), :eval, :include]
+
+# Following JuMP, export everything that doesn't start with a _ 
+for sym in names(@__MODULE__, all = true)
+    sym_string = string(sym)
+    if sym in _EXCLUDE_SYMBOLS || startswith(sym_string, "_") || startswith(sym_string, "@_")
+        continue
+    end
+    if !(Base.isidentifier(sym) || (startswith(sym_string, "@") && Base.isidentifier(sym_string[2:end])))
+        continue
+    end
+    @eval export $sym
+end
+
+end # end of the module
