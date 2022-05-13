@@ -1,17 +1,19 @@
 """
+
+"""
+function select()
+    
+end
+
+"""
     to_cnf!(m::Model, expr::Expr)
 
 Convert logical proposition expression into conjunctive normal form.
 """
 function to_cnf!(m::Model, expr::Expr)
-    expr_name = Symbol(expr) #get name to register reformulated logical proposition
+    expr_name = Symbol("{$expr}") #get name to register reformulated logical proposition
     replace_Symvars!(expr, m; logical_proposition = true) #replace all JuMP variables with Symbolic variables
-    check_logical_proposition(expr) #check that valid boolean symbols and variables are used in the logical proposition
-    eliminate_equivalence!(expr) #eliminate ⇔
-    eliminate_implication!(expr) #eliminmate ⇒
-    move_negations_inwards!(expr) #expand ¬
-    clause_list = distribute_and_over_or_recursively!(expr) #distribute ∧ over ∨ recursively
-    @assert !isempty(clause_list) "Conversion to CNF failed."
+    clause_list = to_cnf!(expr)
     #replace symbolic variables with JuMP variables and boolean operators with their algebraic counterparts
     for clause in clause_list
         replace_JuMPvars!(clause, m)
@@ -27,6 +29,22 @@ function to_cnf!(m::Model, expr::Expr)
     else
         m[expr_name] = @constraint(m, [i = eachindex(lhs)], lhs[i] >= 1, base_name = string(expr_name))
     end
+end
+
+"""
+    to_cnf!(expr::Expr)
+
+Convert an expression of symbolic Boolean variables and operators to CNF.
+"""
+function to_cnf!(expr::Expr)
+    check_logical_proposition(expr) #check that valid boolean symbols and variables are used in the logical proposition
+    eliminate_equivalence!(expr) #eliminate ⇔
+    eliminate_implication!(expr) #eliminmate ⇒
+    move_negations_inwards!(expr) #expand ¬
+    clause_list = distribute_and_over_or_recursively!(expr) #distribute ∧ over ∨ recursively
+    @assert !isempty(clause_list) "Conversion to CNF failed."
+
+    return clause_list
 end
 
 """
@@ -53,11 +71,13 @@ function eliminate_equivalence!(expr)
     if expr isa Expr
         if expr.args[1] == :⇔
             @assert length(expr.args) == 3 "Double implication cannot have more than two clauses."
-            A = expr.args[2]
-            B = expr.args[3]
+            A1 = expr.args[2]
+            B1 = expr.args[3]
+            A2 = A1 isa Expr ? copy(A1) : A1
+            B2 = B1 isa Expr ? copy(B1) : B1
             expr.args[1] = :∧
-            expr.args[2] = :($A ⇒ $B)
-            expr.args[3] = :($B ⇒ $A)
+            expr.args[2] = :($A1 ⇒ $B1)
+            expr.args[3] = :($B2 ⇒ $A2)
         end
         for i in eachindex(expr.args)
             expr.args[i] = eliminate_equivalence!(expr.args[i])

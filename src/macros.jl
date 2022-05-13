@@ -135,17 +135,7 @@ Add logical proposition macro.
 macro proposition(m, expr)
     #get args
     expr = QuoteNode(expr)
-    code = :(add_proposition!($m, $expr))
-
+    code = :(DisjunctiveProgramming.to_cnf!($m, $expr))
+    
     return esc(code)
-end
-
-"""
-    add_proposition!(m::Model, expr::Expr)
-
-Add logical proposition expression to a JuMP model.
-"""
-function add_proposition!(m::Model, expr::Expr)
-    @assert m isa Model "A valid JuMP Model must be provided."
-    to_cnf!(m, expr)
 end
