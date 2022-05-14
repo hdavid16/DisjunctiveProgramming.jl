@@ -30,7 +30,7 @@ function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, para
     new_constraints = Dict{Symbol,Any}(
         Symbol(bin_var,"[$i]") => disj[i] for i in eachindex(disj)
     )
-    new_constraints[Symbol(bin_var,"_XOR")] = constraint_by_name(m, "XOR(disj_$bin_var)")
+    # new_constraints[Symbol(bin_var,"_XOR")] = constraint_by_name(m, "XOR(disj_$bin_var)")
     if reformulation == :hull
         for var in m[:gdp_variable_refs]
             agg_con_name = "$(var)_$(bin_var)_aggregation"

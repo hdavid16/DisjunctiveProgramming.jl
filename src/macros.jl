@@ -50,14 +50,14 @@ macro disjunction(m, args...)
         end
     end
 
-    #XOR constraint name
-    xor_con = Symbol("XOR($disj_name)")
+    # #XOR constraint name
+    # xor_con = Symbol("XOR($disj_name)")
     
     #build disjunction
     code = quote
         @assert !in($name, keys(object_dictionary($m))) "The disjunction name $name is already registered in the model. Specify new name."
         $m[$name] = @variable($m, [eachindex($disjunction)], Bin, base_name = string($name), lower_bound = 0, upper_bound = 1)
-        @constraint($m, $xor_con, sum($m[$name]) == 1)
+        # @constraint($m, $xor_con, sum($m[$name]) == 1)
         reformulate_disjunction($m, $(disjunction...); bin_var = $name, reformulation = $reformulation, param = $param)
     end
 
@@ -114,15 +114,15 @@ function add_disjunction!(m::Model,disj...;reformulation::Symbol,M=missing,ϵ=1e
     bin_var = ismissing(name) ? Symbol("disj",gensym()) : name
     disj_name = ismissing(name) ? bin_var : Symbol("disj_",name)
     
-    #XOR constraint name
-    xor_con = "XOR($disj_name)"
+    # #XOR constraint name
+    # xor_con = "XOR($disj_name)"
     
     #apply reformulation
     @assert !in(bin_var, keys(object_dictionary(m))) "The disjunction name $bin_var is already registered in the model. Specify new name."
     #create indicator variable
     m[bin_var] = @variable(m, [eachindex(disj)], Bin, base_name = string(bin_var), lower_bound = 0, upper_bound = 1)
-    #add xor constraint on binary variable
-    m[Symbol(xor_con)] = @constraint(m, sum(m[bin_var]) == 1, base_name = xor_con)
+    # #add xor constraint on binary variable
+    # m[Symbol(xor_con)] = @constraint(m, sum(m[bin_var]) == 1, base_name = xor_con)
     #reformulate disjunction
     reformulate_disjunction(m, disj...; bin_var, reformulation, param)
 end
@@ -135,17 +135,7 @@ Add logical proposition macro.
 macro proposition(m, expr)
     #get args
     expr = QuoteNode(expr)
-    code = :(add_proposition!($m, $expr))
-
+    code = :(DisjunctiveProgramming.to_cnf!($m, $expr))
+    
     return esc(code)
-end
-
-"""
-    add_proposition!(m::Model, expr::Expr)
-
-Add logical proposition expression to a JuMP model.
-"""
-function add_proposition!(m::Model, expr::Expr)
-    @assert m isa Model "A valid JuMP Model must be provided."
-    to_cnf!(m, expr)
 end

@@ -4,6 +4,7 @@ using JuMP, IntervalArithmetic, Symbolics, Suppressor
 
 export add_disjunction!, add_proposition!, reformulate_disjunction
 export @disjunction, @proposition
+export choose!
 
 include("constraint.jl")
 include("logic.jl")
