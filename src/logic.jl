@@ -1,8 +1,28 @@
 """
+    choose!(m::Model, n::Int, vars::VariableRef...; mode)
 
+Add constraint to select n elements from the list of variables. Options for mode
+are `:at_least`, `:at_most`, `:exactly`.
 """
-function select()
-    
+function choose!(m::Model, n::Int, vars::VariableRef...; mode=:exactly)
+    @assert length(vars) >= n "Not enough variables passed."
+    @assert all(is_valid.(m, vars)) "Invalid VariableRefs passed."
+    add_selection!(m, n, vars...; mode)
+end
+function choose!(m::Model, vars::VariableRef...; mode=:exactly)
+    @assert all(is_valid.(m, vars)) "Invalid VariableRefs passed."
+    n = vars[1] #first variable is the n
+    add_selection!(m, n, vars...; mode)
+end
+function add_selection!(m::Model, n, vars::VariableRef...; mode::Symbol)
+    display(n)
+    if mode == :exactly
+        display(@constraint(m, sum(vars) == n))
+    elseif mode == :at_least
+        @constraint(m, sum(vars) ≥ n)
+    elseif mode == :at_most
+        @constraint(m, sum(vars) ≥ n)
+    end
 end
 
 """
