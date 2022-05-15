@@ -4,12 +4,14 @@ using JuMP, IntervalArithmetic, Symbolics, Suppressor
 
 export add_disjunction!, add_proposition!, reformulate_disjunction
 export @disjunction, @proposition
+export choose!
 
 include("constraint.jl")
 include("logic.jl")
+include("bounds.jl")
 include("utils.jl")
-include("big_M.jl")
-include("convex_hull.jl")
+include("bigm.jl")
+include("hull.jl")
 include("reformulate.jl")
 include("macros.jl")
 

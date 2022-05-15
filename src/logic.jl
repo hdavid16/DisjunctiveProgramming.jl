@@ -1,12 +1,39 @@
+"""
+    choose!(m::Model, n::Int, vars::VariableRef...; mode)
+
+Add constraint to select n elements from the list of variables. Options for mode
+are `:at_least`, `:at_most`, `:exactly`.
+"""
+function choose!(m::Model, n::Int, vars::VariableRef...; mode=:exactly)
+    @assert length(vars) >= n "Not enough variables passed."
+    @assert all(is_valid.(m, vars)) "Invalid VariableRefs passed."
+    add_selection!(m, n, vars...; mode)
+end
+function choose!(m::Model, vars::VariableRef...; mode=:exactly)
+    @assert all(is_valid.(m, vars)) "Invalid VariableRefs passed."
+    n = vars[1] #first variable is the n
+    add_selection!(m, n, vars...; mode)
+end
+function add_selection!(m::Model, n, vars::VariableRef...; mode::Symbol)
+    display(n)
+    if mode == :exactly
+        display(@constraint(m, sum(vars) == n))
+    elseif mode == :at_least
+        @constraint(m, sum(vars) ≥ n)
+    elseif mode == :at_most
+        @constraint(m, sum(vars) ≥ n)
+    end
+end
+
+"""
+    to_cnf!(m::Model, expr::Expr)
+
+Convert logical proposition expression into conjunctive normal form.
+"""
 function to_cnf!(m::Model, expr::Expr)
-    expr_name = Symbol(expr) #get name to register reformulated logical proposition
+    expr_name = Symbol("{$expr}") #get name to register reformulated logical proposition
     replace_Symvars!(expr, m; logical_proposition = true) #replace all JuMP variables with Symbolic variables
-    check_logical_proposition(expr) #check that valid boolean symbols and variables are used in the logical proposition
-    eliminate_equivalence!(expr) #eliminate ⇔
-    eliminate_implication!(expr) #eliminmate ⇒
-    move_negations_inwards!(expr) #expand ¬
-    clause_list = distribute_and_over_or_recursively!(expr) #distribute ∧ over ∨ recursively
-    @assert !isempty(clause_list) "Conversion to CNF failed."
+    clause_list = to_cnf!(expr)
     #replace symbolic variables with JuMP variables and boolean operators with their algebraic counterparts
     for clause in clause_list
         replace_JuMPvars!(clause, m)
@@ -24,7 +51,28 @@ function to_cnf!(m::Model, expr::Expr)
     end
 end
 
-function check_logical_proposition(expr)
+"""
+    to_cnf!(expr::Expr)
+
+Convert an expression of symbolic Boolean variables and operators to CNF.
+"""
+function to_cnf!(expr::Expr)
+    check_logical_proposition(expr) #check that valid boolean symbols and variables are used in the logical proposition
+    eliminate_equivalence!(expr) #eliminate ⇔
+    eliminate_implication!(expr) #eliminmate ⇒
+    move_negations_inwards!(expr) #expand ¬
+    clause_list = distribute_and_over_or_recursively!(expr) #distribute ∧ over ∨ recursively
+    @assert !isempty(clause_list) "Conversion to CNF failed."
+
+    return clause_list
+end
+
+"""
+    check_logical_proposition(expr::Expr)
+
+Validate logical proposition provided.
+"""
+function check_logical_proposition(expr::Expr)
     #NOTE: this is quick and dirty (uses Suppressor.jl). A more robust approach should traverse the expression tree to verify that only valid boolean symbols and model variables are used.
     dump_str = @capture_out dump(expr, maxdepth = typemax(Int)) #caputre dump
     dump_arr = split(dump_str,"\n") #split by \n
@@ -34,15 +82,22 @@ function check_logical_proposition(expr)
     @assert isempty(setdiff(operator_list, ["∨", "∧", "¬", "⇒", "⇔", "variables"])) "Logical expression does not use valid model variables or allowed Boolean symbols (∨, ∧, ¬, ⇒, ⇔)."
 end
 
+"""
+    eliminate_equivalence!(expr)
+
+Eliminate equivalence logical operator.
+"""
 function eliminate_equivalence!(expr)
     if expr isa Expr
         if expr.args[1] == :⇔
             @assert length(expr.args) == 3 "Double implication cannot have more than two clauses."
-            A = expr.args[2]
-            B = expr.args[3]
+            A1 = expr.args[2]
+            B1 = expr.args[3]
+            A2 = A1 isa Expr ? copy(A1) : A1
+            B2 = B1 isa Expr ? copy(B1) : B1
             expr.args[1] = :∧
-            expr.args[2] = :($A ⇒ $B)
-            expr.args[3] = :($B ⇒ $A)
+            expr.args[2] = :($A1 ⇒ $B1)
+            expr.args[3] = :($B2 ⇒ $A2)
         end
         for i in eachindex(expr.args)
             expr.args[i] = eliminate_equivalence!(expr.args[i])
@@ -52,6 +107,11 @@ function eliminate_equivalence!(expr)
     return expr
 end
 
+"""
+    eliminate_implication!(expr)
+
+Eliminate implication logical operator.
+"""
 function eliminate_implication!(expr)
     if expr isa Expr
         if expr.args[1] == :⇒
@@ -68,6 +128,11 @@ function eliminate_implication!(expr)
     return expr
 end
 
+"""
+    move_negations_inwards!(expr)
+
+Move negation inwards in logical proposition expression.
+"""
 function move_negations_inwards!(expr)
     if expr isa Expr
         if expr.args[1] == :¬
@@ -93,6 +158,11 @@ function move_negations_inwards!(expr)
     return expr
 end
 
+"""
+    negate_or!(expr)
+
+Negate OR boolean operator.
+"""
 function negate_or!(expr)
     @assert expr.args[1] == :∨ "Cannot call negate_or! unless the top operator is an OR operator."
     expr.args[1] = :∧ #flip OR to AND
@@ -102,6 +172,11 @@ function negate_or!(expr)
     return expr
 end
 
+"""
+    negate_and!(expr)
+
+Negate AND boolean operator.
+"""
 function negate_and!(expr)
     @assert expr.args[1] == :∧ "Cannot call negate_and! unless the top operator is an AND operator."
     expr.args[1] = :∨ #flip AND to OR
@@ -111,6 +186,11 @@ function negate_and!(expr)
     return expr
 end
 
+"""
+    negate_negation!(expr)
+
+Negate negation boolean operator.
+"""
 function negate_negation!(expr)
     @assert expr.args[1] == :¬ "Cannot call negate_negation! unless the top operator is a Negation operator."
     @assert length(expr.args) == 2 "Negation cannot have more than one clause."
@@ -119,6 +199,11 @@ function negate_negation!(expr)
     return expr
 end
 
+"""
+    distribute_and_over_or!(expr)
+
+Distribute AND over OR boolean operators.
+"""
 function distribute_and_over_or!(expr)
     if expr isa Expr
         if expr.args[1] == :∨
@@ -147,6 +232,11 @@ function distribute_and_over_or!(expr)
     return expr
 end
 
+"""
+    extract_clauses(expr)
+
+Extract clauses from conjunctive normal form.
+"""
 function extract_clauses(expr)
     clauses = []
     if expr isa Expr
@@ -162,6 +252,11 @@ function extract_clauses(expr)
     return clauses
 end
 
+"""
+    distribute_and_over_or_recursively!(expr)
+
+Distribute AND over OR boolean operators recursively throughout the expression tree.
+"""
 function distribute_and_over_or_recursively!(expr)
     distribute_and_over_or!(expr)
     clause_list = extract_clauses(expr)
@@ -173,6 +268,11 @@ function distribute_and_over_or_recursively!(expr)
     return unique!(clause_list)
 end
 
+"""
+    replace_logic_operators!(expr)
+
+Replace ∨ for +; replace ¬ for 1 - var.
+"""
 function replace_logic_operators!(expr)
     if expr isa Expr
         if expr.args[1] == :∨

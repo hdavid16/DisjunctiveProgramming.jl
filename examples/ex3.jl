@@ -13,7 +13,7 @@ m = Model()
         3 ≤ exp(x)
         5 ≤ x
     end,
-    reformulation=:convex_hull,
+    reformulation=:hull,
     name=:z
 )
 print(m)
@@ -22,7 +22,6 @@ print(m)
 # Subject to
 #  XOR(disj_z) : z[1] + z[2] == 1.0             <- XOR constraint
 #  x_aggregation : x - x_z1 - x_z2 == 0.0       <- aggregation of disaggregated variables
-#  disj_z[1,2] : -x_z1 - 3 z[1] <= 0.0          <- convex-hull reformulation of 2nd constraint if 1st disjunct (named disj_z[1,2] to indicate 1st disjunct, 2nd constraint)
 #  x_z1_lb : -5 z[1] - x_z1 <= 0.0              <- lower-bound constraint on disaggregated variable x_z1 (x in 1st disjunct)
 #  x_z1_ub : -10 z[1] + x_z1 <= 0.0             <- upper-bound constraint on disaggregated variable x_z1 (x in 1st disjunct)
 #  x_z2_lb : -5 z[2] - x_z2 <= 0.0              <- lower-bound constraint on disaggregated variable x_z2 (x in 2nd disjunct)
