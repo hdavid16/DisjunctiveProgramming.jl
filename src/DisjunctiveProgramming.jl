@@ -2,7 +2,7 @@ module DisjunctiveProgramming
 
 using JuMP, IntervalArithmetic, Symbolics, Suppressor
 
-export add_disjunction!, add_proposition!, reformulate_disjunction
+export add_disjunction!, add_proposition!
 export @disjunction, @proposition
 export choose!
 

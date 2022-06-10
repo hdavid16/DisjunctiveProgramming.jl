@@ -26,11 +26,11 @@ function add_selection!(m::Model, n, vars::VariableRef...; mode::Symbol)
 end
 
 """
-    to_cnf!(m::Model, expr::Expr)
+    add_proposition!(m::Model, expr::Expr)
 
 Convert logical proposition expression into conjunctive normal form.
 """
-function to_cnf!(m::Model, expr::Expr)
+function add_proposition!(m::Model, expr::Expr)
     expr_name = Symbol("{$expr}") #get name to register reformulated logical proposition
     replace_Symvars!(expr, m; logical_proposition = true) #replace all JuMP variables with Symbolic variables
     clause_list = to_cnf!(expr)
