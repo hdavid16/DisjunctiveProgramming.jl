@@ -21,6 +21,37 @@ function get_reform_param(param::Dict, args...; kwargs...)
 end
 
 """
+    get_constraint_variables(m::Model, con)
+
+Get variables that have non-zero coefficients in the passed constraint,
+constraint container, or disjunction
+"""
+function get_constraint_variables(m::Model, con::ConstraintRef)
+    return filter(
+        var_ref -> 
+            !iszero(normalized_coefficient(con, var_ref)), 
+        m[:gdp_variable_refs]
+    )
+end
+
+function get_constraint_variables(m::Model, con::Union{Containers.SparseAxisArray, Containers.DenseAxisArray, Array{<:ConstraintRef}})
+    return union(
+        [
+            get_constraint_variables(m,con[idx]) 
+            for idx in eachindex(con)
+        ]...
+    )
+end
+function get_constraint_variables(m::Model, disjunction)
+    return union(
+        [
+            get_constraint_variables(m, disj)
+            for disj in disjunction if !isnothing(disj)
+        ]...
+    )
+end
+
+"""
     gen_constraint_name(constr)
 
 Generate constraint name for a constraint to be split (Interval or EqualTo).
@@ -108,12 +139,14 @@ function symbolic_variable(var_ref)
 end
 
 function name_disaggregated_variable(var_ref, bin_var, i)
-    #get disaggregated variable reference
-    if occursin("[", string(var_ref))
-        var_name_i = replace(string(var_ref), "[" => "_$bin_var$i[")
-    else
-        var_name_i = "$(var_ref)_$bin_var$i"
-    end
+    # #get disaggregated variable reference
+    # if occursin("[", string(var_ref))
+    #     var_name_i = replace(string(var_ref), "[" => "_$bin_var$i[")
+    # else
+    #     var_name_i = "$(var_ref)_$bin_var$i"
+    # end
+    var_name = name(var_ref)
+    var_name_i = "$(var_name)_$(bin_var)_$i"
 
     return var_name_i
 end
