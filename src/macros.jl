@@ -118,9 +118,13 @@ function add_disjunction!(m::Model,disj...;reformulation::Symbol,M=missing,ϵ=1e
     # xor_con = "XOR($disj_name)"
     
     #apply reformulation
-    @assert !in(bin_var, keys(object_dictionary(m))) "The disjunction name $bin_var is already registered in the model. Specify new name."
-    #create indicator variable
-    m[bin_var] = @variable(m, [eachindex(disj)], Bin, base_name = string(bin_var), lower_bound = 0, upper_bound = 1)
+    # @assert !in(bin_var, keys(object_dictionary(m))) "The disjunction name $bin_var is already registered in the model. Specify new name."
+    if bin_var in keys(object_dictionary(m))
+        @assert length(disj) <= length(m[bin_var]) "The disjunction name $bin_var is already registered in the model and its size is smaller than the number of disjunts. Specify new name."
+    else
+        #create indicator variable
+        m[bin_var] = @variable(m, [eachindex(disj)], Bin, base_name = string(bin_var), lower_bound = 0, upper_bound = 1)
+    end
     # #add xor constraint on binary variable
     # m[Symbol(xor_con)] = @constraint(m, sum(m[bin_var]) == 1, base_name = xor_con)
     #reformulate disjunction
@@ -135,7 +139,7 @@ Add logical proposition macro.
 macro proposition(m, expr)
     #get args
     expr = QuoteNode(expr)
-    code = :(DisjunctiveProgramming.to_cnf!($m, $expr))
+    code = :(DisjunctiveProgramming.add_proposition!($m, $expr))
     
     return esc(code)
 end
