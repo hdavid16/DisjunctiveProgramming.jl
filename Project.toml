@@ -8,10 +8,12 @@ IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
+LeftChildRightSiblingTrees = "1d6d02ad-be62-4b6b-8a6d-2f90e265016e"
 
 [compat]
 IntervalArithmetic = "0.20"
 JuMP = "1"
+LeftChildRightSiblingTrees = "0.1"
 Suppressor = "0.2"
 Symbolics = "4"
 julia = "1"

@@ -1,4 +1,56 @@
 """
+    LogicalVariable <: JuMP.AbstractVariable
+
+A variable type the logical variables associated with 
+[`Disjunct`](@ref)s.
+
+**Fields**
+- `fix_value::Union{Nothing, Bool}`: A fixed boolean value if there is one.
+- `start_value::Union{Nothing, Bool}`: An initial guess if there is one.
+"""
+struct LogicalVariable <: JuMP.AbstractVariable 
+    fix_value::Union{Nothing, Bool}
+    start_value::Union{Nothing, Bool}
+end
+
+"""
+    LogicalVariableData
+
+A type for storing [`LogicalVariable`](@ref)s and any meta-data they 
+possess.
+
+**Fields**
+- `variable::LogicalVariable`: The variable object.
+- `name::String`: The name of the variable.
+"""
+mutable struct LogicalVariableData
+    variable::LogicalVariable
+    name::String
+end
+
+"""
+    LogicalIndex
+
+A type for storing the index of a [`LogicalVariable`](@ref).
+
+**Fields**
+- `value::Int64`: The index value.
+"""
+struct LogicalIndex
+    value::Int64
+end
+
+"""
+    LogicalVariableRef
+
+A type for looking up logical variables.
+"""
+struct LogicalVariableRef <: JuMP.AbstractVariableRef
+    model::JuMP.Model
+    index::LogicalIndex
+end
+
+"""
     Disjunct{C <: Tuple}
 
 A type for storing a mathematical disjunct object. Principally, it is comprised 
@@ -9,12 +61,12 @@ satisfied.
 - `constraints::C`: A tuple of constraint collections where each collection is a 
                     JuMP container and each constraint in the container is some 
                     kind of `JuMP.AbstractConstraint`.
-- `indicator::JuMP.VariableRef`: The boolean/binary variable associated with the 
-                                 disjunct.
+- `indicator::LogicalVariableRef`: The logical/binary variable associated with the 
+                                   disjunct.
 """
 struct Disjunct{C <: Tuple}
     constraints::C # TODO maybe make vector of constraints instead
-    indicator::JuMP.VariableRef # TODO maybe create our own boolean var type
+    indicator::LogicalVariableRef
 end
 
 """
@@ -32,7 +84,7 @@ struct DisjunctionConstraint <: JuMP.AbstractConstraint
 end
 
 """
-    ConstraintData
+    DisjunctionConstraintData
 
 A type for storing [`DisjunctionConstraint`](@ref)s and any meta-data they 
 possess.
@@ -41,7 +93,7 @@ possess.
 - `constraint::DisjunctionConstraint`: The disjunctive constraint object.
 - `name::String`: The name of the constraint.
 """
-mutable struct ConstraintData
+mutable struct DisjunctionConstraintData
     constraint::DisjunctionConstraint
     name::String
 end
@@ -68,18 +120,94 @@ struct DisjunctiveConstraintRef
     index::DisjunctionIndex
 end
 
+"""
+    NodeData
+
+A node data type for building [`Proposition`](@ref)s and it can contain 
+a logical operator symbol or a [`LogicalVariableRef`](@ref).
+
+**Fields**
+- `value`: Contains one of the above types.
+"""
+struct NodeData
+    value
+end
+
+"""
+    Proposition <: JuMP.AbstractJuMPScalar
+
+An expression tree type for storing proposition expressions.
+
+**Fields**
+- `tree_root::LeftChildRightSiblingTrees.Node{NodeData}`: The root node of the tree.
+"""
+struct Proposition <: JuMP.AbstractJuMPScalar
+    tree_root::_LCRST.Node{NodeData}
+
+    # Constructor
+    function Proposition(tree_root::_LCRST.Node{NodeData})
+        return new(tree_root)
+    end
+end
+
+"""
+    PropositionData
+
+A type for storing [`Proposition`](@ref)s and any meta-data they possess.
+
+**Fields**
+- `proposition::Proposition`: The proposition expression.
+- `name::String`: The name of the proposition.
+"""
+mutable struct PropositionData
+    proposition::Proposition
+    name::String
+end
+
+"""
+    PropositionIndex
+
+A type for storing the index of a [`Proposition`](@ref).
+
+**Fields**
+- `value::Int64`: The index value.
+"""
+struct PropositionIndex
+    value::Int64
+end
+
+"""
+    PropositionRef
+
+A type for looking up propositions.
+"""
+struct PropositionRef
+    model::JuMP.Model
+    index::PropositionIndex
+end
+
 ## Extend the CleverDicts key access methods
 # index_to_key
+function _MOIUC.index_to_key(::Type{LogicalIndex}, index::Int64)
+    return LogicalIndex(index)
+end
 function _MOIUC.index_to_key(::Type{DisjunctionIndex}, index::Int64)
     return DisjunctionIndex(index)
 end
+function _MOIUC.index_to_key(::Type{PropositionIndex}, index::Int64)
+    return PropositionIndex(index)
+end
 
 # key_to_index
+function _MOIUC.key_to_index(key::LogicalIndex)
+    return key.value
+end
 function _MOIUC.key_to_index(key::DisjunctionIndex)
     return key.value
 end
-
-# TODO create types for storing propositions
+function _MOIUC.key_to_index(key::PropositionIndex)
+    return key.value
+end
 
 """
     AbstractSolutionMethod
@@ -116,10 +244,11 @@ struct Hull <: AbstractReformulationMethod end # TODO add fields if needed
 The core type for storing information in a [`GDPModel`](@ref).
 """
 mutable struct GDPData
-    # Costraints
-    constraints::_MOIUC.CleverDicts{DisjunctionIndex, ConstraintData}
-    # TODO account for propositions
-
+    # Objects
+    logical_variables::_MOIUC.CleverDicts{LogicalIndex, LogicalVariableData}
+    disjunctions::_MOIUC.CleverDicts{DisjunctionIndex, DisjunctionConstraintData}
+    propositions::_MOIUC.CleverDicts{PropositionIndex, PropositionData}
+    
     # Solution data
     solution_method::Union{Nothing, AbstractSolutionMethod}
     ready_to_optimize::Bool
@@ -127,7 +256,9 @@ mutable struct GDPData
 
     # Default constructor
     function GDPData()
-        new(_MOIUC.CleverDicts{DisjunctionIndex, ConstraintData}(), 
+        new(_MOIUC.CleverDicts{LogicalIndex, LogicalVariableData}(),
+            _MOIUC.CleverDicts{DisjunctionIndex, DisjunctionConstraintData}(), 
+            propositions::_MOIUC.CleverDicts{PropositionIndex, PropositionData},
             nothing,
             false
             )

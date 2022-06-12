@@ -20,6 +20,15 @@ function gdp_data(model::JuMP.Model)
     return model.ext[:GDP]
 end
 
+"""
+    is_gdp_model(model::JuMP.Model)::Bool
+
+Return if `model` was created via the [`GDPModel`](@ref) constructor.
+"""
+function is_gdp_model(model::JuMP.Model)
+    return haskey(model.ext, :GDP)
+end
+
 # Determine if the model is ready to call `optimize!` without a optimize hook
 _ready_to_optimize(model::JuMP.Model) = gdp_data(model).ready_to_optimize
 

@@ -2,15 +2,20 @@ module DisjunctiveProgramming
 
 # Import dependencies
 import JuMP
+import LeftChildRightSiblingTrees
 
 # Create aliases
 const _MOI = JuMP.MOI
 const _MOIUC = JuMP.MOIU.CleverDicts
+const _LCRST = LeftChildRightSiblingTrees
 
 # Load in the source files
 include("datatypes.jl")
 include("model.jl")
+include("variables.jl")
 include("constraints.jl")
+include("propositions.jl")
+include("macros.jl")
 include("optimize.jl")
 
 # Define additional stuff that should not be exported
