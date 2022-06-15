@@ -56,3 +56,101 @@ end
 Base.copy(v::LogicalVariableRef) = v
 Base.broadcastable(v::LogicalVariableRef) = Ref(v)
 Base.length(v::LogicalVariableRef) = 1
+
+"""
+
+"""
+JuMP.owner_model(vref::LogicalVariableRef) = vref.model
+
+"""
+
+"""
+JuMP.index(vref::LogicalVariableRef) = vref.index
+
+"""
+
+"""
+function JuMP.is_valid(model::JuMP.Model, vref::LogicalVariableRef)
+    return model === JuMP.owner_model(vref)
+end
+
+"""
+
+"""
+function JuMP.name(vref::LogicalVariableRef)
+    data = gdp_data(JuMP.owner_model(vref))
+    return data.logical_variables[JuMP.index(vref)].name
+end
+
+"""
+
+"""
+function JuMP.set_name(vref::LogicalVariableRef, name::String)
+    data = gdp_data(JuMP.owner_model(vref))
+    data.logical_variables[JuMP.index(vref)].name = name
+    return
+end
+
+"""
+
+"""
+function JuMP.start_value(vref::LogicalVariableRef)
+    data = gdp_data(JuMP.owner_model(vref))
+    return data.logical_variables[JuMP.index(vref)].variable.start
+end
+
+"""
+
+"""
+function JuMP.set_start_value(
+    vref::LogicalVariableRef, 
+    value::Union{Nothing, Bool}
+    )
+    data = gdp_data(JuMP.owner_model(vref))
+    var = data.logical_variables[JuMP.index(vref)].variable
+    new_var = LogicalVariable(var.fix_value, value)
+    data.logical_variables[JuMP.index(vref)].variable = new_var
+    return
+end
+
+"""
+
+"""
+function JuMP.fix_value(vref::LogicalVariableRef)
+    data = gdp_data(JuMP.owner_model(vref))
+    return data.logical_variables[JuMP.index(vref)].variable.fix_value
+end
+
+"""
+
+"""
+function JuMP.fix(vref::LogicalVariableRef, value::Bool)
+    data = gdp_data(JuMP.owner_model(vref))
+    var = data.logical_variables[JuMP.index(vref)].variable
+    new_var = LogicalVariable(value, var.start_value)
+    data.logical_variables[JuMP.index(vref)].variable = new_var
+    return
+end
+
+"""
+
+"""
+function JuMP.unfix(vref::LogicalVariableRef)
+    data = gdp_data(JuMP.owner_model(vref))
+    var = data.logical_variables[JuMP.index(vref)].variable
+    new_var = LogicalVariable(nothing, var.start_value)
+    data.logical_variables[JuMP.index(vref)].variable = new_var
+    return
+end
+
+"""
+
+"""
+function JuMP.delete(model::JuMP.Model, vref::LogicalVariableRef)
+    @assert JuMP.is_valid(model, vref) "Variable does not belong to model."
+    data = gdp_data(JuMP.owner_model(vref))
+    dict = data.logical_variables[JuMP.index(vref)]
+    # TODO check if used by a disjunction and/or a proposition
+    delete!(dict, index(vref))
+    return 
+end
