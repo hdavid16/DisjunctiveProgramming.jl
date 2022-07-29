@@ -11,7 +11,7 @@ Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
 IntervalArithmetic = "0.20"
-JuMP = "1"
+JuMP = "1.0.0 - 1.1.1"
 Suppressor = "0.2"
 Symbolics = "4"
 julia = "1"
