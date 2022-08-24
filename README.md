@@ -1,6 +1,8 @@
 # DisjunctiveProgramming.jl
 Generalized Disjunctive Programming extension to JuMP
 
+![](logo.png)
+
 ## Installation
 
 ```julia
