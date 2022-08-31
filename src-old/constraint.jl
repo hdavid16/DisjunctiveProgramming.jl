@@ -43,8 +43,8 @@ function check_constraint!(m::Model, constr::ConstraintRef)
     else
         constr_name = gen_constraint_name(constr)
         m[constr_name] = new_constr
-        constr_str = split(string(constr),"}")[end]
-        @warn "$constr_str uses the `MOI.Interval` or `MOI.EqualTo` set. Each instance of the interval set has been split into two constraints, one for each bound."
+        # constr_str = split(string(constr),"}")[end]
+        # @warn "$constr_str uses the `MOI.Interval` or `MOI.EqualTo` set. Each instance of the interval set has been split into two constraints, one for each bound."
         delete_original_constraint!(m, constr)
     end
     return new_constr
@@ -67,8 +67,8 @@ function check_constraint!(m::Model, constr::AbstractArray{<:ConstraintRef})
         new_constr = Containers.SparseAxisArray(constr_dict)
         constr_name = gen_constraint_name(constr)
         m[constr_name] = new_constr
-        constr_str = split(string(constr),"}")[end]
-        @warn "$constr_str uses the `MOI.Interval` or `MOI.EqualTo` set. Each instance of the interval set has been split into two constraints, one for each bound."
+        # constr_str = split(string(constr),"}")[end]
+        # @warn "$constr_str uses the `MOI.Interval` or `MOI.EqualTo` set. Each instance of the interval set has been split into two constraints, one for each bound."
         delete_original_constraint!(m, constr)
     end
     return new_constr

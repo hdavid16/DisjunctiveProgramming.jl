@@ -83,13 +83,15 @@ function disaggregate_variables(m::Model, disj, bin_var)
     #reformulate variables
     obj_dict = object_dictionary(m)
     bounds_dict = :variable_bounds_dict in keys(obj_dict) ? obj_dict[:variable_bounds_dict] : Dict() #NOTE: should pass as an keyword argument
-    for var_name in m[:gdp_variable_names]
-        var = m[var_name]
+    for var in get_constraint_variables(m,disj)#var_name in m[:gdp_variable_names]
+        # var = m[var_name]
+        var_name = name(var)
         #define UB and LB
         LB, UB = get_bounds(var, bounds_dict)
         #disaggregate variable and add bounding constraints
+        sum_vars = AffExpr(0) #initialize sum of disaggregated variables
         for i in eachindex(disj)
-            var_name_i_str = "$(var_name)_$bin_var$i"
+            var_name_i_str = "$(var_name)_$(bin_var)_$i"
             var_name_i = Symbol(var_name_i_str)
             #create disaggregated variable
             m[var_name_i] = add_disaggregated_variable(m, var, LB, UB, var_name_i_str)
@@ -98,7 +100,12 @@ function disaggregate_variables(m::Model, disj, bin_var)
             var_i_ub = "$(var_name_i)_ub" 
             m[Symbol(var_i_lb)] = @constraint(m, LB * m[bin_var][i] .- m[var_name_i] .<= 0, base_name = var_i_lb)
             m[Symbol(var_i_ub)] = @constraint(m, m[var_name_i] .- UB * m[bin_var][i] .<= 0, base_name = var_i_ub)
+            #update disaggregated sum expression
+            add_to_expression!(sum_vars, 1, m[var_name_i])
         end
+        #sum disaggregated variables
+        aggr_con = "$(var)_$(bin_var)_aggregation"
+        m[Symbol(aggr_con)] = @constraint(m, var == sum_vars, base_name = aggr_con)
     end
 end
 
