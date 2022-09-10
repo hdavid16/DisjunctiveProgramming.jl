@@ -15,6 +15,7 @@ function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, para
     if !in(:gdp_variable_refs, keys(object_dictionary(m)))
         @expression(m, gdp_variable_refs, vars)
     end
+    @expression(m, original_object_dict, object_dictionary(m))
     #run reformulation
     if reformulation == :hull
         disaggregate_variables(m, disj, bin_var)

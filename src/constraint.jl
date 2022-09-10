@@ -182,6 +182,11 @@ function replace_constraint(constr::ConstraintRef, sym_expr, op, rhs)
     replace_JuMPvars!(expr, m)
     replace_operators!(expr)
     #add a nonlinear constraint with the perspective function and delete old constraint
+    # constr_name = name(constr)
+    constr_name = findfirst(==(constr), m[:original_object_dict])
     delete(m, constr) #delete original constraint
-    add_nonlinear_constraint(m, expr)
+    new_constr = add_nonlinear_constraint(m, expr)
+    if !isnothing(constr_name)
+        m[constr_name] = new_constr
+    end
 end

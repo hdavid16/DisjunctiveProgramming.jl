@@ -145,23 +145,3 @@ function add_disaggregated_variable(m::Model, var::Containers.SparseAxisArray, L
 end
 containerize(var::Array, arr) = arr
 containerize(var::Containers.DenseAxisArray, arr) = Containers.DenseAxisArray(arr, axes(var)...)
-
-"""
-    sum_disaggregated_variables(m::Model, disj, bin_var)
-
-Add constraint that global variable is equal to the sum of the disaggregated copies.
-"""
-function sum_disaggregated_variables(m::Model, disj, bin_var)
-    for var in m[:gdp_variable_refs]
-        disag_vars = []
-        for i in eachindex(disj)
-            var_name_i = name_disaggregated_variable(var, bin_var, i)
-            var_i = variable_by_name(m, var_name_i)
-            push!(disag_vars, var_i)
-        end
-        if !isempty(disag_vars)
-            aggr_con = "$(var)_$(bin_var)_aggregation"
-            m[Symbol(aggr_con)] = @constraint(m, var == sum(disag_vars), base_name = aggr_con)
-        end
-    end
-end

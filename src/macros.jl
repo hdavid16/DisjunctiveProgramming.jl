@@ -55,8 +55,9 @@ macro disjunction(m, args...)
     
     #build disjunction
     code = quote
-        @assert !in($name, keys(object_dictionary($m))) "The disjunction name $name is already registered in the model. Specify new name."
-        $m[$name] = @variable($m, [eachindex($disjunction)], Bin, base_name = string($name))
+        if !in($name, keys(object_dictionary($m)))
+            $m[$name] = @variable($m, [eachindex($disjunction)], Bin, base_name = string($name))
+        end
         # @constraint($m, $xor_con, sum($m[$name]) == 1)
         DisjunctiveProgramming.reformulate_disjunction($m, $(disjunction...); bin_var = $name, reformulation = $reformulation, param = $param)
     end

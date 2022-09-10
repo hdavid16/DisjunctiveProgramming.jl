@@ -3,20 +3,21 @@ using DisjunctiveProgramming
 
 m = Model()
 @variable(m, -5 ≤ x ≤ 10)
+@variable(m, z[i = 1:2], Bin)
 @disjunction(
     m,
     begin
-        exp(x) ≤ 2
-        -3 ≤ x
+        con1, exp(x) ≤ 2
+        con2, -3 ≤ x
     end,
     begin
-        3 ≤ exp(x)
-        5 ≤ x
+        con3, 3 ≤ exp(x)
+        con4, 5 ≤ x
     end,
     reformulation=:hull,
     name=:z
 )
-choose!(m, 1, m[:z]...; mode = :exactly, name = "XOR") #XOR constraint
+choose!(m, 1, z...; mode = :exactly, name = "XOR") #XOR constraint
 print(m)
 
 # Feasibility
@@ -33,10 +34,6 @@ print(m)
 #  x <= 10.0                                    <- upper-bound on x
 #  x_z1 <= 10.0                                 <- upper-bound on x_z1 (disaggregated x in 1st disjunct)
 #  x_z2 <= 10.0                                 <- upper-bound on x_z2 (disaggregated x in 2nd disjunct)
-#  z[1] >= 0.0                                  <- lower bound on binary
-#  z[2] >= 0.0                                  <- lower bound on binary
-#  z[1] <= 1.0                                  <- upper bound on binary
-#  z[2] <= 1.0                                  <- upper bound on binary
 #  z[1] binary                                  <- indicator variable (1st disjunct) is binary
 #  z[2] binary                                  <- indicator variable (2nd disjunct) is binary
 #  Perspective Functions:
