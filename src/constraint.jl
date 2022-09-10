@@ -43,8 +43,6 @@ function check_constraint!(m::Model, constr::ConstraintRef)
     else
         constr_name = gen_constraint_name(constr)
         m[constr_name] = new_constr
-        # constr_str = split(string(constr),"}")[end]
-        # @warn "$constr_str uses the `MOI.Interval` or `MOI.EqualTo` set. Each instance of the interval set has been split into two constraints, one for each bound."
         delete_original_constraint!(m, constr)
     end
     return new_constr
@@ -67,8 +65,6 @@ function check_constraint!(m::Model, constr::AbstractArray{<:ConstraintRef})
         new_constr = Containers.SparseAxisArray(constr_dict)
         constr_name = gen_constraint_name(constr)
         m[constr_name] = new_constr
-        # constr_str = split(string(constr),"}")[end]
-        # @warn "$constr_str uses the `MOI.Interval` or `MOI.EqualTo` set. Each instance of the interval set has been split into two constraints, one for each bound."
         delete_original_constraint!(m, constr)
     end
     return new_constr
@@ -142,18 +138,14 @@ function split_constraint(m::Model, constr_obj::ScalarConstraint{T,<:MOI.Interva
 end
 function split_constraint(m::Model, constr::ConstraintRef, constr_func_expr::Expr, lb::Float64, ub::Float64)
     replace_JuMPvars!(constr_func_expr, m) #replace Expr with JuMP vars
-    #replace original constraint with lb <= func
-    lb_constr = JuMP._NonlinearConstraint(
-        JuMP._NonlinearExprData(m, constr_func_expr), 
-        lb, 
-        Inf
-    )
-    m.nlp_data.nlconstr[constr.index.value] = lb_constr
-    #create new constraint for func <= ub
+    #create split constraints
+    constr_expr_lb = Expr(:call, :(>=), constr_func_expr, lb)
     constr_expr_ub = Expr(:call, :(<=), constr_func_expr, ub)
+    lb_constr = add_nonlinear_constraint(m, constr_expr_lb)
     ub_constr = add_nonlinear_constraint(m, constr_expr_ub)
+    delete(m, constr) #delete original constraint
 
-    return [constr, ub_constr]
+    return [lb_constr, ub_constr]
 end
 split_constraint(args...) = nothing
 
@@ -177,21 +169,10 @@ function parse_constraint(constr::ConstraintRef)
 end
 
 """
+    replace_constraint(constr::ConstraintRef, sym_expr, op, rhs)
 
+Replace nonlinear or quadratic constraint with its hull reformulation.
 """
-function replace_constraint(constr::NonlinearConstraintRef, sym_expr, op, rhs)
-    #convert symbolic function to expression
-    expr = Base.remove_linenums!(build_function(sym_expr)).args[2].args[1]
-    #replace symbolic variables by their JuMP variables and math operators with their symbols
-    m = constr.model
-    replace_JuMPvars!(expr, m)
-    replace_operators!(expr)
-    # determine bounds of original constraint (if op is ==, both bounds are set to rhs)
-    upper_b = (op == :(>=)) ? Inf : rhs
-    lower_b = (op == :(<=)) ? -Inf : rhs
-    # replace NL constraint currently in the model with the reformulated one
-    m.nlp_data.nlconstr[constr.index.value] = JuMP._NonlinearConstraint(JuMP._NonlinearExprData(m, expr), lower_b, upper_b)
-end
 function replace_constraint(constr::ConstraintRef, sym_expr, op, rhs)
     #convert symbolic function to expression
     op = eval(op)
@@ -201,6 +182,6 @@ function replace_constraint(constr::ConstraintRef, sym_expr, op, rhs)
     replace_JuMPvars!(expr, m)
     replace_operators!(expr)
     #add a nonlinear constraint with the perspective function and delete old constraint
+    delete(m, constr) #delete original constraint
     add_nonlinear_constraint(m, expr)
-    delete(m, constr)
 end

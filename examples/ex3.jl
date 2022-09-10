@@ -16,6 +16,7 @@ m = Model()
     reformulation=:hull,
     name=:z
 )
+choose!(m, 1, m[:z]...; mode = :exactly, name = "XOR") #XOR constraint
 print(m)
 
 # Feasibility

@@ -1,7 +1,7 @@
 name = "DisjunctiveProgramming"
 uuid = "0d27d021-0159-4c7d-b4a7-9ccb5d9366cf"
 authors = ["hdavid16 <hperez16@gmail.com>"]
-version = "0.3.0"
+version = "0.4.0"
 
 [deps]
 IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
@@ -11,7 +11,7 @@ Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
 IntervalArithmetic = "0.20"
-JuMP = "1.0.0 - 1.1.1"
+JuMP = "1.2"
 Suppressor = "0.2"
 Symbolics = "4"
 julia = "1"

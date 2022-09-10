@@ -15,6 +15,7 @@ m = Model()
     reformulation = :big_m,
     name = :y
 )
+choose!(m, 1, m[:y]...; mode = :exactly, name = "XOR") #XOR constraint
 print(m)
 
 # ┌ Warning: [con1[1] : x[1] in [0.0, 3.0], con1[2] : x[2] in [0.0, 4.0]] uses the `MOI.Interval` set. Each instance of the interval set has been split into two constraints, one for each bound.
@@ -34,9 +35,5 @@ print(m)
 #  x[2] >= -5.0                             <- variable bounds
 #  x[1] <= 10.0                             <- variable bounds
 #  x[2] <= 10.0                             <- variable bounds
-#  y[1] >= 0.0                              <- lower bound on binary
-#  y[2] >= 0.0                              <- lower bound on binary
-#  y[1] <= 1.0                              <- upper bound on binary
-#  y[2] <= 1.0                              <- upper bound on binary
 #  y[1] binary                              <- indicator variable (1st disjunct) is binary
 #  y[2] binary                              <- indicator variable (2nd disjunct) is binary
