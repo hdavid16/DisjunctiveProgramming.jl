@@ -23,7 +23,7 @@ print(m)
 # Feasibility
 # Subject to
 #  XOR(disj_z) : z[1] + z[2] == 1.0             <- XOR constraint
-#  x_aggregation : x - x_z1 - x_z2 == 0.0       <- aggregation of disaggregated variables
+#  x_z_aggregation : x - x_z1 - x_z2 == 0.0     <- aggregation of disaggregated variables
 #  x_z1_lb : -5 z[1] - x_z1 <= 0.0              <- lower-bound constraint on disaggregated variable x_z1 (x in 1st disjunct)
 #  x_z1_ub : -10 z[1] + x_z1 <= 0.0             <- upper-bound constraint on disaggregated variable x_z1 (x in 1st disjunct)
 #  x_z2_lb : -5 z[2] - x_z2 <= 0.0              <- lower-bound constraint on disaggregated variable x_z2 (x in 2nd disjunct)
