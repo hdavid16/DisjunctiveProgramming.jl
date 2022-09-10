@@ -18,7 +18,6 @@ function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, para
     #run reformulation
     if reformulation == :hull
         disaggregate_variables(m, disj, bin_var)
-        # sum_disaggregated_variables(m, disj, bin_var)
     end
     reformulate_disjunction(disj, bin_var, reformulation, param)
 
@@ -34,10 +33,6 @@ function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, para
     #     end
     # end
     # return new_constraints
-
-    #remove model.optimize_hook ?
-
-    # return m[bin_var]
 end
 function reformulate_disjunction(disj, bin_var, reformulation, param)
     for (i,constr) in enumerate(disj)
