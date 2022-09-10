@@ -1,8 +1,5 @@
-CI = MOI.ConstraintIndex
-SAF = MOI.ScalarAffineFunction
-
 """
-    hull_reformulation!(constr::ConstraintRef{<:AbstractModel, CI{SAF{T},V}}, bin_var, args...) where {T,V}
+    hull_reformulation!(constr::ConstraintRef{<:AbstractModel, MOI.ConstraintIndex{MOI.ScalarAffineFunction{T},V}}, bin_var, args...) where {T,V}
 
 Apply the hull reformulation to a linear constraint.
 
@@ -14,12 +11,12 @@ Apply the hull reformulation to a nonlinear constraint (includes quadratic) at i
 
 Call the hull reformulation on a constraint at index k of constraint j in disjunct i.
 """
-function hull_reformulation!(constr::ConstraintRef{<:AbstractModel, CI{SAF{T},V}}, bin_var, args...) where {T,V}
+function hull_reformulation!(constr::ConstraintRef{<:AbstractModel, MOI.ConstraintIndex{MOI.ScalarAffineFunction{T},V}}, bin_var, args...) where {T,V}
     #check constraint type
     i = args[2] #get disjunct index
     bin_var_ref = constr.model[bin_var][i]
     #replace each variable with its disaggregated version
-    for var_ref in constr.model[:gdp_variable_refs]
+    for var_ref in get_constraint_variables(constr.model, constr)
         #get disaggregated variable reference
         var_name_i = name_disaggregated_variable(var_ref, bin_var, i)
         var_i_ref = variable_by_name(constr.model, var_name_i)
@@ -40,7 +37,7 @@ function hull_reformulation!(constr::ConstraintRef, bin_var, eps, i, j, k)
     #create symbolic variables (using Symbolics.jl)
     sym_vars = Dict(
         symbolic_variable(var_ref) => symbolic_variable(name_disaggregated_variable(var_ref, bin_var, i))
-        for var_ref in constr.model[:gdp_variable_refs]
+        for var_ref in get_constraint_variables(constr.model, constr)
     )
     ϵ = eps #epsilon parameter for perspective function (See Furman, Sawaya, Grossmann [2020] perspecive function)
     bin_var_sym = Symbol("$bin_var[$i]")
@@ -78,20 +75,18 @@ Disaggregate all variables in the model and tag them with the disjunction name.
 """
 function disaggregate_variables(m::Model, disj, bin_var)
     #check that variables are bounded
-    var_refs = m[:gdp_variable_refs]
+    var_refs = get_constraint_variables(m, disj)
     @assert all((has_upper_bound.(var_refs) .&& has_lower_bound.(var_refs)) .|| is_binary.(var_refs)) "All variables must be bounded to perform the Hull reformulation."
     #reformulate variables
     obj_dict = object_dictionary(m)
     bounds_dict = :variable_bounds_dict in keys(obj_dict) ? obj_dict[:variable_bounds_dict] : Dict() #NOTE: should pass as an keyword argument
-    for var in get_constraint_variables(m,disj)#var_name in m[:gdp_variable_names]
-        # var = m[var_name]
-        var_name = name(var)
+    for var in var_refs
         #define UB and LB
         LB, UB = get_bounds(var, bounds_dict)
         #disaggregate variable and add bounding constraints
         sum_vars = AffExpr(0) #initialize sum of disaggregated variables
         for i in eachindex(disj)
-            var_name_i_str = "$(var_name)_$(bin_var)_$i"
+            var_name_i_str = name_disaggregated_variable(var,bin_var,i)
             var_name_i = Symbol(var_name_i_str)
             #create disaggregated variable
             m[var_name_i] = add_disaggregated_variable(m, var, LB, UB, var_name_i_str)
@@ -150,21 +145,3 @@ function add_disaggregated_variable(m::Model, var::Containers.SparseAxisArray, L
 end
 containerize(var::Array, arr) = arr
 containerize(var::Containers.DenseAxisArray, arr) = Containers.DenseAxisArray(arr, axes(var)...)
-
-"""
-    sum_disaggregated_variables(m::Model, disj, bin_var)
-
-Add constraint that global variable is equal to the sum of the disaggregated copies.
-"""
-function sum_disaggregated_variables(m::Model, disj, bin_var)
-    for var in m[:gdp_variable_refs]
-        dis_vars = []
-        for i in eachindex(disj)
-            var_name_i = name_disaggregated_variable(var, bin_var, i)
-            var_i = variable_by_name(m, var_name_i)
-            push!(dis_vars, var_i)
-        end
-        aggr_con = "$(var)_$(bin_var)_aggregation"
-        m[Symbol(aggr_con)] = @constraint(m, var == sum(dis_vars), base_name = aggr_con)
-    end
-end

@@ -26,14 +26,20 @@ end
 Get variables that have non-zero coefficients in the passed constraint,
 constraint container, or disjunction
 """
-function get_constraint_variables(m::Model, con::ConstraintRef)
+function get_constraint_variables(m::Model, con::ConstraintRef{<:AbstractModel, MOI.ConstraintIndex{MOI.ScalarAffineFunction{T},V}}) where {T,V}
     return filter(
         var_ref -> 
             !iszero(normalized_coefficient(con, var_ref)), 
-        m[:gdp_variable_refs]
+        all_variables(m)
     )
 end
+function get_constraint_variables(m::Model, con::ConstraintRef)
+    var_list = []
+    constr_expr = parse_constraint(con)[2]
+    constraint_variables!(constr_expr, m, var_list)
 
+    return var_list
+end
 function get_constraint_variables(m::Model, con::Union{Containers.SparseAxisArray, Containers.DenseAxisArray, Array{<:ConstraintRef}})
     return union(
         [
@@ -56,20 +62,39 @@ end
 
 Generate constraint name for a constraint to be split (Interval or EqualTo).
 """
-function gen_constraint_name(constr)
-    constr_name = name.(constr)
-    if any(isempty.(constr_name))
+function gen_constraint_name(constr::ConstraintRef)
+    constr_name = name(constr)
+    if isempty(constr_name)
         constr_name = gensym("constraint")
-    elseif !isa(constr_name, String)
-        c_names = union(first.(split.(constr_name,"[")))
-        if length(c_names) == 1
-            constr_name = c_names[1]
-        else
-            constr_name = gensym("constraint")
-        end
     end
 
-    return Symbol("$(constr_name)_split")
+    return Symbol(constr_name)
+end
+function gen_constraint_name(constr::NonlinearConstraintRef)
+    constr_name = findfirst(==(constr), constr.model[:original_object_dict])
+    if isnothing(constr_name)
+        constr_name = gensym("constraint")
+    end
+
+    return Symbol(constr_name)
+end
+function gen_constraint_name(constr::AbstractArray{<:NonlinearConstraintRef})
+    constr_name = findfirst(==(constr), first(constr).model[:original_object_dict])
+    if isnothing(constr_name)
+        constr_name = gensym("constraint")
+    end
+
+    return Symbol(constr_name)
+end
+function gen_constraint_name(constr::AbstractArray{<:ConstraintRef})
+    constr_name_set = union(first.(split.(string.(gen_constraint_name.(constr)), "[")))
+    if length(constr_name_set) == 1
+        constr_name = constr_name_set[1]
+    else
+        constr_name = gensym("constraint")
+    end
+
+    return Symbol(constr_name)
 end
 
 function replace_Symvars!(expr, model; logical_proposition = false)
@@ -139,14 +164,8 @@ function symbolic_variable(var_ref)
 end
 
 function name_disaggregated_variable(var_ref, bin_var, i)
-    # #get disaggregated variable reference
-    # if occursin("[", string(var_ref))
-    #     var_name_i = replace(string(var_ref), "[" => "_$bin_var$i[")
-    # else
-    #     var_name_i = "$(var_ref)_$bin_var$i"
-    # end
     var_name = name(var_ref)
-    var_name_i = "$(var_name)_$(bin_var)_$i"
+    var_name_i = "$(var_name)_$(bin_var)$i"
 
     return var_name_i
 end
@@ -160,4 +179,16 @@ function name_split_constraint(con_name, side)
     end
 
     return con_name
+end
+
+function constraint_variables!(expr, model, var_list=[])
+    name = join(split(string(expr)," "))
+    var = variable_by_name(model, name)
+    if !isnothing(var)
+        push!(var_list, var)
+    elseif expr isa Expr
+        for i in eachindex(expr.args)
+            constraint_variables!(expr.args[i], model, var_list)
+        end
+    end
 end

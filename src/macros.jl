@@ -55,10 +55,11 @@ macro disjunction(m, args...)
     
     #build disjunction
     code = quote
-        @assert !in($name, keys(object_dictionary($m))) "The disjunction name $name is already registered in the model. Specify new name."
-        $m[$name] = @variable($m, [eachindex($disjunction)], Bin, base_name = string($name), lower_bound = 0, upper_bound = 1)
+        if !in($name, keys(object_dictionary($m)))
+            $m[$name] = @variable($m, [eachindex($disjunction)], Bin, base_name = string($name))
+        end
         # @constraint($m, $xor_con, sum($m[$name]) == 1)
-        reformulate_disjunction($m, $(disjunction...); bin_var = $name, reformulation = $reformulation, param = $param)
+        DisjunctiveProgramming.reformulate_disjunction($m, $(disjunction...); bin_var = $name, reformulation = $reformulation, param = $param)
     end
 
     return esc(code)
@@ -88,7 +89,7 @@ function add_disjunction_constraint(m, d, dname)
                 @constraint($m,$dname,$d)
             catch e
                 if e isa ErrorException
-                    @NLconstraint($m,$d)
+                    @NLconstraint($m,$dname,$d)
                 else
                     throw(e)
                 end
@@ -112,21 +113,15 @@ function add_disjunction!(m::Model,disj...;reformulation::Symbol,M=missing,ϵ=1e
     #get kw_args and set defaults if missing
     param = reformulation == :big_m ? M : ϵ
     bin_var = ismissing(name) ? Symbol("disj",gensym()) : name
-    disj_name = ismissing(name) ? bin_var : Symbol("disj_",name)
-    
-    # #XOR constraint name
-    # xor_con = "XOR($disj_name)"
     
     #apply reformulation
-    # @assert !in(bin_var, keys(object_dictionary(m))) "The disjunction name $bin_var is already registered in the model. Specify new name."
     if bin_var in keys(object_dictionary(m))
         @assert length(disj) <= length(m[bin_var]) "The disjunction name $bin_var is already registered in the model and its size is smaller than the number of disjunts. Specify new name."
     else
         #create indicator variable
-        m[bin_var] = @variable(m, [eachindex(disj)], Bin, base_name = string(bin_var), lower_bound = 0, upper_bound = 1)
+        m[bin_var] = @variable(m, [eachindex(disj)], Bin, base_name = string(bin_var))
     end
-    # #add xor constraint on binary variable
-    # m[Symbol(xor_con)] = @constraint(m, sum(m[bin_var]) == 1, base_name = xor_con)
+
     #reformulate disjunction
     reformulate_disjunction(m, disj...; bin_var, reformulation, param)
 end

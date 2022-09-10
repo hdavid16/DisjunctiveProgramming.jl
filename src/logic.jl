@@ -4,24 +4,26 @@
 Add constraint to select n elements from the list of variables. Options for mode
 are `:at_least`, `:at_most`, `:exactly`.
 """
-function choose!(m::Model, n::Int, vars::VariableRef...; mode=:exactly)
+function choose!(m::Model, n::Int, vars::VariableRef...; mode=:exactly, name="")
     @assert length(vars) >= n "Not enough variables passed."
     @assert all(is_valid.(m, vars)) "Invalid VariableRefs passed."
-    add_selection!(m, n, vars...; mode)
+    add_selection!(m, n, vars...; mode, name)
 end
-function choose!(m::Model, vars::VariableRef...; mode=:exactly)
-    @assert all(is_valid.(m, vars)) "Invalid VariableRefs passed."
-    n = vars[1] #first variable is the n
-    add_selection!(m, n, vars...; mode)
+function choose!(m::Model, var::VariableRef, vars::VariableRef...; mode=:exactly, name="")
+    @assert all(is_valid.(m, vcat(var,vars))) "Invalid VariableRefs passed."
+    add_selection!(m, var, vars...; mode, name)
 end
-function add_selection!(m::Model, n, vars::VariableRef...; mode::Symbol)
-    display(n)
+function add_selection!(m::Model, n, vars::VariableRef...; mode::Symbol, name::String)
     if mode == :exactly
-        display(@constraint(m, sum(vars) == n))
+        con = @constraint(m, sum(vars) == n)
     elseif mode == :at_least
-        @constraint(m, sum(vars) ≥ n)
+        con = @constraint(m, sum(vars) ≥ n)
     elseif mode == :at_most
-        @constraint(m, sum(vars) ≥ n)
+        con = @constraint(m, sum(vars) ≤ n)
+    end
+    if !isempty(name)
+        set_name(con, name)
+        m[Symbol(name)] = con
     end
 end
 

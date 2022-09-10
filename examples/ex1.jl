@@ -10,6 +10,7 @@ m = Model()
     reformulation=:big_m,
     name=:y
 )
+choose!(m, 1, m[:y]...; mode = :exactly, name = "XOR") #XOR constraint
 @proposition(m, y[1] ∨ y[2]) #this is a redundant proposition
 
 print(m)
@@ -26,9 +27,5 @@ print(m)
 #  disj_y[2,ub] : x + y[2] <= 10.0         <- right-side of constraint in 2nd disjunct (name is assigned to disj_y[2][ub])
 #  x >= -5.0                                <- variable lower bound
 #  x <= 10.0                                <- variable upper bound
-#  y[1] >= 0.0                              <- lower bound on binary
-#  y[2] >= 0.0                              <- lower bound on binary
-#  y[1] <= 1.0                              <- upper bound on binary
-#  y[2] <= 1.0                              <- upper bound on binary
 #  y[1] binary                              <- indicator variable (1st disjunct) is binary
 #  y[2] binary                              <- indicator variable (2nd disjunct) is binary
