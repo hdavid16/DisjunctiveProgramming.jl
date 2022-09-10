@@ -62,17 +62,36 @@ end
 
 Generate constraint name for a constraint to be split (Interval or EqualTo).
 """
-function gen_constraint_name(constr)
-    constr_name = name.(constr)
-    if any(isempty.(constr_name))
+function gen_constraint_name(constr::ConstraintRef)
+    constr_name = name(constr)
+    if isempty(constr_name)
         constr_name = gensym("constraint")
-    elseif !isa(constr_name, String)
-        c_names = union(first.(split.(constr_name,"[")))
-        if length(c_names) == 1
-            constr_name = c_names[1]
-        else
-            constr_name = gensym("constraint")
-        end
+    end
+
+    return Symbol(constr_name)
+end
+function gen_constraint_name(constr::NonlinearConstraintRef)
+    constr_name = findfirst(==(constr), constr.model[:original_object_dict])
+    if isnothing(constr_name)
+        constr_name = gensym("constraint")
+    end
+
+    return Symbol(constr_name)
+end
+function gen_constraint_name(constr::AbstractArray{<:NonlinearConstraintRef})
+    constr_name = findfirst(==(constr), first(constr).model[:original_object_dict])
+    if isnothing(constr_name)
+        constr_name = gensym("constraint")
+    end
+
+    return Symbol(constr_name)
+end
+function gen_constraint_name(constr::AbstractArray{<:ConstraintRef})
+    constr_name_set = union(first.(split.(string.(gen_constraint_name.(constr)), "[")))
+    if length(constr_name_set) == 1
+        constr_name = constr_name_set[1]
+    else
+        constr_name = gensym("constraint")
     end
 
     return Symbol(constr_name)

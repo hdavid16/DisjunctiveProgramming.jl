@@ -42,8 +42,9 @@ function check_constraint!(m::Model, constr::ConstraintRef)
         new_constr = constr
     else
         constr_name = gen_constraint_name(constr)
+        delete_constraint!(m, constr, constr_name)
         m[constr_name] = new_constr
-        delete_original_constraint!(m, constr)
+        m[:original_object_dict][constr_name] = new_constr
     end
     return new_constr
 end
@@ -64,8 +65,9 @@ function check_constraint!(m::Model, constr::AbstractArray{<:ConstraintRef})
         ))
         new_constr = Containers.SparseAxisArray(constr_dict)
         constr_name = gen_constraint_name(constr)
+        delete_constraint!.(m, constr, constr_name)
         m[constr_name] = new_constr
-        delete_original_constraint!(m, constr)
+        m[:original_object_dict][constr_name] = new_constr
     end
     return new_constr
 end
@@ -136,22 +138,17 @@ end
 function split_constraint(m::Model, constr_obj::ScalarConstraint{T,<:MOI.Interval}, lb_name::String, ub_name::String) where T
     split_constraint(m, constr_obj.func, constr_obj.set.lower, constr_obj.set.upper, lb_name, ub_name)
 end
-function split_constraint(m::Model, constr::ConstraintRef, constr_func_expr::Expr, lb::Float64, ub::Float64)
+function split_constraint(m::Model, constr::ConstraintRef, constr_func_expr::Expr, lb::Real, ub::Real)
     replace_JuMPvars!(constr_func_expr, m) #replace Expr with JuMP vars
     #create split constraints
     constr_expr_lb = Expr(:call, :(>=), constr_func_expr, lb)
     constr_expr_ub = Expr(:call, :(<=), constr_func_expr, ub)
     lb_constr = add_nonlinear_constraint(m, constr_expr_lb)
     ub_constr = add_nonlinear_constraint(m, constr_expr_ub)
-    delete(m, constr) #delete original constraint
 
     return [lb_constr, ub_constr]
 end
 split_constraint(args...) = nothing
-
-delete_original_constraint!(m::Model, constr::ConstraintRef) = delete(m,constr)
-delete_original_constraint!(m::Model, constr::NonlinearConstraintRef) = nothing
-delete_original_constraint!(m::Model, constr::AbstractArray{<:ConstraintRef}) = map(c -> delete_original_constraint!(m,c), constr)
 
 """
     parse_constraint(constr::ConstraintRef)
@@ -181,12 +178,13 @@ function replace_constraint(constr::ConstraintRef, sym_expr, op, rhs)
     m = constr.model
     replace_JuMPvars!(expr, m)
     replace_operators!(expr)
-    #add a nonlinear constraint with the perspective function and delete old constraint
-    # constr_name = name(constr)
-    constr_name = findfirst(==(constr), m[:original_object_dict])
-    delete(m, constr) #delete original constraint
-    new_constr = add_nonlinear_constraint(m, expr)
-    if !isnothing(constr_name)
-        m[constr_name] = new_constr
-    end
+    #replace constraint with prespective function
+    constr_name = gen_constraint_name(constr)
+    delete_constraint!(m, constr, constr_name)
+    m[constr_name] = add_nonlinear_constraint(m, expr)
+end
+
+function delete_constraint!(m, constr, constr_name)
+    delete(m, constr)
+    unregister(m, constr_name)
 end

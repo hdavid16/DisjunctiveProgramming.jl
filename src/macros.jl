@@ -89,7 +89,7 @@ function add_disjunction_constraint(m, d, dname)
                 @constraint($m,$dname,$d)
             catch e
                 if e isa ErrorException
-                    @NLconstraint($m,$d)
+                    @NLconstraint($m,$dname,$d)
                 else
                     throw(e)
                 end

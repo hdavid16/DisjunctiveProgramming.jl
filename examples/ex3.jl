@@ -7,12 +7,12 @@ m = Model()
 @disjunction(
     m,
     begin
-        con1, exp(x) ≤ 2
-        con2, -3 ≤ x
+        con1A, exp(x) ≤ 2
+        con1B, -3 ≤ x
     end,
     begin
-        con3, 3 ≤ exp(x)
-        con4, 5 ≤ x
+        con2A, 3 ≤ exp(x)
+        con2B, 5 ≤ x
     end,
     reformulation=:hull,
     name=:z

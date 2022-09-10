@@ -14,7 +14,6 @@ function choose!(m::Model, var::VariableRef, vars::VariableRef...; mode=:exactly
     add_selection!(m, var, vars...; mode, name)
 end
 function add_selection!(m::Model, n, vars::VariableRef...; mode::Symbol, name::String)
-    display(n)
     if mode == :exactly
         con = @constraint(m, sum(vars) == n)
     elseif mode == :at_least
