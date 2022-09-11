@@ -93,7 +93,8 @@ function add_disjunction!(m::Model,disj...;reformulation::Symbol,M=missing,ϵ=1e
     
     #apply reformulation
     if bin_var in keys(object_dictionary(m))
-        @assert length(disj) <= length(m[bin_var]) "The disjunction name $bin_var is already registered in the model and its size is smaller than the number of disjunts. Specify new name."
+        @assert m[bin_var] isa Vector{VariableRef} "The binary variable $bin_var is already registered in the model and is not of type Vector{VariableRef}. Specify a new name for the disjunction."
+        @assert length(disj) <= length(m[bin_var]) "The binary variable $bin_var is already registered in the model and its size is smaller than the number of disjunts. Specify a new name for the disjunction."
     else
         #create indicator variable
         m[bin_var] = @variable(m, [eachindex(disj)], Bin, base_name = string(bin_var))
