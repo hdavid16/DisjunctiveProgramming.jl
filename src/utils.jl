@@ -71,7 +71,7 @@ function gen_constraint_name(constr::ConstraintRef)
     return Symbol(constr_name)
 end
 function gen_constraint_name(constr::NonlinearConstraintRef)
-    constr_name = findfirst(==(constr), constr.model[:original_object_dict])
+    constr_name = findfirst(==(constr), constr.model.ext[:object_dict])
     if isnothing(constr_name)
         constr_name = gensym("constraint")
     end
@@ -79,7 +79,7 @@ function gen_constraint_name(constr::NonlinearConstraintRef)
     return Symbol(constr_name)
 end
 function gen_constraint_name(constr::AbstractArray{<:NonlinearConstraintRef})
-    constr_name = findfirst(==(constr), first(constr).model[:original_object_dict])
+    constr_name = findfirst(==(constr), first(constr).model.ext[:object_dict])
     if isnothing(constr_name)
         constr_name = gensym("constraint")
     end

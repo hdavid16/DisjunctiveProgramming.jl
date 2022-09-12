@@ -35,7 +35,7 @@ When a disjunction is defined using the `@disjunction` macro, the disjunctions a
 
 For empty disjuncts, use `nothing` for their positional argument (e.g., `@disjunction(m, x <= 1, nothing, reformulation = :big_m)`).
 
-NOTE: `:gdp_variable_refs` are forbidden JuMP model object names when using *DisjunctiveProgramming.jl*. They are used to store the variable names and variable references in the original model.
+NOTE: `:object_dict` is used in the extension dictionary to store the object dictionary of models using *DisjunctiveProgramming.jl*.
 
 ## Logical Propositions
 

@@ -8,12 +8,7 @@ Reformulate disjunction on a JuMP model.
 Reformulate disjunction.
 """
 function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, param)
-    #get original variable refs and variable names
-    vars = setdiff(all_variables(m), m[bin_var])
-    if !in(:gdp_variable_refs, keys(object_dictionary(m)))
-        @expression(m, gdp_variable_refs, vars)
-    end
-    @expression(m, original_object_dict, object_dictionary(m))
+    m.ext[:object_dict] = copy(object_dictionary(m))
     #check disj
     disj = [check_constraint!(m, constr) for constr in disj]#check_disjunction!(m, disj)
     #run reformulation

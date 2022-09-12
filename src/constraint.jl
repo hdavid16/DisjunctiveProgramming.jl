@@ -44,7 +44,7 @@ function check_constraint!(m::Model, constr::ConstraintRef)
         constr_name = gen_constraint_name(constr)
         delete_constraint!(m, constr, constr_name)
         m[constr_name] = new_constr
-        m[:original_object_dict][constr_name] = new_constr
+        m.ext[:object_dict][constr_name] = new_constr
     end
     return new_constr
 end
@@ -67,7 +67,7 @@ function check_constraint!(m::Model, constr::AbstractArray{<:ConstraintRef})
         constr_name = gen_constraint_name(constr)
         delete_constraint!.(m, constr, constr_name)
         m[constr_name] = new_constr
-        m[:original_object_dict][constr_name] = new_constr
+        m.ext[:object_dict][constr_name] = new_constr
     end
     return new_constr
 end
