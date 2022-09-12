@@ -10,13 +10,17 @@ Get indices in Array or DenseAxisArray.
 get_indices(arr::Containers.SparseAxisArray) = keys(arr.data)
 get_indices(arr) = Iterators.product(axes(arr)...)
 
-get_reform_param(param::Missing, args...; constr) = 
-    apply_interval_arithmetic(constr)
-get_reform_param(param::Number, args...; kwargs...) = param
-get_reform_param(param::Union{Vector,Tuple}, i::Int, args...; kwargs...) =
-    get_reform_param(param[i], args...; kwargs...)
+"""
+    get_reform_param(param, args..., kwargs...)
+
+Get M or ϵ parameter for reformulation.
+"""
+get_reform_param(param::Missing, args...; constr) = infer_bigm(constr) #if param is missing, infer bigM (ϵ does not pass a kwarg)
+get_reform_param(param::Number, args...; kwargs...) = param #if param is a number return it
+get_reform_param(param::Union{Vector,Tuple}, idx::Int, args...; kwargs...) = #index param by next Integer arg (idx)
+    get_reform_param(param[idx], args...; kwargs...)
 function get_reform_param(param::Dict, args...; kwargs...)
-    arg_list = [arg for arg in args if !ismissing(arg)] #remove mising if j or k are missing
+    arg_list = [arg for arg in args if !ismissing(arg)] #remove mising args (if j or k indices are missing)
     get_reform_param(param[arg_list...]; kwargs...)
 end
 
@@ -55,6 +59,57 @@ function get_constraint_variables(m::Model, disjunction)
             for disj in disjunction if !isnothing(disj)
         ]...
     )
+end
+
+"""
+    get_bounds(var::VariableRef)
+
+Get bounds on a variable.
+
+    get_bounds(var, bounds_dict::Dict)
+
+Get bounds on a variable. Check if a bounds dictionary has been provided with bounds for that value.
+
+    get_bounds(var::AbstractArray{VariableRef}, bounds_dict::Dict, LB, UB)
+    
+Update lower bound `LB` and upper bound `UB` on a variable container.
+"""
+function get_bounds(var::VariableRef)
+    LB = has_lower_bound(var) ? lower_bound(var) : (is_binary(var) ? 0 : -Inf)
+    UB = has_upper_bound(var) ? upper_bound(var) : (is_binary(var) ? 1 : Inf)
+    return LB, UB
+end
+function get_bounds(var::VariableRef, bounds_dict::Dict)
+    if string(var) in keys(bounds_dict)
+        return bounds_dict[string(var)]
+    else
+        return get_bounds(var)
+    end
+end
+function get_bounds(var::AbstractArray{VariableRef}, bounds_dict::Dict, LB, UB)
+    #populate UB and LB
+    for idx in eachindex(var)
+        LB[idx], UB[idx] = get_bounds(var[idx], bounds_dict)
+    end
+    return LB, UB
+end
+function get_bounds(var::Array{VariableRef}, bounds_dict::Dict)
+    #initialize
+    LB, UB = zeros(size(var)), zeros(size(var))
+    return get_bounds(var, bounds_dict, LB, UB)
+end
+function get_bounds(var::Containers.DenseAxisArray, bounds_dict::Dict)
+    #initialize
+    LB = Containers.DenseAxisArray(zeros(size(var)), axes(var)...)
+    UB = Containers.DenseAxisArray(zeros(size(var)), axes(var)...)
+    return get_bounds(var, bounds_dict, LB, UB)
+end
+function get_gounds(var::Containers.SparseAxisArray, bounds_dict::Dict)
+    #initialize
+    idxs = keys(var.data)
+    LB = Containers.SparseAxisArray(Dict(idx => 0. for idx in idxs))
+    UB = Containers.SparseAxisArray(Dict(idx => 0. for idx in idxs))
+    return get_bounds(var, bounds_dict, LB, UB)
 end
 
 function replace_Symvars!(expr, model; logical_proposition = false)

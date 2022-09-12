@@ -61,7 +61,7 @@ function check_constraint!(m::Model, constr::AbstractArray{<:ConstraintRef})
             ]...
         ))
         new_constr = Containers.SparseAxisArray(constr_dict)
-        delete(m, constr)
+        delete.(m, constr)
     end
     return new_constr
 end

@@ -8,7 +8,6 @@ export choose!
 
 include("constraint.jl")
 include("logic.jl")
-include("bounds.jl")
 include("utils.jl")
 include("bigm.jl")
 include("hull.jl")
