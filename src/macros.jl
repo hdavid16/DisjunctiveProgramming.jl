@@ -102,7 +102,7 @@ function add_disjunction!(m::Model,disj...;reformulation::Symbol,M=missing,ϵ=1e
 end
 
 """
-    proposition(m, expr)
+    proposition(m, expr; [name::String = ""])
 
 Add logical proposition macro.
 """
