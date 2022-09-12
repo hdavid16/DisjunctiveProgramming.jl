@@ -91,7 +91,7 @@ function add_disjunction!(m::Model,disj...;reformulation::Symbol,M=missing,ϵ=1e
     bin_var = ismissing(name) ? Symbol("disj_",gensym()) : name
     if bin_var in keys(object_dictionary(m))
         @assert m[bin_var] isa AbstractArray{VariableRef} "The binary variable $bin_var is already registered in the model and is not of type AbstractArray{VariableRef}. Specify a new name for the disjunction."
-        @assert length(disj) <= prod(size(m[bin_var])) "The binary variable $bin_var is already registered in the model and its size is smaller than the number of disjunts. Specify a new name for the disjunction."
+        @assert length(disj) == prod(size(m[bin_var])) "The binary variable $bin_var is already registered in the model and its size is not equal to the number of disjunts. Specify a new name for the disjunction."
     else
         m[bin_var] = @variable(m, [eachindex(disj)], Bin, base_name = string(bin_var))
     end
