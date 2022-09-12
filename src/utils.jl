@@ -57,46 +57,6 @@ function get_constraint_variables(m::Model, disjunction)
     )
 end
 
-"""
-    gen_constraint_name(constr)
-
-Generate constraint name for a constraint to be split (Interval or EqualTo).
-"""
-function gen_constraint_name(constr::ConstraintRef)
-    constr_name = name(constr)
-    if isempty(constr_name)
-        constr_name = gensym("constraint")
-    end
-
-    return Symbol(constr_name)
-end
-function gen_constraint_name(constr::NonlinearConstraintRef)
-    constr_name = findfirst(==(constr), constr.model.ext[:object_dict])
-    if isnothing(constr_name)
-        constr_name = gensym("constraint")
-    end
-
-    return Symbol(constr_name)
-end
-function gen_constraint_name(constr::AbstractArray{<:NonlinearConstraintRef})
-    constr_name = findfirst(==(constr), first(constr).model.ext[:object_dict])
-    if isnothing(constr_name)
-        constr_name = gensym("constraint")
-    end
-
-    return Symbol(constr_name)
-end
-function gen_constraint_name(constr::AbstractArray{<:ConstraintRef})
-    constr_name_set = union(first.(split.(string.(gen_constraint_name.(constr)), "[")))
-    if length(constr_name_set) == 1
-        constr_name = constr_name_set[1]
-    else
-        constr_name = gensym("constraint")
-    end
-
-    return Symbol(constr_name)
-end
-
 function replace_Symvars!(expr, model; logical_proposition = false)
     #replace JuMP variables with symbolic variables
     name = join(split(string(expr)," "))
@@ -192,3 +152,7 @@ function constraint_variables!(expr, model, var_list=[])
         end
     end
 end
+
+is_constraint(m::Model, constr::ConstraintRef) = is_valid(m,constr)
+is_constraint(m::Model, constr::AbstractArray{<:ConstraintRef}) = all(is_valid.(m,constr))
+is_constraint(m::Model, constr::Tuple) = all([is_constraint(m,i) for i in constr])

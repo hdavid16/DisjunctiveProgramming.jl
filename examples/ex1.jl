@@ -11,7 +11,7 @@ m = Model()
     name=:y
 )
 choose!(m, 1, m[:y]...; mode = :exactly, name = "XOR") #XOR constraint
-@proposition(m, y[1] ∨ y[2]) #this is a redundant proposition
+@proposition(m, y[1] ∨ y[2], name = "prop") #this is a redundant proposition
 
 print(m)
 

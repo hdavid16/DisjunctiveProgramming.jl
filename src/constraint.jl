@@ -41,10 +41,7 @@ function check_constraint!(m::Model, constr::ConstraintRef)
     if isnothing(new_constr)
         new_constr = constr
     else
-        constr_name = gen_constraint_name(constr)
-        delete_constraint!(m, constr, constr_name)
-        m[constr_name] = new_constr
-        m.ext[:object_dict][constr_name] = new_constr
+        delete(m, constr)
     end
     return new_constr
 end
@@ -64,10 +61,7 @@ function check_constraint!(m::Model, constr::AbstractArray{<:ConstraintRef})
             ]...
         ))
         new_constr = Containers.SparseAxisArray(constr_dict)
-        constr_name = gen_constraint_name(constr)
-        delete_constraint!.(m, constr, constr_name)
-        m[constr_name] = new_constr
-        m.ext[:object_dict][constr_name] = new_constr
+        delete(m, constr)
     end
     return new_constr
 end
@@ -166,11 +160,11 @@ function parse_constraint(constr::ConstraintRef)
 end
 
 """
-    replace_constraint(constr::ConstraintRef, sym_expr, op, rhs)
+    replace_constraint(constr::ConstraintRef, bin_var::Symbol, sym_expr, op, rhs)
 
 Replace nonlinear or quadratic constraint with its hull reformulation.
 """
-function replace_constraint(constr::ConstraintRef, sym_expr, op, rhs)
+function replace_constraint(constr::ConstraintRef, bin_var::Symbol, sym_expr, op, rhs)
     #convert symbolic function to expression
     op = eval(op)
     expr = Base.remove_linenums!(build_function(op(sym_expr,rhs))).args[2].args[1]
@@ -179,12 +173,6 @@ function replace_constraint(constr::ConstraintRef, sym_expr, op, rhs)
     replace_JuMPvars!(expr, m)
     replace_operators!(expr)
     #replace constraint with prespective function
-    constr_name = gen_constraint_name(constr)
-    delete_constraint!(m, constr, constr_name)
-    m[constr_name] = add_nonlinear_constraint(m, expr)
-end
-
-function delete_constraint!(m, constr, constr_name)
+    push!(m.ext[bin_var], add_nonlinear_constraint(m, expr))
     delete(m, constr)
-    unregister(m, constr_name)
 end

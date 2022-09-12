@@ -106,10 +106,13 @@ end
 
 Add logical proposition macro.
 """
-macro proposition(m, expr)
+macro proposition(m, args...)
+    expr, kwargs, _ = Containers._extract_kw_args(args)
+    name_kwarg = filter(i -> i.args[1] == :name, kwargs)
+    name = isempty(name_kwarg) ? Symbol("") : name_kwarg[1].args[2]
     #get args
     expr = QuoteNode(expr)
-    code = :(DisjunctiveProgramming.add_proposition!($m, $expr))
+    code = :(DisjunctiveProgramming.add_proposition!($m, $expr[1]; name = $name))
     
     return esc(code)
 end
