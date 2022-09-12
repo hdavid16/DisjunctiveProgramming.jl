@@ -63,7 +63,7 @@ function hull_reformulation!(constr::ConstraintRef, bin_var, eps, i, j, k)
     pers_func = substitute(pers_func, Dict(FSG1 => (1-ϵ)*λ+ϵ,
                                            FSG2 => ϵ*(1-λ)))
     pers_func = simplify(pers_func)
-    replace_constraint(constr, pers_func, op, rhs)
+    replace_constraint(constr, bin_var, pers_func, op, rhs)
 end
 hull_reformulation!(constr::AbstractArray{<:ConstraintRef}, bin_var, eps, i, j, k) = 
     hull_reformulation!(constr[k], bin_var, eps, i, j, k)
@@ -93,14 +93,20 @@ function disaggregate_variables(m::Model, disj, bin_var)
             #apply bounding constraints on disaggregated variable
             var_i_lb = "$(var_name_i)_lb" 
             var_i_ub = "$(var_name_i)_ub" 
-            m[Symbol(var_i_lb)] = @constraint(m, LB * m[bin_var][i] .- m[var_name_i] .<= 0, base_name = var_i_lb)
-            m[Symbol(var_i_ub)] = @constraint(m, m[var_name_i] .- UB * m[bin_var][i] .<= 0, base_name = var_i_ub)
+            push!(
+                m.ext[bin_var], 
+                @constraint(m, LB * m[bin_var][i] .- m[var_name_i] .<= 0, base_name = var_i_lb),
+                @constraint(m, m[var_name_i] .- UB * m[bin_var][i] .<= 0, base_name = var_i_ub)
+            )
             #update disaggregated sum expression
             add_to_expression!(sum_vars, 1, m[var_name_i])
         end
         #sum disaggregated variables
         aggr_con = "$(var)_$(bin_var)_aggregation"
-        m[Symbol(aggr_con)] = @constraint(m, var == sum_vars, base_name = aggr_con)
+        push!(
+            m.ext[bin_var],
+            @constraint(m, var == sum_vars, base_name = aggr_con)
+        )
     end
 end
 

@@ -28,12 +28,14 @@ function add_selection!(m::Model, n, vars::VariableRef...; mode::Symbol, name::S
 end
 
 """
-    add_proposition!(m::Model, expr::Expr)
+    add_proposition!(m::Model, expr::Expr; name::String = "")
 
 Convert logical proposition expression into conjunctive normal form.
 """
-function add_proposition!(m::Model, expr::Expr)
-    expr_name = Symbol("{$expr}") #get name to register reformulated logical proposition
+function add_proposition!(m::Model, expr::Expr; name::String = "")
+    if isempty(name)
+        name = "{$expr}" #get name to register reformulated logical proposition
+    end
     replace_Symvars!(expr, m; logical_proposition = true) #replace all JuMP variables with Symbolic variables
     clause_list = to_cnf!(expr)
     #replace symbolic variables with JuMP variables and boolean operators with their algebraic counterparts
@@ -47,9 +49,9 @@ function add_proposition!(m::Model, expr::Expr)
     unique!(lhs)
     #generate JuMP constraints for the logical proposition
     if length(lhs) == 1
-        m[expr_name] = @constraint(m, lhs[1] >= 1, base_name = string(expr_name))
+        m[Symbol(name)] = @constraint(m, lhs[1] >= 1, base_name = name)
     else
-        m[expr_name] = @constraint(m, [i = eachindex(lhs)], lhs[i] >= 1, base_name = string(expr_name))
+        m[Symbol(name)] = @constraint(m, [i = eachindex(lhs)], lhs[i] >= 1, base_name = name)
     end
 end
 

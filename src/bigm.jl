@@ -33,7 +33,7 @@ function big_m_reformulation!(constr::NonlinearConstraintRef, bin_var, M, i, j, 
     gx = gx - M*(1-λ) #add bigM
     
     #update constraint
-    replace_constraint(constr, gx, op, rhs)
+    replace_constraint(constr, bin_var, gx, op, rhs)
 end
 big_m_reformulation!(constr::AbstractArray{<:ConstraintRef}, bin_var, M, i, j, k) =
     big_m_reformulation(constr[k], bin_var, M, i, j, k)

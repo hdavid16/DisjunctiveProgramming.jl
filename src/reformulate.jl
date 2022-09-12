@@ -8,7 +8,8 @@ Reformulate disjunction on a JuMP model.
 Reformulate disjunction.
 """
 function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, param)
-    m.ext[:object_dict] = copy(object_dictionary(m))
+    #placeholder to store new constraints (reformulated)
+    m.ext[bin_var] = []
     #check disj
     disj = [check_constraint!(m, constr) for constr in disj]#check_disjunction!(m, disj)
     #run reformulation
@@ -16,6 +17,7 @@ function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, para
         disaggregate_variables(m, disj, bin_var)
     end
     reformulate_disjunction(disj, bin_var, reformulation, param)
+    push!(m.ext[bin_var], Iterators.flatten(filter(i -> is_constraint(m, i), disj))...)
 end
 function reformulate_disjunction(disj, bin_var, reformulation, param)
     for (i,constr) in enumerate(disj)
