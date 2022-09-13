@@ -25,41 +25,21 @@ function get_reform_param(param::Dict, args...; kwargs...)
 end
 
 """
-    get_constraint_variables(m::Model, con)
+    get_constraint_variables(con)
 
 Get variables that have non-zero coefficients in the passed constraint,
 constraint container, or disjunction
 """
-function get_constraint_variables(m::Model, con::ConstraintRef{<:AbstractModel, MOI.ConstraintIndex{MOI.ScalarAffineFunction{T},V}}) where {T,V}
-    return filter(
-        var_ref -> 
-            !iszero(normalized_coefficient(con, var_ref)), 
-        all_variables(m)
-    )
+function get_constraint_variables(c::NonlinearConstraintRef)
+    list = Set{Int}()
+    nlp = nonlinear_model(c.model)
+    constraint = nlp[index(c)]
+    constraint_variables!(list, nlp, constraint.expression)
+    return map(i -> VariableRef(c.model, MOI.VariableIndex(i)), collect(list))
 end
-function get_constraint_variables(m::Model, con::ConstraintRef)
-    var_list = []
-    constr_expr = parse_constraint(con)[2]
-    constraint_variables!(constr_expr, m, var_list)
-
-    return var_list
-end
-function get_constraint_variables(m::Model, con::Union{Containers.SparseAxisArray, Containers.DenseAxisArray, Array{<:ConstraintRef}})
-    return union(
-        [
-            get_constraint_variables(m,con[idx]) 
-            for idx in eachindex(con)
-        ]...
-    )
-end
-function get_constraint_variables(m::Model, disjunction)
-    return union(
-        [
-            get_constraint_variables(m, disj)
-            for disj in disjunction if !isnothing(disj)
-        ]...
-    )
-end
+get_constraint_variables(c::ConstraintRef) = constraint_variables(constraint_object(c).func)
+get_constraint_variables(c::AbstractArray{<:ConstraintRef}) = union(get_constraint_variables.(c)...)
+get_constraint_variables(disjunction) = union([get_constraint_variables(disj) for disj in disjunction if !isnothing(disj)]...)
 
 """
     get_bounds(var::VariableRef)
@@ -196,18 +176,34 @@ function name_split_constraint(con_name, side)
     return con_name
 end
 
-function constraint_variables!(expr, model, var_list=[])
-    name = join(split(string(expr)," "))
-    var = variable_by_name(model, name)
-    if !isnothing(var)
-        push!(var_list, var)
-    elseif expr isa Expr
-        for i in eachindex(expr.args)
-            constraint_variables!(expr.args[i], model, var_list)
+function constraint_variables!(
+    list::Set{Int}, 
+    nlp::MOI.Nonlinear.Model, 
+    expr::MOI.Nonlinear.Expression,
+)
+    for node in expr.nodes
+        if node.type == MOI.Nonlinear.NODE_MOI_VARIABLE
+            push!(list, node.index)
+        elseif node.type == MOI.Nonlinear.NODE_SUBEXPRESSION
+            constraint_variables!(list, nlp, nlp.expressions[node.index].nodes)
         end
     end
+    return
 end
+constraint_variables(constr::AffExpr) = collect(keys(constr.terms))
+constraint_variables(constr::QuadExpr) = union(
+    constraint_variables(constr.aff), 
+    constraint_variables(constr.terms)
+)
+constraint_variables(constr::AbstractDict) = Iterators.flatten(
+    [(p.a,p.b) for p in keys(constr)]
+)
 
-is_constraint(m::Model, constr::ConstraintRef) = is_valid(m,constr)
-is_constraint(m::Model, constr::AbstractArray{<:ConstraintRef}) = all(is_valid.(m,constr))
-is_constraint(m::Model, constr::Tuple) = all([is_constraint(m,i) for i in constr])
+"""
+    is_constraint(constr)
+
+Check if a constraint or tuple of constraints is valid.
+"""
+is_constraint(constr::ConstraintRef) = is_valid(constr.model,constr)
+is_constraint(constr::AbstractArray{<:ConstraintRef}) = all(is_constraint.(constr))
+is_constraint(constr::Tuple) = all(is_constraint.(constr))

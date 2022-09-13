@@ -1,8 +1,8 @@
-is_interval_constraint(con_ref::ConstraintRef) = constraint_object(con_ref).set isa MOI.Interval
-is_interval_constraint(con_ref::NonlinearConstraintRef) = count(i -> i == :(<=), Meta.parse(string(con_ref)).args) == 2
-is_equality_constraint(con_ref::ConstraintRef) = constraint_object(con_ref).set isa MOI.EqualTo
-is_equality_constraint(con_ref::NonlinearConstraintRef) = Meta.parse(string(con_ref)).args[1] == :(==)
-JuMP.name(con_ref::NonlinearConstraintRef) = ""
+constraint_set(constr::ConstraintRef) = constraint_object(constr).set
+constraint_set(constr::NonlinearConstraintRef) = nonlinear_model(constr.model)[index(constr)].set
+is_interval(constr::ConstraintRef) = constraint_set(constr) isa MOI.Interval
+is_equalto(constr::ConstraintRef) = constraint_set(constr) isa MOI.EqualTo
+JuMP.name(constr::NonlinearConstraintRef) = ""
 
 """
     check_constraint!(m::Model, constr::Tuple)
@@ -47,7 +47,7 @@ function check_constraint!(m::Model, constr::ConstraintRef)
 end
 function check_constraint!(m::Model, constr::AbstractArray{<:ConstraintRef})
     @assert all(is_valid.(m, constr)) "$constr is not a valid constraint."
-    if !any(is_interval_constraint.(constr)) && !any(is_equality_constraint.(constr))
+    if !any(is_interval.(constr)) && !any(is_equalto.(constr))
         new_constr = constr
     else
         idxs = get_indices(constr)
@@ -94,17 +94,15 @@ Return nothing for an empty disjunct.
 """
 function split_constraint(m::Model, constr::NonlinearConstraintRef)
     constr_expr = Meta.parse(string(constr))
-    if constr_expr.args[1] == :(==) #replace == for lb <= expr <= ub and split
+    if is_equalto(constr) #replace == for lb <= expr <= ub and split
         lb, ub = 0, 0#rhs is always 0, but could get obtained from: constr_expr.args[3]
         constr_func_expr = copy(constr_expr.args[2])
-        new_constraints = split_constraint(m, constr, constr_func_expr, lb, ub)
-        return new_constraints
-    elseif count(x -> x == :(<=), constr_expr.args) == 2 #split lb <= expr <= ub
+        return split_constraint(m, constr_func_expr, lb, ub)
+    elseif is_interval(constr) #split lb <= expr <= ub
         lb = constr_expr.args[1]
         ub = constr_expr.args[5]
         constr_func_expr = copy(constr_expr.args[3]) #get func part of constraint
-        new_constraints = split_constraint(m, constr, constr_func_expr, lb, ub)
-        return new_constraints
+        return split_constraint(m, constr_func_expr, lb, ub)
     else
         return nothing
     end
@@ -132,15 +130,12 @@ end
 function split_constraint(m::Model, constr_obj::ScalarConstraint{T,<:MOI.Interval}, lb_name::String, ub_name::String) where T
     split_constraint(m, constr_obj.func, constr_obj.set.lower, constr_obj.set.upper, lb_name, ub_name)
 end
-function split_constraint(m::Model, constr::ConstraintRef, constr_func_expr::Expr, lb::Real, ub::Real)
+function split_constraint(m::Model, constr_func_expr::Expr, lb::Real, ub::Real)
     replace_JuMPvars!(constr_func_expr, m) #replace Expr with JuMP vars
-    #create split constraints
-    constr_expr_lb = Expr(:call, :(>=), constr_func_expr, lb)
-    constr_expr_ub = Expr(:call, :(<=), constr_func_expr, ub)
-    lb_constr = add_nonlinear_constraint(m, constr_expr_lb)
-    ub_constr = add_nonlinear_constraint(m, constr_expr_ub)
-
-    return [lb_constr, ub_constr]
+    return [
+        add_nonlinear_constraint(m, :($lb <= $constr_func_expr)),
+        add_nonlinear_constraint(m, :($constr_func_expr <= $ub))
+    ]
 end
 split_constraint(args...) = nothing
 

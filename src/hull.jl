@@ -16,7 +16,7 @@ function hull_reformulation!(constr::ConstraintRef{<:AbstractModel, MOI.Constrai
     i = args[2] #get disjunct index
     bin_var_ref = constr.model[bin_var][i]
     #replace each variable with its disaggregated version
-    for var_ref in get_constraint_variables(constr.model, constr)
+    for var_ref in get_constraint_variables(constr)
         #get disaggregated variable reference
         var_name_i = name_disaggregated_variable(var_ref, bin_var, i)
         var_i_ref = variable_by_name(constr.model, var_name_i)
@@ -37,7 +37,7 @@ function hull_reformulation!(constr::ConstraintRef, bin_var, eps, i, j, k)
     #create symbolic variables (using Symbolics.jl)
     sym_vars = Dict(
         symbolic_variable(var_ref) => symbolic_variable(name_disaggregated_variable(var_ref, bin_var, i))
-        for var_ref in get_constraint_variables(constr.model, constr)
+        for var_ref in get_constraint_variables(constr)
     )
     ϵ = eps #epsilon parameter for perspective function (See Furman, Sawaya, Grossmann [2020] perspecive function)
     bin_var_sym = Symbol("$bin_var[$i]")
@@ -75,7 +75,7 @@ Disaggregate all variables in the model and tag them with the disjunction name.
 """
 function disaggregate_variables(m::Model, disj, bin_var)
     #check that variables are bounded
-    var_refs = get_constraint_variables(m, disj)
+    var_refs = get_constraint_variables(disj)
     @assert all((has_upper_bound.(var_refs) .&& has_lower_bound.(var_refs)) .|| is_binary.(var_refs)) "All variables must be bounded to perform the Hull reformulation."
     #reformulate variables
     obj_dict = object_dictionary(m)

@@ -17,7 +17,7 @@ function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, para
         disaggregate_variables(m, disj, bin_var)
     end
     reformulate_disjunction(disj, bin_var, reformulation, param)
-    push!(m.ext[bin_var], Iterators.flatten(filter(i -> is_constraint(m, i), disj))...)
+    push!(m.ext[bin_var], Iterators.flatten(filter(i -> is_constraint(i), disj))...)
 end
 function reformulate_disjunction(disj, bin_var, reformulation, param)
     for (i,constr) in enumerate(disj)

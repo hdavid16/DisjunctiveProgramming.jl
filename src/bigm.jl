@@ -19,7 +19,7 @@ end
 function big_m_reformulation!(constr::NonlinearConstraintRef, bin_var, M, i, j, k)
     M = get_reform_param(M, i, j, k; constr)
     #create symbolic variables (using Symbolics.jl)
-    for var_ref in get_constraint_variables(constr.model, constr)
+    for var_ref in get_constraint_variables(constr)
         symbolic_variable(var_ref)
     end
     bin_var_sym = Symbol("$bin_var[$i]")
