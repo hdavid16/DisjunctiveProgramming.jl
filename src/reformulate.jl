@@ -9,6 +9,7 @@ Reformulate disjunction.
 """
 function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, param)
     #placeholder to store new constraints (reformulated)
+    @assert !in(bin_var, keys(m.ext)) "$bin_var cannot be used as the indicator variable for the disjunction because it has already been used on another disjunction."
     m.ext[bin_var] = []
     #check disj
     disj = [check_constraint!(m, constr) for constr in disj]#check_disjunction!(m, disj)
