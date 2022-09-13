@@ -17,7 +17,7 @@ Check nested constraint and update `constr_list`.
 
 Check constraint in a Model.
 
-    check_constraint!(m::Model, constr::Nothing)
+    check_constraint!(args...)
 
 Return nothing for an empty disjunct.
 """
@@ -65,7 +65,7 @@ function check_constraint!(m::Model, constr::AbstractArray{<:ConstraintRef})
     end
     return new_constr
 end
-check_constraint!(m::Model, constr::Nothing) = nothing
+check_constraint!(args...) = nothing
 
 """
     split_constraint(constr::ConstraintRef)
