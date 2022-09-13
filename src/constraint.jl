@@ -37,7 +37,7 @@ function check_constraint!(m::Model, constr_j::ConstraintRef, constr_list::Vecto
 end
 function check_constraint!(m::Model, constr::ConstraintRef)
     @assert all(is_valid(m, constr)) "$constr is not a valid constraint."
-    new_constr = split_constraint(m, constr)
+    new_constr = split_constraint(constr)
     if isnothing(new_constr)
         new_constr = constr
     else
@@ -53,7 +53,7 @@ function check_constraint!(m::Model, constr::AbstractArray{<:ConstraintRef})
         idxs = get_indices(constr)
         constr_dict = Dict(union(
             [
-                split_constraint(m, constr[idx...]) |>
+                split_constraint(constr[idx...]) |>
                     i -> isnothing(i) ? 
                         (idx...,"") => constr[idx...] : 
                         [(idx...,"lb") => i[1], (idx...,"ub") => i[2]]
@@ -68,73 +68,57 @@ end
 check_constraint!(m::Model, constr::Nothing) = nothing
 
 """
-    split_constraint(m::Model, constr::NonlinearConstraintRef)
+    split_constraint(constr::ConstraintRef)
 
-Split a nonlinear constraint that is an Interval or EqualTo constraint.
-
-    split_constraint(m::Model, constr::ConstraintRef, constr_name::String = name(constr))
-
-Split a linear or quadratic constraint.
-
-    split_constraint(m::Model, constr_obj::ScalarConstraint, lb_name::String, ub_name::String)
-
-Split a constraint that is a MOI.EqualTo or MOI.Interval.
-
-    split_constraint(m::Model, func::Union{AffExpr,QuadExpr}, lb::Float64, ub::Float64, lb_name::String, ub_name::String)
-
-Create split constraint for linear or quadratic constraint.
-
-    split_constraint(m::Model, constr::ConstraintRef, constr_func_expr::Expr, lb::Float64, ub::Float64)
-
-Split a nonlinear constraint.
+Split a constraint that is an Interval or EqualTo constraint.
 
     split_constraint(args...)
 
 Return nothing for an empty disjunct.
 """
-function split_constraint(m::Model, constr::NonlinearConstraintRef)
-    constr_expr = Meta.parse(string(constr))
-    if is_equalto(constr) #replace == for lb <= expr <= ub and split
-        lb, ub = 0, 0#rhs is always 0, but could get obtained from: constr_expr.args[3]
-        constr_func_expr = copy(constr_expr.args[2])
-        return split_constraint(m, constr_func_expr, lb, ub)
-    elseif is_interval(constr) #split lb <= expr <= ub
-        lb = constr_expr.args[1]
-        ub = constr_expr.args[5]
-        constr_func_expr = copy(constr_expr.args[3]) #get func part of constraint
-        return split_constraint(m, constr_func_expr, lb, ub)
+function split_constraint(constr::ConstraintRef)
+    constr_set = constraint_set(constr)
+    if is_equalto(constr)
+        lb = ub = constr_set.value
+        return _split_constraint(constr.model, constr, lb, ub)
+    elseif is_interval(constr)
+        lb = constr_set.lower
+        ub = constr_set.upper
+        return _split_constraint(constr.model, constr, lb, ub)
     else
         return nothing
     end
 end
-function split_constraint(m::Model, constr::ConstraintRef, constr_name::String = name(constr))
+function _split_constraint(m::Model, constr::NonlinearConstraintRef, lb::Float64, ub::Float64)
+    nlp = nonlinear_model(m)
+    nlconstr = nlp[index(constr)]
+    #add lb constraint
+    nlp.last_constraint_index += 1
+    index1 = MOI.Nonlinear.ConstraintIndex(nlp.last_constraint_index)
+    nlp.constraints[index1] =
+        MOI.Nonlinear.Constraint(nlconstr.expression, MOI.LessThan(ub))
+    #add ub constraint
+    nlp.last_constraint_index += 1
+    index2 = MOI.Nonlinear.ConstraintIndex(nlp.last_constraint_index)
+    nlp.constraints[index2] =
+        MOI.Nonlinear.Constraint(nlconstr.expression, MOI.GreaterThan(lb))
+
+    return [
+        ConstraintRef(m, index1, constr.shape), 
+        ConstraintRef(m, index2, constr.shape)
+    ]
+end
+function _split_constraint(m::Model, constr::ConstraintRef, lb::Float64, ub::Float64)
+    constr_name = name(constr)
     if isempty(constr_name)
         constr_name = "[$constr]"
     end
     lb_name = name_split_constraint(constr_name, :lb)
     ub_name = name_split_constraint(constr_name, :ub)
-    constr_obj = constraint_object(constr)
-    new_constraints = split_constraint(m, constr_obj, lb_name, ub_name)
-
-    return new_constraints
-end
-function split_constraint(m::Model, func::Union{AffExpr,QuadExpr}, lb::Float64, ub::Float64, lb_name::String, ub_name::String)
+    func = constraint_object(constr).func
     return [
         @constraint(m, lb <= func, base_name = lb_name),
         @constraint(m, func <= ub, base_name = ub_name)
-    ]
-end
-function split_constraint(m::Model, constr_obj::ScalarConstraint{T,<:MOI.EqualTo}, lb_name::String, ub_name::String) where T
-    split_constraint(m, constr_obj.func, constr_obj.set.value, constr_obj.set.value, lb_name, ub_name)
-end
-function split_constraint(m::Model, constr_obj::ScalarConstraint{T,<:MOI.Interval}, lb_name::String, ub_name::String) where T
-    split_constraint(m, constr_obj.func, constr_obj.set.lower, constr_obj.set.upper, lb_name, ub_name)
-end
-function split_constraint(m::Model, constr_func_expr::Expr, lb::Real, ub::Real)
-    replace_JuMPvars!(constr_func_expr, m) #replace Expr with JuMP vars
-    return [
-        add_nonlinear_constraint(m, :($lb <= $constr_func_expr)),
-        add_nonlinear_constraint(m, :($constr_func_expr <= $ub))
     ]
 end
 split_constraint(args...) = nothing

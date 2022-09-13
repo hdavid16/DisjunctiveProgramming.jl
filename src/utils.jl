@@ -172,7 +172,6 @@ function name_split_constraint(con_name, side)
     else
         con_name = "$(con_name)[$side]"
     end
-
     return con_name
 end
 
