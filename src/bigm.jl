@@ -43,23 +43,35 @@ big_m_reformulation!(constr::AbstractArray{<:ConstraintRef}, bin_var, M, i, j, k
 Apply interval arithmetic on a constraint to infer the tightest Big-M value from the bounds on the constraint.
 """
 function infer_bigm(constr::ConstraintRef)
-    #convert constraints into Expr to replace variables with interval sets and determine bounds
-    constr_type, constr_func_expr, constr_rhs = parse_constraint(constr)
+    constr_obj = constraint_object(constr)
+    constr_terms = constr_obj.func.terms
+    constr_set = constr_obj.set
     #create a map of variables to their bounds
-    interval_map = Dict()
-    vars = all_variables(constr.model)#constr.model[:gdp_variable_constrs]
-    obj_dict = object_dictionary(constr.model)
-    bounds_dict = :variable_bounds_dict in keys(obj_dict) ? obj_dict[:variable_bounds_dict] : Dict() #NOTE: should pass as an keyword argument
-    for var in vars
-        LB, UB = get_bounds(var, bounds_dict)
-        interval_map[string(var)] = LB..UB
+    bounds_dict = :variable_bounds_dict in keys(constr.model.ext) ? constr.model.ext[:variable_bounds_dict] : Dict()
+    bounds_map = Dict(
+        var => get_bounds(var, bounds_dict)
+        for var in get_constraint_variables(constr)
+    )
+    #apply interval arithmetic
+    if constr_set isa MOI.LessThan
+        M = -constr_set.upper
+        for (var,coeff) in constr_terms
+            if coeff > 0
+                M += coeff*bounds_map[var][2]
+            else
+                M += coeff*bounds_map[var][1]
+            end
+        end
+    elseif constr_set isa MOI.GreaterThan
+        M = -constr_st.lower
+        for (var,coeff) in constr_terms
+            if coeff < 0
+                M += coeff*bounds_map[var][2]
+            else
+                M += coeff*bounds_map[var][1]
+            end
+        end
     end
-    constr_func_expr = replace_intevals!(constr_func_expr, interval_map)
-    #get bounds on the entire expression
-    func_bounds = eval(constr_func_expr)
-    Mlo = func_bounds.lo - constr_rhs
-    Mhi = func_bounds.hi - constr_rhs
-    M = constr_type == :(<=) ? Mhi : Mlo
     isinf(M) && error("M parameter for $constr cannot be infered due to lack of variable bounds.")
     return M
 end
