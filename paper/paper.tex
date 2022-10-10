@@ -98,7 +98,7 @@ The simplest example of a linear GDP system is given in \eqref{eq:ex} - \eqref{e
 
 For visualization purposes and without loss of generality, the simple linear example is used to illustrate the Big-M and Hull reformulations. Figure \ref{fig:reform_figure} illustrates the feasible space of a simple linear GDP with one disjunction and two continuous variables, $x_1$ and $x_2$. The rectangle on the left is described by the constraints in the left disjunct, $Ax \leq b$. The rectangle on the right is defined by the constraints in the right disjunct, $Cx \le d$. The non-overlapping nature of the two regions is supported by the exclusive-OR relationship in Eq. \eqref{eq:simple_xor}.
 
-\begin{figure}%[H]
+\begin{figure}
     \centering
     \includegraphics[scale=0.5]{solnspace.png}
     \caption{Feasible solution space for example disjunction}
@@ -182,7 +182,7 @@ Once the logic propositions are converted to CNF, each clause can be converted i
 Alternate approaches exist for converting propositional logic statements into CNF, which involve preserving clause satisfiability rather than clause equivalence. These approaches prevent exponential size increase in clauses and yield logically consistent results \cite{jackson_sheridan_2005}.
 
 \subsubsection{Constraint Programming}
-The constraint-programming selection requirements for constraints within $\Omega$ are reformulated as follows,
+Selection constraints analogous to those used in Constraint Programming (CP) can also be included in $\Omega(Y)$. These constraints are of the form "allow exactly $n$ elements in a list of Boolean variables to be $true$." This type of constraint overcomes the limitations of the Boolean exclusive-OR ($\underline{\vee}$) operator, which can only enforce that an odd number of elements in a list of Booleans be $true$. Other CP-like constraints can be obtained by replacing "exactly" with "at most" or "at least". These constraints are reformulated as follows,
 
 \begin{align*}
     \text{exactly}(n, Y) & \ \ \text{becomes} \ \ n = \sum_i Y_i \\
@@ -190,8 +190,7 @@ The constraint-programming selection requirements for constraints within $\Omega
     \text{atmost}(n, Y) &  \ \ \text{becomes} \ \ n \geq \sum_i Y_i
 \end{align*}
 
-Exclusive-OR constraints as the one given in Eq. \eqref{eq:simple_xor} become constraints of the form $exactly(1,Y)$.
-\vskip 6pt
+Exclusive-OR constraints as the one given in Eq. \eqref{eq:simple_xor} are more generally modeled as $exactly(1,\{Y_1,Y_2\})$.
 
 \subsection{Solution Techniques}
 
@@ -201,12 +200,9 @@ The disjunctive branch and bound method closely mirrors the standard branch and 
 \subsubsection{Logic-based outer approximation}
 Logic-based outer approximation is another algorithm which mirrors a standard technique for solving mixed-integer nonlinear programming problems \cite{E.Grossmann2009}. This approach starts by identifying a set of reduced Non-Linear Programming (NLP) sub-problems obtained by fixing Boolean variables in the different disjunctions such that each disjunct is selected at least once across the set of sub-problems (set covering step). 
 Each sub-problem is solved to obtain an upper bound and a feasible point, about which the objective and constraints of the original GDP are linearized, and solve the resulting problem (via direct reformulation to MILP or via disjunctive branch and bound) to find a lower bound. If the lower and upper bound solutions have not converged, the Boolean variables from the previous solution are fixed and the resulting NLP is solved to find a potentially tighter upper bound solution. The procedure is repeated until convergence is obtained.
-\vskip 6pt
 
 \subsubsection{Hybrid cutting planes}
 The cutting planes method is an algorithm for tightening the relaxed solution space of a problem reformulated with Big-M before solving it by adding additional constraints which remove parts of the relaxed space that are disjoint from the actual feasible solution space. These "cuts" to the relaxed solution space are derived from the tighter, hull relaxation of the problem. This algorithm provides a middle-ground for the tradeoff between the complexity and corresponding computational expense of the Hull reformulation with the less tight Big-M reformulation. \cite{trespalacios_grossmann_2016}. 
-\vskip 6pt
-
 
 \section{DisjunctiveProgramming.jl}
 The following section describes the features of the \verb|DisjunctiveProgramming.jl| package and illustrates its syntax with an example from the chemical processing industry for superstructure optimization. The use of nested disjunctions is also shown.
@@ -290,6 +286,7 @@ The above system can be modeled and reformulated via the Big-M reformulation usi
 
 \begin{enumerate}
     \item Create the JuMP model and define the model variables and global constraints (mass balances).
+    
 \begin{lstlisting}[language = Julia]
 using DisjunctiveProgramming, JuMP, HiGHS
 
@@ -310,7 +307,6 @@ m = JuMP.Model(HiGHS.Optimizer)
 \end{lstlisting}
     \item Define the inner (nested) disjunction for the separation technologies in the superstructure using the \verb|@disjunction| macro.   
 \begin{lstlisting}[language = Julia]
-# define inner disjunction
 @disjunction(m,
     begin
         F[5] == β[:S1]*F[4]
@@ -346,12 +342,10 @@ R2_con = @constraints(m,
 \end{lstlisting}
     \item Build the main disjunction using the constraint blocks defined in (3) and the \verb|add_disjunction!| function. Note that the reformulated constraints for the nested disjunction are stored in the \verb|.ext| dictionary of the model under the name of the disjunction (\verb|:YS| in this case).
 \begin{lstlisting}[language = Julia]
-# add nested disjunction to model
 add_disjunction!(m,
     R1_con,
-    # general constraints in R2 disjunction
     (
-        R2_con,
+        R2_con, #general constraints in R2 disj.
         m.ext[:YS] #reformulated inner disj.
     ),
     reformulation = :big_m, # reformulation type
