@@ -1,0 +1,20 @@
+title: "DisjunctiveProgramming.jl: Generalized Disjunctive Programming Models and Algorithms for JuMP"
+keywords:
+  - JuMP
+  - Mathematical Optimization
+  - Generalized Disjunctive Programming
+authors:
+  - name: Hector D. Perez
+    orcid: 0000-0002-7374-1120
+    affiliation: 1
+  - name: Shivank Joshi
+    orcid: 0000-0002-1004-3173
+    affiliation: 1
+  - name: Ignacio E. Grossmann
+    orcid: 0000-0002-7210-084X
+    affiliation: 1
+affiliations:
+  - name: Carnegie Mellon University
+    index: 1
+date: 10 October 2022
+bibliography: ref.bib
