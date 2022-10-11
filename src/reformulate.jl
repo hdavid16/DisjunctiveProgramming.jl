@@ -17,10 +17,18 @@ function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, para
     if reformulation == :hull
         disaggregate_variables(m, disj, bin_var)
     end
-    reformulate_disjunction(disj, bin_var, reformulation, param)
-    push!(m.ext[bin_var], Iterators.flatten(filter(i -> is_constraint(i), disj))...)
+    _reformulate_disjunction(disj, bin_var, reformulation, param)
+    for item in filter(is_constraint, disj)
+        if item isa ConstraintRef
+            push!(m.ext[bin_var], item)
+        else
+            append!(m.ext[bin_var], item)
+        end
+    end
+    # NOTE: Next line files when a disjunct has a single ConstraintRef since iterate is not defined for this type
+    # push!(m.ext[bin_var], Iterators.flatten(filter(is_constraint, disj))...)
 end
-function reformulate_disjunction(disj, bin_var, reformulation, param)
+function _reformulate_disjunction(disj, bin_var, reformulation, param)
     for (i,constr) in enumerate(disj)
         reformulate_constraint(constr, bin_var, reformulation, param, i)
     end
@@ -44,7 +52,7 @@ function reformulate_constraint(constr::Tuple, bin_var, reformulation, param, i)
         reformulate_constraint(constr_j, bin_var, reformulation, param, i, j)
     end
 end
-function reformulate_constraint(constr::AbstractArray{<:ConstraintRef}, bin_var, reformulation, param, i, j = missing)
+function reformulate_constraint(constr::AbstractArray, bin_var, reformulation, param, i, j = missing)
     for k in eachindex(constr)
         reformulate_constraint(constr[k], bin_var, reformulation, param, i, j, k)
     end

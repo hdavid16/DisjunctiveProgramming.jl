@@ -204,6 +204,6 @@ constraint_variables(constr::AbstractDict) = Iterators.flatten(
 Check if a constraint or tuple of constraints is valid.
 """
 is_constraint(constr::ConstraintRef) = is_valid(constr.model,constr)
-is_constraint(constr::AbstractArray{<:ConstraintRef}) = all(is_constraint.(constr))
+is_constraint(constr::AbstractArray) = all(is_constraint.(constr))
 is_constraint(constr::Tuple) = all(is_constraint.(constr))
 is_constraint(constr::Nothing) = false
