@@ -10,7 +10,7 @@ function choose!(m::Model, n::Int, vars::VariableRef...; mode=:exactly, name="")
     add_selection!(m, n, vars...; mode, name)
 end
 function choose!(m::Model, var::VariableRef, vars::VariableRef...; mode=:exactly, name="")
-    @assert all(is_valid.(m, vcat(var,vars))) "Invalid VariableRefs passed."
+    @assert all(is_valid.(m, vcat(var,vars...))) "Invalid VariableRefs passed."
     add_selection!(m, var, vars...; mode, name)
 end
 function add_selection!(m::Model, n, vars::VariableRef...; mode::Symbol, name::String)

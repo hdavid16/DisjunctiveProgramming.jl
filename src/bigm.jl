@@ -49,7 +49,7 @@ function infer_bigm(constr::ConstraintRef)
     #create a map of variables to their bounds
     bounds_dict = :variable_bounds_dict in keys(constr.model.ext) ? constr.model.ext[:variable_bounds_dict] : Dict()
     bounds_map = Dict(
-        var => get_bounds(var, bounds_dict)
+        var => is_binary(var) ? (0,0) : get_bounds(var, bounds_dict) #NOTE: ignore binaries in tight-M calculation
         for var in get_constraint_variables(constr)
     )
     #apply interval arithmetic
