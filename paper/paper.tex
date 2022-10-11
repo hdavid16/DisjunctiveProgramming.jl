@@ -173,7 +173,7 @@ The logic propositions within the set of decision selection relationships, $\Ome
     (A \land B) \lor C & \text{ is replaced by } (A \lor C) \land (B \lor C)
 \end{align*}
 
-Once the logic propositions are converted to CNF, each clause can be converted into an algebraic constraint with the following equivalence,
+Once the logic propositions are converted to CNF, each clause can be converted into an algebraic constraint with the following equivalence (Note: any negated Boolean variables, $\neg Y_i$, are replaced with $1-y_i$ in the reformulation),
 
 \begin{align*}
     \bigvee_{i \in I} Y_i & \ \ \text{becomes} \ \ \sum_{i\in I} y_i \geq 1 \\
