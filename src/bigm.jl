@@ -11,13 +11,16 @@ Perform Big-M reformulaiton on a nonlinear constraint at index k of constraint j
 
 Perform Big-M reformulation on a constraint at index k of constraint j in disjunct i.
 """
-function big_m_reformulation!(constr::ConstraintRef, bin_var, M, i, j, k)
-    M = get_reform_param(M, i, j, k; constr)
+function big_m_reformulation!(constr::ConstraintRef, bin_var, M0, i, j, k)
+    M = get_reform_param(M0, i, j, k; constr)
+    if !ismissing(M0) && constraint_object(constr).set isa MOI.GreaterThan && M > 0
+        M = -M #if a positive bigM value was provided and constraint is GreaterThan, use the negative of this number (-M*(1-y) <= func)
+    end
     add_to_function_constant(constr, -M)
-    set_normalized_coefficient(constr, constr.model[bin_var][i] , M)
+    set_normalized_coefficient(constr, constr.model[bin_var][i], M)
 end
-function big_m_reformulation!(constr::NonlinearConstraintRef, bin_var, M, i, j, k)
-    M = get_reform_param(M, i, j, k; constr)
+function big_m_reformulation!(constr::NonlinearConstraintRef, bin_var, M0, i, j, k)
+    M = get_reform_param(M0, i, j, k; constr)
     #create symbolic variables (using Symbolics.jl)
     for var_ref in get_constraint_variables(constr)
         symbolic_variable(var_ref)
