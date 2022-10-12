@@ -207,3 +207,21 @@ is_constraint(constr::ConstraintRef) = is_valid(constr.model,constr)
 is_constraint(constr::AbstractArray) = all(is_constraint.(constr))
 is_constraint(constr::Tuple) = all(is_constraint.(constr))
 is_constraint(constr::Nothing) = false
+
+"""
+    update_constraint_list!(disj, list::Vector)
+
+Update constraint list (for disjunction constraints stored in .ext Dict)
+"""
+function update_constraint_list!(disj, list::Vector)
+    disj_constraints = filter(is_constraint, disj)
+    for item in disj_constraints
+        update_constraint_list!(item, list)
+    end
+end
+function update_constraint_list!(item::AbstractArray{<:ConstraintRef}, list::Vector)
+    for idx in eachindex(item)
+        update_constraint_list!(item[idx], list)
+    end
+end
+update_constraint_list!(item::ConstraintRef, list::Vector) = push!(list, item)

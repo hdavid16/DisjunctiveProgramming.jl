@@ -17,21 +17,15 @@ function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, para
     if reformulation == :hull
         disaggregate_variables(m, disj, bin_var)
     end
-    _reformulate_disjunction(disj, bin_var, reformulation, param)
-    for item in filter(is_constraint, disj)
-        if item isa ConstraintRef
-            push!(m.ext[bin_var], item)
-        else
-            append!(m.ext[bin_var], item)
-        end
-    end
-    # NOTE: Next line files when a disjunct has a single ConstraintRef since iterate is not defined for this type
-    # push!(m.ext[bin_var], Iterators.flatten(filter(is_constraint, disj))...)
+    reformulate_disjunction(m, disj, bin_var, reformulation, param)
 end
-function _reformulate_disjunction(disj, bin_var, reformulation, param)
+function reformulate_disjunction(m::Model, disj, bin_var, reformulation, param)
     for (i,constr) in enumerate(disj)
         reformulate_constraint(constr, bin_var, reformulation, param, i)
     end
+    update_constraint_list!(disj, m.ext[bin_var])
+    # NOTE: Next line files when a disjunct has a single ConstraintRef since iterate is not defined for this type
+    # push!(m.ext[bin_var], Iterators.flatten(filter(is_constraint, disj))...)
 end
 
 """

@@ -30,6 +30,9 @@ function check_constraint!(m::Model, constr_j::Tuple, constr_list::Vector)
     map(constr_jk -> check_constraint!(m, constr_jk, constr_list), constr_j)
 end
 function check_constraint!(m::Model, constr_j::AbstractArray, constr_list::Vector)
+    map(constr_jk -> check_constraint!(m, constr_jk, constr_list), constr_j)
+end
+function check_constraint!(m::Model, constr_j::AbstractArray{<:ConstraintRef}, constr_list::Vector)
     push!(constr_list, check_constraint!(m, constr_j))
 end
 function check_constraint!(m::Model, constr_j::ConstraintRef, constr_list::Vector)
@@ -45,7 +48,7 @@ function check_constraint!(m::Model, constr::ConstraintRef)
     end
     return new_constr
 end
-function check_constraint!(m::Model, constr::AbstractArray)
+function check_constraint!(m::Model, constr::AbstractArray{<:ConstraintRef})
     @assert all(is_valid.(m, constr)) "$constr is not a valid constraint."
     if !any(is_interval.(constr)) && !any(is_equalto.(constr))
         new_constr = constr
