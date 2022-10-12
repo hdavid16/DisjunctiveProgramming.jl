@@ -66,7 +66,7 @@ function infer_bigm(constr::ConstraintRef)
             end
         end
     elseif constr_set isa MOI.GreaterThan
-        M = -constr_st.lower
+        M = -constr_set.lower
         for (var,coeff) in constr_terms
             if coeff < 0
                 M += coeff*bounds_map[var][2]
