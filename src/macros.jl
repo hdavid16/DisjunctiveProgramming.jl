@@ -96,6 +96,12 @@ function add_disjunction!(m::Model,disj...;reformulation::Symbol,M=missing,ϵ=1e
         m[bin_var] = @variable(m, [eachindex(disj)], Bin, base_name = string(bin_var))
     end
 
+    #record boolean variable
+    if !in(:boolean_variables, keys(m.ext))
+        m.ext[:boolean_variables] = [] #store boolean variables to avoid disaggregating (nested disjunctions)
+    end
+    push!(m.ext[:boolean_variables], m[bin_var])
+
     #reformulate disjunction
     param = reformulation == :big_m ? M : ϵ
     reformulate_disjunction(m, disj...; bin_var, reformulation, param)

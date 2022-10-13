@@ -10,11 +10,14 @@ Reformulate disjunction.
 function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, param)
     #placeholder to store new constraints (reformulated)
     @assert !in(bin_var, keys(m.ext)) "$bin_var cannot be used as the indicator variable for the disjunction because it has already been used on another disjunction."
-    m.ext[bin_var] = []
+    m.ext[bin_var] = [] #store constraints associated with indicator variable
     #check disj
     disj = [check_constraint!(m, constr) for constr in disj]#check_disjunction!(m, disj)
     #run reformulation
     if reformulation == :hull
+        if !in(:disaggregated_variables, keys(m.ext))
+            m.ext[:disaggregated_variables] = [] #record disaggregated variables to avoid duplicating disaggregation (nested disjunctions)
+        end
         disaggregate_variables(m, disj, bin_var)
     end
     reformulate_disjunction(m, disj, bin_var, reformulation, param)

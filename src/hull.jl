@@ -13,14 +13,20 @@ Call the hull reformulation on a constraint at index k of constraint j in disjun
 """
 function hull_reformulation!(constr::ConstraintRef{<:AbstractModel, MOI.ConstraintIndex{MOI.ScalarAffineFunction{T},V}}, bin_var, args...) where {T,V}
     #check constraint type
+    m = constr.model
     i = args[2] #get disjunct index
-    bin_var_ref = constr.model[bin_var][i]
+    bin_var_ref = m[bin_var][i]
     #replace each variable with its disaggregated version
-    for var_ref in get_constraint_variables(constr)
+    var_refs = setdiff(
+        get_constraint_variables(constr),
+        m.ext[:disaggregated_variables],
+        m.ext[:boolean_variables]
+    )
+    for var_ref in var_refs
         is_binary(var_ref) && continue #NOTE: binaries from nested disjunctions are not disaggregated and don't need to be swapped out
         #get disaggregated variable reference
         var_name_i = name_disaggregated_variable(var_ref, bin_var, i)
-        var_i_ref = variable_by_name(constr.model, var_name_i)
+        var_i_ref = variable_by_name(m, var_name_i)
         #check var_ref is present in the constraint
         coeff = normalized_coefficient(constr, var_ref)
         iszero(coeff) && continue #if not present, skip
@@ -76,7 +82,11 @@ Disaggregate all variables in the model and tag them with the disjunction name.
 """
 function disaggregate_variables(m::Model, disj, bin_var)
     #check that variables are bounded
-    var_refs = get_constraint_variables(disj)
+    var_refs = setdiff(
+        get_constraint_variables(disj),
+        m.ext[:disaggregated_variables],
+        m.ext[:boolean_variables]
+    )
     @assert all((has_upper_bound.(var_refs) .&& has_lower_bound.(var_refs)) .|| is_binary.(var_refs)) "All variables must be bounded to perform the Hull reformulation."
     #reformulate variables
     obj_dict = object_dictionary(m)
@@ -91,17 +101,21 @@ function disaggregate_variables(m::Model, disj, bin_var)
             var_name_i_str = name_disaggregated_variable(var,bin_var,i)
             var_name_i = Symbol(var_name_i_str)
             #create disaggregated variable
-            m[var_name_i] = add_disaggregated_variable(m, var, LB, UB, var_name_i_str)
+            var_i = add_disaggregated_variable(m, var, LB, UB, var_name_i_str)
+            push!(
+                m.ext[:disaggregated_variables],
+                var_i
+            )
             #apply bounding constraints on disaggregated variable
             var_i_lb = "$(var_name_i)_lb" 
             var_i_ub = "$(var_name_i)_ub" 
             push!(
                 m.ext[bin_var], 
-                @constraint(m, LB * m[bin_var][i] .- m[var_name_i] .<= 0, base_name = var_i_lb),
-                @constraint(m, m[var_name_i] .- UB * m[bin_var][i] .<= 0, base_name = var_i_ub)
+                @constraint(m, LB * m[bin_var][i] .- var_i .<= 0, base_name = var_i_lb),
+                @constraint(m, var_i .- UB * m[bin_var][i] .<= 0, base_name = var_i_ub)
             )
             #update disaggregated sum expression
-            add_to_expression!(sum_vars, 1, m[var_name_i])
+            add_to_expression!(sum_vars, 1, var_i)
         end
         #sum disaggregated variables
         aggr_con = "$(var)_$(bin_var)_aggregation"
