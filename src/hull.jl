@@ -17,13 +17,9 @@ function hull_reformulation!(constr::ConstraintRef{<:AbstractModel, MOI.Constrai
     i = args[2] #get disjunct index
     bin_var_ref = m[bin_var][i]
     #replace each variable with its disaggregated version
-    var_refs = setdiff(
-        get_constraint_variables(constr),
-        m.ext[:disaggregated_variables],
-        m.ext[:boolean_variables]
-    )
-    for var_ref in var_refs
+    for var_ref in get_constraint_variables(constr)
         is_binary(var_ref) && continue #NOTE: binaries from nested disjunctions are not disaggregated and don't need to be swapped out
+        var_ref in m.ext[:disaggregated_variables] && continue #disaggregated variables are not touched
         #get disaggregated variable reference
         var_name_i = name_disaggregated_variable(var_ref, bin_var, i)
         var_i_ref = variable_by_name(m, var_name_i)
@@ -82,17 +78,14 @@ Disaggregate all variables in the model and tag them with the disjunction name.
 """
 function disaggregate_variables(m::Model, disj, bin_var)
     #check that variables are bounded
-    var_refs = setdiff(
-        get_constraint_variables(disj),
-        m.ext[:disaggregated_variables],
-        m.ext[:boolean_variables]
-    )
+    var_refs = get_constraint_variables(disj)
     @assert all((has_upper_bound.(var_refs) .&& has_lower_bound.(var_refs)) .|| is_binary.(var_refs)) "All variables must be bounded to perform the Hull reformulation."
     #reformulate variables
     obj_dict = object_dictionary(m)
     bounds_dict = :variable_bounds_dict in keys(obj_dict) ? obj_dict[:variable_bounds_dict] : Dict() #NOTE: should pass as an keyword argument
     for var in var_refs
         is_binary(var) && continue #NOTE: don't disaggregate binary variables from nested disjunctions
+        var in m.ext[:disaggregated_variables] && continue #skip already disaggregated variables
         #define UB and LB
         LB, UB = get_bounds(var, bounds_dict)
         #disaggregate variable and add bounding constraints
