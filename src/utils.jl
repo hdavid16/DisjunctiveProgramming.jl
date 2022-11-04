@@ -202,6 +202,8 @@ constraint_variables(constr::AbstractDict) = Iterators.flatten(
     is_constraint(constr)
 
 Check if a constraint or tuple of constraints is valid.
+
+NOTE: NOT USED CURRENTLY
 """
 is_constraint(constr::ConstraintRef) = is_valid(constr.model,constr)
 is_constraint(constr::AbstractArray) = all(is_constraint.(constr))
@@ -214,7 +216,7 @@ is_constraint(constr::Nothing) = false
 Update constraint list (for disjunction constraints stored in .ext Dict)
 """
 function update_constraint_list!(disj, list::Vector)
-    disj_constraints = filter(is_constraint, disj)
+    disj_constraints = filter(!isnothing, disj) #remove any empty disjuncts
     for item in disj_constraints
         update_constraint_list!(item, list)
     end
