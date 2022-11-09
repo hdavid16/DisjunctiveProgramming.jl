@@ -16,7 +16,7 @@ function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, para
     #run reformulation
     if reformulation == :hull
         if !in(:disaggregated_variables, keys(m.ext))
-            m.ext[:disaggregated_variables] = Set([]) #record disaggregated variables to avoid duplicating disaggregation (nested disjunctions)
+            m.ext[:disaggregated_variables] = Dict{String,VariableRef}() #record disaggregated variables to avoid duplicating disaggregation (nested disjunctions)
         end
         disaggregate_variables(m, disj, bin_var)
     end

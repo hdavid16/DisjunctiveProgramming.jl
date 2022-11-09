@@ -19,7 +19,7 @@ function hull_reformulation!(constr::ConstraintRef{<:AbstractModel, MOI.Constrai
     #replace each variable with its disaggregated version
     for var_ref in get_constraint_variables(constr)
         is_binary(var_ref) && continue #NOTE: binaries from nested disjunctions are not disaggregated and don't need to be swapped out
-        var_ref in m.ext[:disaggregated_variables] && continue #disaggregated variables are not touched
+        var_ref in values(m.ext[:disaggregated_variables]) && continue #disaggregated variables are not touched
         #get disaggregated variable reference
         var_name_i = name_disaggregated_variable(var_ref, bin_var, i)
         var_i_ref = variable_by_name(m, var_name_i)
@@ -85,7 +85,7 @@ function disaggregate_variables(m::Model, disj, bin_var)
     bounds_dict = :variable_bounds_dict in keys(obj_dict) ? obj_dict[:variable_bounds_dict] : Dict() #NOTE: should pass as an keyword argument
     for var in var_refs
         is_binary(var) && continue #NOTE: don't disaggregate binary variables from nested disjunctions
-        var in m.ext[:disaggregated_variables] && continue #skip already disaggregated variables
+        var in values(m.ext[:disaggregated_variables]) && continue #skip already disaggregated variables
         #define UB and LB
         LB, UB = get_bounds(var, bounds_dict)
         #disaggregate variable and add bounding constraints
@@ -95,10 +95,7 @@ function disaggregate_variables(m::Model, disj, bin_var)
             var_name_i = Symbol(var_name_i_str)
             #create disaggregated variable
             var_i = add_disaggregated_variable(m, var, LB, UB, var_name_i_str)
-            push!(
-                m.ext[:disaggregated_variables],
-                var_i
-            )
+            m.ext[:disaggregated_variables][var_name_i_str] = var_i
             #apply bounding constraints on disaggregated variable
             var_i_lb = "$(var_name_i)_lb" 
             var_i_ub = "$(var_name_i)_ub" 
