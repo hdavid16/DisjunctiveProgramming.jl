@@ -1,15 +1,17 @@
 """
-    choose!(m::Model, n::Int, vars::VariableRef...; mode)
+    choose!(m::Model, n::Union{Int,VariableRef}, vars::VariableRef...; mode::Symbol=:exactly, name::String="")
 
 Add constraint to select n elements from the list of variables. Options for mode
-are `:at_least`, `:at_most`, `:exactly`.
+are `:at_least`, `:at_most`, `:exactly`. Alternately, if `n` is a Binary variable, 
+it becomes the RHS of the constraint. If `name` is provided, it will be converted 
+to a Symbol and stored in the object dictionary.
 """
-function choose!(m::Model, n::Int, vars::VariableRef...; mode=:exactly, name="")
+function choose!(m::Model, n::Int, vars::VariableRef...; mode::Symbol=:exactly, name::String="")
     @assert length(vars) >= n "Not enough variables passed."
     @assert all(is_valid.(m, vars)) "Invalid VariableRefs passed."
     add_selection!(m, n, vars...; mode, name)
 end
-function choose!(m::Model, var::VariableRef, vars::VariableRef...; mode=:exactly, name="")
+function choose!(m::Model, var::VariableRef, vars::VariableRef...; mode::Symbol=:exactly, name::String="")
     @assert all(is_valid.(m, vcat(var,vars...))) "Invalid VariableRefs passed."
     add_selection!(m, var, vars...; mode, name)
 end
