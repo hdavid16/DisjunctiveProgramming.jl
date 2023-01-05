@@ -12,7 +12,7 @@ function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, para
     @assert !in(bin_var, keys(m.ext)) "$bin_var cannot be used as the indicator variable for the disjunction because it has already been used on another disjunction."
     m.ext[bin_var] = [] #store constraints associated with indicator variable
     #check disj
-    disj = [check_constraint!(m, constr) for constr in disj]#check_disjunction!(m, disj)
+    disj = [check_constraint!(m, constr) for constr in disj]
     #run reformulation
     if reformulation == :hull
         if !in(:disaggregated_variables, keys(m.ext))
@@ -27,8 +27,6 @@ function reformulate_disjunction(m::Model, disj, bin_var, reformulation, param)
         reformulate_constraint(constr, bin_var, reformulation, param, i)
     end
     update_constraint_list!(disj, m.ext[bin_var])
-    # NOTE: Next line files when a disjunct has a single ConstraintRef since iterate is not defined for this type
-    # push!(m.ext[bin_var], Iterators.flatten(filter(is_constraint, disj))...)
 end
 
 """
