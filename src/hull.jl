@@ -16,13 +16,13 @@ function hull_reformulation!(constr::ConstraintRef{<:AbstractModel, MOI.Constrai
     m = constr.model
     i = args[2] #get disjunct index
     bin_var_ref = m[bin_var][i]
-    #replace each variable with its disaggregated version
-    for var_ref in get_constraint_variables(constr)
+    #replace each variable with its disaggregated version (skip disaggregated vars)
+    for var_ref in filter!(!in(values(m.ext[:disaggregated_variables])), get_constraint_variables(constr))#setdiff(get_constraint_variables(constr), values(m.ext[:disaggregated_variables]))
         is_binary(var_ref) && continue #NOTE: binaries from nested disjunctions are not disaggregated and don't need to be swapped out
-        var_ref in values(m.ext[:disaggregated_variables]) && continue #disaggregated variables are not touched
+        # var_ref in values(m.ext[:disaggregated_variables]) && continue #disaggregated variables are not touched
         #get disaggregated variable reference
         var_name_i = name_disaggregated_variable(var_ref, bin_var, i)
-        var_i_ref = variable_by_name(m, var_name_i)
+        var_i_ref = m.ext[:disaggregated_variables][var_name_i] #NOTE: currently containerized variables are disaggregated individually, which makes this work and does not require using variable_by_name(m, var_name_i)
         #check var_ref is present in the constraint
         coeff = normalized_coefficient(constr, var_ref)
         iszero(coeff) && continue #if not present, skip
@@ -83,15 +83,15 @@ function disaggregate_variables(m::Model, disj, bin_var)
     #reformulate variables
     obj_dict = object_dictionary(m)
     bounds_dict = :variable_bounds_dict in keys(obj_dict) ? obj_dict[:variable_bounds_dict] : Dict() #NOTE: should pass as an keyword argument
-    for var in var_refs
-        is_binary(var) && continue #NOTE: don't disaggregate binary variables from nested disjunctions
-        var in values(m.ext[:disaggregated_variables]) && continue #skip already disaggregated variables
+    for var in filter!(!in(values(m.ext[:disaggregated_variables])), var_refs) #skip already disaggregated variables
+        is_binary(var) && continue #NOTE: don't disaggregate binary variables (comes up when nesting disjunctions)
+        # var in values(m.ext[:disaggregated_variables]) && continue #skip already disaggregated variables
         #define UB and LB
         LB, UB = get_bounds(var, bounds_dict)
         #disaggregate variable and add bounding constraints
         sum_vars = AffExpr(0) #initialize sum of disaggregated variables
         for i in eachindex(disj)
-            var_name_i_str = name_disaggregated_variable(var,bin_var,i)
+            var_name_i_str = name_disaggregated_variable(var, bin_var, i)
             var_name_i = Symbol(var_name_i_str)
             #create disaggregated variable
             var_i = add_disaggregated_variable(m, var, LB, UB, var_name_i_str)
@@ -128,6 +128,9 @@ Disaggregate a variable block stored in an Array or DenseAxisArray.
     add_disaggregated_variable(m::Model, var::Containers.SparseAxisArray, LB, UB, base_name)
 
 Disaggregate a variable block stored in a SparseAxisArray.
+
+NOTE: Because of the way variables are currently disaggregated (a list is made of all associated VariableRefs in the disjunction), 
+only the first function is used (not the containered ones).
 """
 function add_disaggregated_variable(m::Model, var::VariableRef, LB, UB, base_name)
     @variable(
@@ -139,6 +142,9 @@ function add_disaggregated_variable(m::Model, var::VariableRef, LB, UB, base_nam
         base_name = base_name
     )
 end
+#################################################################################################
+#           NOT USED CURRENTLY
+#################################################################################################
 function add_disaggregated_variable(m::Model, var::AbstractArray{VariableRef}, LB, UB, base_name)
     idxs = Iterators.product(axes(var)...)
     var_i_array = [
@@ -153,7 +159,8 @@ function add_disaggregated_variable(m::Model, var::Containers.SparseAxisArray, L
         idx => add_disaggregated_variable(m, var[idx], LB[idx], UB[idx], "$base_name[$(join(idx,","))]")
         for idx in idxs
     )
-    return Containers.SparseAxisArray(var_i_dict)
+    return containerize(var, var_i_dict)
 end
 containerize(var::Array, arr) = arr
 containerize(var::Containers.DenseAxisArray, arr) = Containers.DenseAxisArray(arr, axes(var)...)
+containerize(var::Containers.SparseAxisArray, arr::Dict) = Containers.SparseAxisArray(var)
