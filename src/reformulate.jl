@@ -18,6 +18,9 @@ function reformulate_disjunction(m::Model, disj...; bin_var, reformulation, para
         if !in(:disaggregated_variables, keys(m.ext))
             m.ext[:disaggregated_variables] = Dict{String,VariableRef}() #record disaggregated variables to avoid duplicating disaggregation (nested disjunctions)
         end
+        if !in(:perspective_functions, keys(m.ext))
+            m.ext[:perspective_functions] = Dict() #record previously added nonlinear perspective functions
+        end
         disaggregate_variables(m, disj, bin_var)
     end
     reformulate_disjunction(m, disj, bin_var, reformulation, param)

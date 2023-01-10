@@ -16,9 +16,8 @@ function hull_reformulation!(constr::ConstraintRef{<:AbstractModel, MOI.Constrai
     m = constr.model
     i = args[2] #get disjunct index
     bin_var_ref = m[bin_var][i]
-    #replace each variable with its disaggregated version (skip disaggregated vars)
-    for var_ref in filter!(!in(values(m.ext[:disaggregated_variables])), get_constraint_variables(constr))#setdiff(get_constraint_variables(constr), values(m.ext[:disaggregated_variables]))
-        is_binary(var_ref) && continue #NOTE: binaries from nested disjunctions are not disaggregated and don't need to be swapped out
+    #replace each variable with its disaggregated version (skip disaggregated vars and binaries)
+    for var_ref in filter!(v -> !in(v, values(m.ext[:disaggregated_variables])) && !is_binary(v), get_constraint_variables(constr))#setdiff(get_constraint_variables(constr), values(m.ext[:disaggregated_variables]))
         # var_ref in values(m.ext[:disaggregated_variables]) && continue #disaggregated variables are not touched
         #get disaggregated variable reference
         var_name_i = name_disaggregated_variable(var_ref, bin_var, i)
@@ -36,11 +35,17 @@ function hull_reformulation!(constr::ConstraintRef{<:AbstractModel, MOI.Constrai
     set_normalized_coefficient(constr, bin_var_ref, -rhs) #add binary variable (same as multiplying rhs constant by binary variable)
 end
 function hull_reformulation!(constr::ConstraintRef, bin_var, eps, i, j, k)
+    m = constr.model #get model
+    if constr in values(m.ext[:perspective_functions]) #if constraint nested and was already reformulated, doesn't need to be reformulated again
+        push!(m.ext[bin_var], constr)
+        return
+    end
     eps = get_reform_param(eps, i, j, k)
     #create symbolic variables (using Symbolics.jl)
     sym_vars = Dict(
-        symbolic_variable(var_ref) => symbolic_variable(name_disaggregated_variable(var_ref, bin_var, i))
-        for var_ref in get_constraint_variables(constr)
+        symbolic_variable(var_ref) => 
+            symbolic_variable(m.ext[:disaggregated_variables][name_disaggregated_variable(var_ref, bin_var, i)])
+        for var_ref in filter!(v -> !in(v, values(m.ext[:disaggregated_variables])) && !is_binary(v), get_constraint_variables(constr))
     )
     ϵ = eps #epsilon parameter for perspective function (See Furman, Sawaya, Grossmann [2020] perspecive function)
     bin_var_sym = Symbol("$bin_var[$i]")
@@ -66,7 +71,8 @@ function hull_reformulation!(constr::ConstraintRef, bin_var, eps, i, j, k)
     pers_func = substitute(pers_func, Dict(FSG1 => (1-ϵ)*λ+ϵ,
                                            FSG2 => ϵ*(1-λ)))
     pers_func = simplify(pers_func)
-    add_reformulated_constraint(constr, bin_var, pers_func, op, rhs)
+    constr_str = string(constr)
+    m.ext[:perspective_functions][constr_str] = add_reformulated_constraint(constr, bin_var, pers_func, op, rhs)
 end
 hull_reformulation!(constr::AbstractArray{<:ConstraintRef}, bin_var, eps, i, j, k) = 
     hull_reformulation!(constr[k], bin_var, eps, i, j, k)
