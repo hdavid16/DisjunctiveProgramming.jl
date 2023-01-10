@@ -26,7 +26,11 @@ function reformulate_disjunction(m::Model, disj, bin_var, reformulation, param)
     for (i,constr) in enumerate(disj)
         reformulate_constraint(constr, bin_var, reformulation, param, i)
     end
-    update_constraint_list!(disj, m.ext[bin_var])
+    if reformulation == :big_m
+        update_constraint_list!(disj, m.ext[bin_var])
+    elseif reformulation == :hull
+        update_constraint_list2!(disj, m.ext[bin_var])
+    end
 end
 
 """

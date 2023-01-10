@@ -160,7 +160,7 @@ end
 
 function name_disaggregated_variable(var_ref, bin_var, i)
     var_name = name(var_ref)
-    var_name_i = "$(var_name)_$(bin_var)$i"
+    var_name_i = "$(var_name)_$(bin_var)[$i]"
 
     return var_name_i
 end
@@ -213,7 +213,8 @@ is_constraint(constr::Nothing) = false
 """
     update_constraint_list!(disj, list::Vector)
 
-Update constraint list (for disjunction constraints stored in .ext Dict)
+Update constraint list (for disjunction constraints stored in .ext Dict) for big-M reformulations.
+NOTE: for big-M reformulations, nonlinear constraints are added separately to the .ext Dict with `add_reformulated_constraint`.
 """
 function update_constraint_list!(disj, list::Vector)
     disj_constraints = filter(!isnothing, disj) #remove any empty disjuncts
@@ -227,3 +228,26 @@ function update_constraint_list!(item::AbstractArray{<:ConstraintRef}, list::Vec
     end
 end
 update_constraint_list!(item::ConstraintRef, list::Vector) = push!(list, item)
+update_constraint_list!(item::NonlinearConstraintRef, list::Vector) = nothing
+
+"""
+    update_constraint_list2!(disj, list::Vector)
+
+Update constraint list (for disjunction constraints stored in .ext Dict) for hull reformulations.
+NOTE: for big-M reformulations, nonlinear/quadratic constraints are added separately to the .ext Dict with `add_reformulated_constraint`.
+"""
+function update_constraint_list2!(disj, list::Vector)
+    disj_constraints = filter(!isnothing, disj) #remove any empty disjuncts
+    for item in disj_constraints
+        update_constraint_list2!(item, list)
+    end
+end
+function update_constraint_list2!(item::AbstractArray{<:ConstraintRef}, list::Vector)
+    for idx in eachindex(item)
+        update_constraint_list2!(item[idx], list)
+    end
+end
+function update_constraint_list2!(item::ConstraintRef{<:AbstractModel, MOI.ConstraintIndex{MOI.ScalarAffineFunction{T},V}}, list::Vector) where {T,V}
+    push!(list, item)
+end
+update_constraint_list2!(item::ConstraintRef, list::Vector) = nothing
