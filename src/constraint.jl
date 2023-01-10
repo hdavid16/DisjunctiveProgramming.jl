@@ -142,11 +142,11 @@ function parse_constraint(constr::ConstraintRef)
 end
 
 """
-    replace_constraint(constr::ConstraintRef, bin_var::Symbol, sym_expr, op, rhs)
+    add_reformulated_constraint(constr::ConstraintRef, bin_var::Symbol, sym_expr, op, rhs)
 
 Replace nonlinear or quadratic constraint with its hull reformulation.
 """
-function replace_constraint(constr::ConstraintRef, bin_var::Symbol, sym_expr, op, rhs)
+function add_reformulated_constraint(constr::ConstraintRef, bin_var::Symbol, sym_expr, op, rhs)
     #convert symbolic function to expression
     op = eval(op)
     expr = Base.remove_linenums!(build_function(op(sym_expr,rhs))).args[2].args[1]

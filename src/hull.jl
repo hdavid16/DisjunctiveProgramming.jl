@@ -66,7 +66,7 @@ function hull_reformulation!(constr::ConstraintRef, bin_var, eps, i, j, k)
     pers_func = substitute(pers_func, Dict(FSG1 => (1-ϵ)*λ+ϵ,
                                            FSG2 => ϵ*(1-λ)))
     pers_func = simplify(pers_func)
-    replace_constraint(constr, bin_var, pers_func, op, rhs)
+    add_reformulated_constraint(constr, bin_var, pers_func, op, rhs)
 end
 hull_reformulation!(constr::AbstractArray{<:ConstraintRef}, bin_var, eps, i, j, k) = 
     hull_reformulation!(constr[k], bin_var, eps, i, j, k)
