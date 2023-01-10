@@ -116,8 +116,8 @@ function _split_constraint(m::Model, constr::ConstraintRef, lb::Float64, ub::Flo
     if isempty(constr_name)
         constr_name = "[$constr]"
     end
-    lb_name = name_split_constraint(constr_name, :lb)
-    ub_name = name_split_constraint(constr_name, :ub)
+    lb_name = name_split(constr_name; new_index = :lb)
+    ub_name = name_split(constr_name; new_index = :ub)
     func = constraint_object(constr).func
     return [
         @constraint(m, lb <= func, base_name = lb_name),
@@ -154,7 +154,10 @@ function add_reformulated_constraint(constr::ConstraintRef, bin_var::Symbol, sym
     m = constr.model
     replace_JuMPvars!(expr, m)
     replace_operators!(expr)
-    #replace constraint with prespective function
-    push!(m.ext[bin_var], add_nonlinear_constraint(m, expr))
+    #add new constraint and delete old one
+    new_constr = add_nonlinear_constraint(m, expr)
+    push!(m.ext[bin_var], new_constr)
     delete(m, constr)
+
+    return new_constr
 end

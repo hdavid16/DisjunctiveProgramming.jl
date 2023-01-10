@@ -160,19 +160,18 @@ end
 
 function name_disaggregated_variable(var_ref, bin_var, i)
     var_name = name(var_ref)
-    var_name_i = "$(var_name)_$(bin_var)[$i]"
-
-    return var_name_i
+    return name_split(var_name; post = string(bin_var), new_index = i)
 end
 
-function name_split_constraint(con_name, side)
-    #get disaggregated variable reference
-    if occursin("[", string(con_name))
-        con_name = replace(string(con_name), "]" => ",$side]")
+function name_split(str; post="", new_index)
+    #add side as the last index of str (variable or constraint name)
+    if occursin("[", str)
+        new_str = replace(str, "]" => ",$new_index]")
+        new_str_spl = split(new_str, "[") #NOTE: assumes that [ only occurs once in the string
+        return string(new_str_spl[1],post,"[",new_str_spl[end])
     else
-        con_name = "$(con_name)[$side]"
+        return "$(str)$(post)[$new_index]"
     end
-    return con_name
 end
 
 function constraint_variables!(
