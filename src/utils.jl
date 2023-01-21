@@ -15,7 +15,7 @@ get_indices(arr) = Iterators.product(axes(arr)...)
 
 Get M or ϵ parameter for reformulation.
 """
-get_reform_param(param::Missing, args...; constr) = infer_bigm(constr) #if param is missing, infer bigM (ϵ does not pass a kwarg)
+get_reform_param(param::Missing, args...; constr) = calculate_tight_M(constr) #if param is missing, infer bigM (ϵ does not pass a kwarg)
 get_reform_param(param::Number, args...; kwargs...) = param #if param is a number return it
 get_reform_param(param::Union{Vector,Tuple}, idx::Int, args...; kwargs...) = #index param by next Integer arg (idx)
     get_reform_param(param[idx], args...; kwargs...)

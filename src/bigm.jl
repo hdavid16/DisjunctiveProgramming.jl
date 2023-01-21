@@ -41,11 +41,11 @@ big_m_reformulation!(constr::AbstractArray{<:ConstraintRef}, bin_var, M, i, j, k
     big_m_reformulation(constr[k], bin_var, M, i, j, k)
 
 """
-    infer_bigm(constr)
+    calculate_tight_M(constr::ConstraintRef{<:AbstractModel, MOI.ConstraintIndex{MOI.ScalarAffineFunction{T},V}}) where {T,V}
 
-Apply interval arithmetic on a constraint to infer the tightest Big-M value from the bounds on the constraint.
+Apply interval arithmetic on a linear constraint to infer the tightest Big-M value from the bounds on the constraint.
 """
-function infer_bigm(constr::ConstraintRef)
+function calculate_tight_M(constr::ConstraintRef{<:AbstractModel, MOI.ConstraintIndex{MOI.ScalarAffineFunction{T},V}}) where {T,V}
     constr_obj = constraint_object(constr)
     constr_terms = constr_obj.func.terms
     constr_set = constr_obj.set
@@ -78,4 +78,4 @@ function infer_bigm(constr::ConstraintRef)
     isinf(M) && error("M parameter for $constr cannot be infered due to lack of variable bounds.")
     return M
 end
-infer_bigm(constr::NonlinearConstraintRef) = error("$constr is a nonlinear constraint and a tight Big-M parameter cannot be inferred via interval arithmetic.")
+calculate_tight_M(constr::ConstraintRef) = error("$constr is a nonlinear or quadratic constraint and a tight Big-M parameter cannot be inferred via interval arithmetic.")

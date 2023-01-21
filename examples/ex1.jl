@@ -19,8 +19,8 @@ print(m)
 # ┌ Warning: disj_y[2] : x in [5.0, 9.0] uses the `MOI.Interval` set. Each instance of the interval set has been split into two constraints, one for each bound.
 # Feasibility
 # Subject to
-#  XOR(disj_y) : y[1] + y[2] == 1.0         <- XOR constraint
-#  y[1] ∨ y[2] : y[1] + y[2] >= 1.0         <- reformulated logical proposition (name is the proposition)
+#  XOR : y[1] + y[2] == 1.0         <- XOR constraint
+#  prop : y[1] + y[2] >= 1.0         <- reformulated logical proposition (name is the proposition)
 #  disj_y[1,lb] : -x + 5 y[1] <= 5.0       <- left-side of constraint in 1st disjunct (name is assigned to disj_y[1][lb])
 #  disj_y[1,ub] : x + 7 y[1] <= 10.0       <- right-side of constraint in 1st disjunct (name is assigned to disj_y[1][ub])
 #  disj_y[2,lb] : -x + 10 y[2] <= 5.0      <- left-side of constraint in 2nd disjunct (name is assigned to disj_y[2][lb])

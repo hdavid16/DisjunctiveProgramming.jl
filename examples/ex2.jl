@@ -20,7 +20,7 @@ print(m)
 
 # Feasibility
 # Subject to
-#  XOR(disj_y) : y[1] + y[2] == 1.0         <- XOR constraint
+#  XOR : y[1] + y[2] == 1.0         <- XOR constraint
 #  con1[1,lb] : -x[1] + 5 y[1] <= 5.0      <- left-side of con1[1]
 #  con1[1,ub] : x[1] + 7 y[1] <= 10.0      <- right-side of con1[1]
 #  con1[2,lb] : -x[2] + 5 y[1] <= 5.0      <- left-side of con1[2]
