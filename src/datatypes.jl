@@ -70,38 +70,37 @@ struct Disjunct{C <: Tuple}
 end
 
 """
-    DisjunctionConstraint <: JuMP.AbstractConstraint
+    DisjunctiveConstraint <: JuMP.AbstractConstraint
 
-A type for a disjunction constraint that is comprised of a collection of 
-disjuncts of type [`Disjunct`](@ref) which are each enforced with exclusive-or 
-logic as per standard generalized disjunctive programming theory.
+A type for a disjunctive constraint that is comprised of a collection of 
+disjuncts of type [`Disjunct`](@ref).
 
 **Fields**
 - `disjuncts::Vector{Disjunct}`: The disjuncts that comprise the constraint.
 """
-struct DisjunctionConstraint <: JuMP.AbstractConstraint
+struct DisjunctiveConstraint <: JuMP.AbstractConstraint
     disjuncts::Vector{Disjunct}
 end
 
 """
-    DisjunctionConstraintData
+    DisjunctiveConstraintData
 
-A type for storing [`DisjunctionConstraint`](@ref)s and any meta-data they 
+A type for storing [`DisjunctiveConstraint`](@ref)s and any meta-data they 
 possess.
 
 **Fields**
-- `constraint::DisjunctionConstraint`: The disjunctive constraint object.
+- `constraint::DisjunctiveConstraint`: The disjunctive constraint object.
 - `name::String`: The name of the constraint.
 """
-mutable struct DisjunctionConstraintData
-    constraint::DisjunctionConstraint
+mutable struct DisjunctiveConstraintData
+    constraint::DisjunctiveConstraint
     name::String
 end
 
 """
     DisjunctionIndex
 
-A type for storing the index of a [`DisjunctionConstraint`](@ref).
+A type for storing the index of a [`DisjunctiveConstraint`](@ref).
 
 **Fields**
 - `value::Int64`: The index value.
@@ -113,7 +112,7 @@ end
 """
     DisjunctiveConstraintRef
 
-A type for looking up disjunction constraints.
+A type for looking up disjunctive constraints.
 """
 struct DisjunctiveConstraintRef
     model::JuMP.Model
@@ -217,16 +216,16 @@ An abstract type for solution methods used to solve `GDPModel`s.
 abstract type AbstractSolutionMethod end
 
 """
-    AbstractReformulationMethod <: AbstractReformulationMethod
+    AbstractReformulationMethod
 
 An abstract type for reformulation approaches used to solve `GDPModel`s.
 """
-abstract type AbstractReformulationMethod <: AbstractReformulationMethod end
+abstract type AbstractReformulationMethod end
 
 """
     BigM <: AbstractReformulationMethod
 
-A type for using the big-M reformulation approach for disjunction constraints.
+A type for using the big-M reformulation approach for disjunctive constraints.
 """
 struct BigM <: AbstractReformulationMethod end # TODO add fields if needed
 
@@ -245,9 +244,9 @@ The core type for storing information in a [`GDPModel`](@ref).
 """
 mutable struct GDPData
     # Objects
-    logical_variables::_MOIUC.CleverDicts{LogicalIndex, LogicalVariableData}
-    disjunctions::_MOIUC.CleverDicts{DisjunctionIndex, DisjunctionConstraintData}
-    propositions::_MOIUC.CleverDicts{PropositionIndex, PropositionData}
+    logical_variables::_MOIUC.CleverDict{LogicalIndex, LogicalVariableData}
+    disjunctions::_MOIUC.CleverDict{DisjunctionIndex, DisjunctiveConstraintData}
+    propositions::_MOIUC.CleverDict{PropositionIndex, PropositionData}
     
     # Solution data
     solution_method::Union{Nothing, AbstractSolutionMethod}
@@ -256,9 +255,9 @@ mutable struct GDPData
 
     # Default constructor
     function GDPData()
-        new(_MOIUC.CleverDicts{LogicalIndex, LogicalVariableData}(),
-            _MOIUC.CleverDicts{DisjunctionIndex, DisjunctionConstraintData}(), 
-            propositions::_MOIUC.CleverDicts{PropositionIndex, PropositionData},
+        new(_MOIUC.CleverDict{LogicalIndex, LogicalVariableData}(),
+            _MOIUC.CleverDict{DisjunctionIndex, DisjunctiveConstraintData}(), 
+            _MOIUC.CleverDict{PropositionIndex, PropositionData}(),
             nothing,
             false
             )

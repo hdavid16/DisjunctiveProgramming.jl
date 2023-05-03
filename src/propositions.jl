@@ -120,7 +120,7 @@ for (name, func) in ((:∨, :∨), (:∨, :lor), (:⊻, :⊻), (:⊻, :lxor),
             v1::Union{LogicalVariableRef, Proposition}, 
             v2::Union{LogicalVariableRef, Proposition}
             )
-            return Proposition(_call_graph($(quot(name)), v1, v2))
+            return Proposition(_call_graph($name, v1, v2))
         end
     end
 end
@@ -130,7 +130,7 @@ for (name, func) in ((:¬, :¬), (:¬, :lneg))
     # make an expression constructor
     @eval begin 
         function $func(v::Union{LogicalVariableRef, Proposition})
-            return Proposition(_call_graph($(quot(name)), v))
+            return Proposition(_call_graph($name, v))
         end
     end
 end

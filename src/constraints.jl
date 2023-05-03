@@ -1,9 +1,9 @@
 """
 
 """
-function JuMP.build_constraint(error::Function, disjuncts::Vector{Disjuncts})
+function JuMP.build_constraint(error::Function, disjuncts::Vector{Disjunct})
     # TODO add error checking
-    return DisjunctionConstraint(disjuncts)
+    return DisjunctiveConstraint(disjuncts)
 end
 
 """
@@ -11,7 +11,7 @@ end
 """
 function JuMP.add_constraint(
     model::JuMP.Model, 
-    c::DisjunctionConstraint, 
+    c::DisjunctiveConstraint, 
     name::String = ""
     )
     if is_gdp_model(model) 
