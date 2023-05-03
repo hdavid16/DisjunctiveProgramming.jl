@@ -14,11 +14,9 @@ function JuMP.add_constraint(
     c::DisjunctiveConstraint, 
     name::String = ""
     )
-    if is_gdp_model(model) 
-        error("Can only add disjunctions to `GDPModel`s.")
-    end
+    is_gdp_model(model) || error("Can only add disjunctions to `GDPModel`s.")
     # TODO maybe check the variables in the disjuncts belong to the model
-    constr_data = ConstraintData(c, name)
-    idx = _MOIUC.add_item(gdp_data(model), constr_data)
+    constr_data = DisjunctiveConstraintData(c, name)
+    idx = _MOIUC.add_item(gdp_data(model).disjunctions, constr_data)
     return DisjunctiveConstraintRef(model, idx)
 end

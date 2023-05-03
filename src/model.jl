@@ -16,7 +16,7 @@ end
 Extract the [`GDPData`](@ref) from a `GDPModel`.
 """
 function gdp_data(model::JuMP.Model)
-    haskey(model.ext, :GDP) || error("Cannot access GDP data from a regular `JuMP.Model`.")
+    is_gdp_model(model) || error("Cannot access GDP data from a regular `JuMP.Model`.")
     return model.ext[:GDP]
 end
 

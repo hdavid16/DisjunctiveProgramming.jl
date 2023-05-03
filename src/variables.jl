@@ -44,11 +44,9 @@ function JuMP.add_variable(
     v::LogicalVariable, 
     name::String = ""
     )
-    if is_gdp_model(model) 
-        error("Can only add logical variables to `GDPModel`s.")
-    end
+    is_gdp_model(model) || error("Can only add logical variables to `GDPModel`s.")
     data = LogicalVariableData(v, name)
-    idx = _MOIUC.add_item(gdp_data(model), data)
+    idx = _MOIUC.add_item(gdp_data(model).logical_variables, data)
     return LogicalVariableRef(model, idx)
 end
 
