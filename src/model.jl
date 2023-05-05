@@ -29,6 +29,14 @@ function is_gdp_model(model::JuMP.Model)
     return haskey(model.ext, :GDP)
 end
 
+"""
+
+"""
+function disjunctions(model::JuMP.Model)
+    is_gdp_model(model) || error("Cannot access disjunctions from a regular `JuMP.Model`.")
+    return model.ext[:GDP].disjunctions
+end
+
 # Determine if the model is ready to call `optimize!` without a optimize hook
 _ready_to_optimize(model::JuMP.Model) = gdp_data(model).ready_to_optimize
 

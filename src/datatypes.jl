@@ -216,18 +216,23 @@ An abstract type for solution methods used to solve `GDPModel`s.
 abstract type AbstractSolutionMethod end
 
 """
-    AbstractReformulationMethod
+    AbstractReformulationMethod <: AbstractSolutionMethod
 
 An abstract type for reformulation approaches used to solve `GDPModel`s.
 """
-abstract type AbstractReformulationMethod end
+abstract type AbstractReformulationMethod <: AbstractSolutionMethod end
 
 """
     BigM <: AbstractReformulationMethod
 
 A type for using the big-M reformulation approach for disjunctive constraints.
+
+**Fields**
+- `value::Real`: Big-M value.
 """
-struct BigM <: AbstractReformulationMethod end # TODO add fields if needed
+struct BigM <: AbstractReformulationMethod
+    value::Real
+end # TODO add fields if needed
 
 """
     Hull <: AbstractReformulationMethod

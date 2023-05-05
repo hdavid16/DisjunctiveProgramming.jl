@@ -1,7 +1,7 @@
 """
 
 """
-function JuMP.build_constraint(error::Function, disjuncts::Vector{Disjunct})
+function JuMP.build_constraint(_error::Function, disjuncts::Vector{<:Disjunct})
     # TODO add error checking
     return DisjunctiveConstraint(disjuncts)
 end
