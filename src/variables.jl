@@ -65,6 +65,11 @@ JuMP.owner_model(vref::LogicalVariableRef) = vref.model
 """
 JuMP.index(vref::LogicalVariableRef) = vref.index
 
+function Base.:(==)(v::LogicalVariableRef, w::LogicalVariableRef)
+    return v.model === w.model && v.index == w.index
+end
+JuMP.isequal_canonical(v::LogicalVariableRef, w::LogicalVariableRef) = v == w
+
 """
 
 """
