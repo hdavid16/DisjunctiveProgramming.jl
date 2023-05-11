@@ -232,6 +232,9 @@ A type for using the big-M reformulation approach for disjunctive constraints.
 """
 struct BigM <: AbstractReformulationMethod
     value::Real
+    function BigM()
+        new(1e9)
+    end
 end # TODO add fields if needed
 
 """
@@ -266,5 +269,8 @@ mutable struct GDPData
             nothing,
             false
             )
+    end
+    function GDPData(args...)
+        new(args...)
     end
 end
