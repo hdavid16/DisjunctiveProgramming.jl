@@ -37,6 +37,16 @@ function disjunctions(model::JuMP.Model)
     return model.ext[:GDP].disjunctions
 end
 
+function JuMP.copy_extension_data(data::GDPData, new_model::JuMP.AbstractModel, model::JuMP.AbstractModel)
+    new_model.ext[:GDP] = GDPData(
+        data.logical_variables, 
+        data.disjunctions, 
+        data.propositions, 
+        data.solution_method, 
+        data.ready_to_optimize
+    )
+end
+
 # Determine if the model is ready to call `optimize!` without a optimize hook
 _ready_to_optimize(model::JuMP.Model) = gdp_data(model).ready_to_optimize
 
