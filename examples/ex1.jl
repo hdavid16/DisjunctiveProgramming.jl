@@ -1,34 +1,82 @@
 using JuMP
 using DisjunctiveProgramming
 
-m = Model()
-@variable(m, -5 ≤ x ≤ 10)
-@disjunction(
-    m,
-    0 ≤ x ≤ 3,
-    5 ≤ x ≤ 9,
-    reformulation=:big_m,
-    name=:y
+#TODO: Add proposition for exactly 1 disjunct selected
+
+## Model 1: 
+#   1 variable: x
+#   1 disjunction:
+#       2 disjuncts: 
+#           1st disjucnt: MOI.Interval linear constraint (1)
+#           2nd disjunct: MOI.GreaterThan & MOI.LessThan linear constraints (2)
+
+m = GDPModel()
+@variable(m, -10 ≤ x ≤ 10)
+@variable(m, Y[1:2], LogicalVariable)
+disjunct_1 = Disjunct(
+    tuple(
+        build_constraint(error, 1*x, MOI.Interval(0,3))
+    ),
+    Y[1]
 )
-@proposition(m, y[1] ∨ y[2]) #this is a redundant proposition
-
+disjunct_2 = Disjunct(
+    tuple(
+        build_constraint(error, 1*x, MOI.GreaterThan(5)),
+        build_constraint(error, 1*x, MOI.LessThan(9))
+    ),
+    Y[2]
+)
+disjunction = add_constraint(m, 
+    build_constraint(error, [disjunct_1, disjunct_2]),
+    "Disjunction"
+)
 print(m)
-
-# ┌ Warning: disj_y[1] : x in [0.0, 3.0] uses the `MOI.Interval` set. Each instance of the interval set has been split into two constraints, one for each bound.
-# ┌ Warning: disj_y[2] : x in [5.0, 9.0] uses the `MOI.Interval` set. Each instance of the interval set has been split into two constraints, one for each bound.
 # Feasibility
 # Subject to
-#  XOR(disj_y) : y[1] + y[2] == 1.0         <- XOR constraint
-#  y[1] ∨ y[2] : y[1] + y[2] >= 1.0         <- reformulated logical proposition (name is the proposition)
-#  disj_y[1,lb] : -x + 5 y[1] <= 5.0       <- left-side of constraint in 1st disjunct (name is assigned to disj_y[1][lb])
-#  disj_y[1,ub] : x + 7 y[1] <= 10.0       <- right-side of constraint in 1st disjunct (name is assigned to disj_y[1][ub])
-#  disj_y[2,lb] : -x + 10 y[2] <= 5.0      <- left-side of constraint in 2nd disjunct (name is assigned to disj_y[2][lb])
-#  disj_y[2,ub] : x + y[2] <= 10.0         <- right-side of constraint in 2nd disjunct (name is assigned to disj_y[2][ub])
-#  x >= -5.0                                <- variable lower bound
-#  x <= 10.0                                <- variable upper bound
-#  y[1] >= 0.0                              <- lower bound on binary
-#  y[2] >= 0.0                              <- lower bound on binary
-#  y[1] <= 1.0                              <- upper bound on binary
-#  y[2] <= 1.0                              <- upper bound on binary
-#  y[1] binary                              <- indicator variable (1st disjunct) is binary
-#  y[2] binary                              <- indicator variable (2nd disjunct) is binary
+#  x >= -10.0
+#  x <= 10.0
+
+##
+DisjunctiveProgramming._reformulate(m, BigM())
+print(m)
+# Feasibility
+# Subject to
+#  x - 10 Y[1] >= -10.0
+#  x - 15 Y[2] >= -10.0
+#  x + 7 Y[1] <= 10.0
+#  x + Y[2] <= 10.0
+#  x >= -10.0
+#  Y[1] >= 0.0
+#  Y[2] >= 0.0
+#  x <= 10.0
+#  Y[1] <= 1.0
+#  Y[2] <= 1.0
+#  Y[1] binary
+#  Y[2] binary
+
+##
+DisjunctiveProgramming._reformulate(m, Hull())
+print(m)
+# Feasibility
+# Subject to
+#  x - x_Y[1] - x_Y[2] == 0.0
+#  x_Y[1] >= 0.0
+#  -5 Y[2] + x_Y[2] >= 0.0
+#  -10 Y[1] - x_Y[1] <= 0.0
+#  -10 Y[1] + x_Y[1] <= 0.0
+#  -10 Y[2] - x_Y[2] <= 0.0
+#  -10 Y[2] + x_Y[2] <= 0.0
+#  -3 Y[1] + x_Y[1] <= 0.0
+#  -9 Y[2] + x_Y[2] <= 0.0
+#  x >= -10.0
+#  Y[1] >= 0.0
+#  Y[2] >= 0.0
+#  x_Y[1] >= -10.0
+#  x_Y[2] >= -10.0
+#  x <= 10.0
+#  Y[1] <= 1.0
+#  Y[2] <= 1.0
+#  x_Y[1] <= 10.0
+#  x_Y[2] <= 10.0
+#  Y[1] binary
+#  Y[2] binary
