@@ -30,8 +30,6 @@ function _disaggregate_variables(model::JuMP.Model, disj::DisjunctiveConstraintD
         bvar = JuMP.@variable(model, 
             base_name = string(d.indicator), 
             binary = true, 
-            lower_bound = 0, 
-            upper_bound = 1
         )
         model[Symbol(d.indicator,"_Bin")] = bvar
     end

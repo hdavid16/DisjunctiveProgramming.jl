@@ -15,9 +15,7 @@ function _reformulate(model::JuMP.Model, method::BigM, disj::DisjunctiveConstrai
         #create binary variable for logic variable (indicator)
         bvar = JuMP.@variable(model, 
             base_name = string(d.indicator), 
-            binary = true, 
-            lower_bound = 0, 
-            upper_bound = 1
+            binary = true,
         )
         _reformulate(model, method, d, bvar)
     end
