@@ -29,14 +29,14 @@ mutable struct LogicalVariableData
 end
 
 """
-    LogicalIndex
+    LogicalVariableIndex
 
 A type for storing the index of a [`LogicalVariable`](@ref).
 
 **Fields**
 - `value::Int64`: The index value.
 """
-struct LogicalIndex
+struct LogicalVariableIndex
     value::Int64
 end
 
@@ -47,7 +47,7 @@ A type for looking up logical variables.
 """
 struct LogicalVariableRef <: JuMP.AbstractVariableRef
     model::JuMP.Model
-    index::LogicalIndex
+    index::LogicalVariableIndex
 end
 
 """
@@ -187,8 +187,8 @@ end
 
 ## Extend the CleverDicts key access methods
 # index_to_key
-function _MOIUC.index_to_key(::Type{LogicalIndex}, index::Int64)
-    return LogicalIndex(index)
+function _MOIUC.index_to_key(::Type{LogicalVariableIndex}, index::Int64)
+    return LogicalVariableIndex(index)
 end
 function _MOIUC.index_to_key(::Type{DisjunctionIndex}, index::Int64)
     return DisjunctionIndex(index)
@@ -198,7 +198,7 @@ function _MOIUC.index_to_key(::Type{PropositionIndex}, index::Int64)
 end
 
 # key_to_index
-function _MOIUC.key_to_index(key::LogicalIndex)
+function _MOIUC.key_to_index(key::LogicalVariableIndex)
     return key.value
 end
 function _MOIUC.key_to_index(key::DisjunctionIndex)
@@ -252,7 +252,7 @@ The core type for storing information in a [`GDPModel`](@ref).
 """
 mutable struct GDPData
     # Objects
-    logical_variables::_MOIUC.CleverDict{LogicalIndex, LogicalVariableData}
+    logical_variables::_MOIUC.CleverDict{LogicalVariableIndex, LogicalVariableData}
     disjunctions::_MOIUC.CleverDict{DisjunctionIndex, DisjunctiveConstraintData}
     propositions::_MOIUC.CleverDict{PropositionIndex, PropositionData}
     
@@ -263,7 +263,7 @@ mutable struct GDPData
 
     # Default constructor
     function GDPData()
-        new(_MOIUC.CleverDict{LogicalIndex, LogicalVariableData}(),
+        new(_MOIUC.CleverDict{LogicalVariableIndex, LogicalVariableData}(),
             _MOIUC.CleverDict{DisjunctionIndex, DisjunctiveConstraintData}(), 
             _MOIUC.CleverDict{PropositionIndex, PropositionData}(),
             nothing,
