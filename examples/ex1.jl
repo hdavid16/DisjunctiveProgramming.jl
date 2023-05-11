@@ -11,7 +11,7 @@ using DisjunctiveProgramming
 #           2nd disjunct: MOI.GreaterThan & MOI.LessThan linear constraints (2)
 
 m = GDPModel()
-@variable(m, -10 ≤ x ≤ 10)
+@variable(m, -5 ≤ x ≤ 10)
 @variable(m, Y[1:2], LogicalVariable)
 disjunct_1 = Disjunct(
     tuple(
@@ -33,7 +33,7 @@ disjunction = add_constraint(m,
 print(m)
 # Feasibility
 # Subject to
-#  x >= -10.0
+#  x >= -5.0
 #  x <= 10.0
 
 ##
@@ -41,11 +41,11 @@ DisjunctiveProgramming._reformulate(m, BigM())
 print(m)
 # Feasibility
 # Subject to
-#  x - 10 Y[1] >= -10.0
-#  x - 15 Y[2] >= -10.0
+#  x - 5 Y[1] >= -5.0
+#  x - 10 Y[2] >= -5.0
 #  x + 7 Y[1] <= 10.0
 #  x + Y[2] <= 10.0
-#  x >= -10.0
+#  x >= -5.0
 #  x <= 10.0
 #  Y[1] binary
 #  Y[2] binary
@@ -58,15 +58,15 @@ print(m)
 #  x - x_Y[1] - x_Y[2] == 0.0
 #  x_Y[1] >= 0.0
 #  -5 Y[2] + x_Y[2] >= 0.0
-#  -10 Y[1] - x_Y[1] <= 0.0
+#  -5 Y[1] - x_Y[1] <= 0.0
 #  -10 Y[1] + x_Y[1] <= 0.0
-#  -10 Y[2] - x_Y[2] <= 0.0
+#  -5 Y[2] - x_Y[2] <= 0.0
 #  -10 Y[2] + x_Y[2] <= 0.0
 #  -3 Y[1] + x_Y[1] <= 0.0
 #  -9 Y[2] + x_Y[2] <= 0.0
-#  x >= -10.0
-#  x_Y[1] >= -10.0
-#  x_Y[2] >= -10.0
+#  x >= -5.0
+#  x_Y[1] >= -5.0
+#  x_Y[2] >= -5.0
 #  x <= 10.0
 #  x_Y[1] <= 10.0
 #  x_Y[2] <= 10.0
