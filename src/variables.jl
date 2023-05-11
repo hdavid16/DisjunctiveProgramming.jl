@@ -70,6 +70,10 @@ function Base.:(==)(v::LogicalVariableRef, w::LogicalVariableRef)
 end
 JuMP.isequal_canonical(v::LogicalVariableRef, w::LogicalVariableRef) = v == w
 
+function Base.getindex(map::JuMP.ReferenceMap, vref::LogicalVariableRef)
+    return LogicalVariableRef(map.model, JuMP.index(vref))
+end
+
 """
 
 """
