@@ -38,13 +38,18 @@ function disjunctions(model::JuMP.Model)
 end
 
 function JuMP.copy_extension_data(data::GDPData, new_model::JuMP.AbstractModel, model::JuMP.AbstractModel)
-    new_model.ext[:GDP] = GDPData(
-        data.logical_variables, 
-        data.disjunctions, 
-        data.propositions, 
-        data.solution_method, 
-        data.ready_to_optimize
-    )
+    model_data = gdp_data(model)
+    #TODO need to copy disjunction constraints over to the new model
+    #   (maybe something similar to what is done in copy_to in MOI.jl/src/Utilities/copy.jl).
+    #   Otherwise, the constraints inside the disjuncts are not owned by the new model...
+    
+    # new_model.ext[:GDP] = GDPData(
+    #     data.logical_variables, 
+    #     data.disjunctions, 
+    #     data.propositions, 
+    #     data.solution_method, 
+    #     data.ready_to_optimize
+    # )
 end
 
 # Determine if the model is ready to call `optimize!` without a optimize hook
