@@ -354,8 +354,9 @@ add_disjunction!(m,
 \end{lstlisting}
     \item Add the selection logical constraints using the \verb|choose!| function. The first constraint enforces that only one reactor is selected (i.e., $Y_{R_1} \ \underline{\vee} \ Y_{R_2}$). The second constraint enforces that the separation system be defined only if the second reactor ($R_2$) is selected. This constraint is equivalent to the proposition $Y_{R_2} \Leftrightarrow Y_{S_1} \ \underline{\vee} \ Y_{S_2}$.
 \begin{lstlisting}[language = Julia]
-choose!(1, YR[1], YR[2]; mode = :exactly)
-choose!(YR[2], YS[1], YS[2]; mode = :exactly)
+YR, YS = m[:YR], m[:YS]
+choose!(m, 1, YR[1], YR[2]; mode = :exactly)
+choose!(m, YR[2], YS[1], YS[2]; mode = :exactly)
 \end{lstlisting}
     \item Add the objective function and optimize. 
 \begin{lstlisting}[language = Julia]
