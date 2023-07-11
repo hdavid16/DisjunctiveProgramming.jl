@@ -2,32 +2,47 @@
 
 """
 function _get_variables(disj::DisjunctiveConstraintData)
-    union([
-        _get_variables(d)
-        for d in disj.constraint.disjuncts
-    ]...)
+    vars = Set{JuMP.VariableRef}()
+    for d in disj.constraint.disjuncts
+        push!(vars, _get_variables(d)...)
+    end
+    return vars
+    # union([
+    #     _get_variables(d)
+    #     for d in disj.constraint.disjuncts
+    # ]...)
 end
 function _get_variables(d::Disjunct)
-    union([
-        _get_variables(con)
-        for con in d.constraints
-    ]...)
+    vars = Set{JuMP.VariableRef}()
+    for con in d.constraints
+        push!(vars, _get_variables(con)...)
+    end
+    return vars
+    # union([
+    #     _get_variables(con)
+    #     for con in d.constraints
+    # ]...)
 end
 function _get_variables(con::JuMP.AbstractArray{<:JuMP.AbstractConstraint})
-    union(_get_variables.(con)...)
+    vars = Set{JuMP.VariableRef}()
+    for c in con
+        push!(vars, _get_variables(c)...)
+    end
+    return vars
+    # union(_get_variables.(con)...)
 end
 function _get_variables(con::JuMP.ScalarConstraint)
     _get_variables(con.func)
 end
 function _get_variables(expr::JuMP.AffExpr)
-    collect(keys(expr.terms))
+    Set(keys(expr.terms))
 end
 function _get_variables(expr::JuMP.QuadExpr)
-    vars = collect(keys(expr.aff.terms))
+    vars = Set(keys(expr.aff.terms))
     for (pair, _) in expr.terms
         push!(vars, pair.a, pair.b)
     end
-    return union(vars)
+    return vars
 end
 
 """
