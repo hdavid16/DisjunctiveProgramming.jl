@@ -263,6 +263,7 @@ mutable struct GDPData
     # Map of disaggregated variables 
     disaggregated_variables::Dict{Symbol, JuMP.VariableRef}
     indicator_variables::Dict{Symbol, JuMP.VariableRef}
+    variable_bounds::Dict{JuMP.VariableRef, Tuple{Float64, Float64}}
 
     # TODO track meta-data of any constraints/variables we add to the model
 
@@ -274,7 +275,8 @@ mutable struct GDPData
             nothing,
             false,
             Dict{Symbol, JuMP.VariableRef}(),
-            Dict{Symbol, JuMP.VariableRef}()
+            Dict{Symbol, JuMP.VariableRef}(),
+            Dict{JuMP.VariableRef, Tuple{Float64, Float64}}()
             )
     end
     function GDPData(args...)

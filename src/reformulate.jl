@@ -10,13 +10,16 @@ end
 """
 
 """
-function _reformulate(model::JuMP.Model, method::BigM, disj::DisjunctiveConstraintData, args...)
+function _reformulate(model::JuMP.Model, method::BigM, disj::DisjunctiveConstraintData)
+    ind_var_dict = gdp_data(model).indicator_variables
     for d in disj.constraint.disjuncts
         #create binary variable for logic variable (indicator)
         bvar = JuMP.@variable(model, 
             base_name = string(d.indicator), 
             binary = true,
         )
+        ind_var_dict[Symbol(d.indicator, "_Bin")] = bvar
+        #reformualte disjunct
         _reformulate(model, method, d, bvar)
     end
 end
@@ -24,20 +27,46 @@ end
 """
 
 """
-function _reformulate(model::JuMP.Model, method::Hull, disj::DisjunctiveConstraintData, args...)
-    _disaggregate_variables(model, disj)
+function _reformulate(model::JuMP.Model, method::Hull, disj::DisjunctiveConstraintData)
+    ind_var_dict = gdp_data(model).indicator_variables
+    disag_var_dict = gdp_data(model).disaggregated_variables
+    var_bounds_dict = gdp_data(model).variable_bounds
+    disj_vars = _get_variables(disj)
+    sum_disag_vars = Dict(var => JuMP.AffExpr() for var in disj_vars) #initialize sum constraint for disaggregated variables
+    _update_variable_bounds!(var_bounds_dict, disj_vars) #update variable bounds dict
+    #reformulate each disjunct
     for d in disj.constraint.disjuncts
-        _reformulate(model, method, d, d.indicator)
+        #create binary variable for logic variable (indicator)
+        bvar = JuMP.@variable(model, 
+            base_name = string(d.indicator), 
+            binary = true,
+        )
+        ind_var_dict[Symbol(d.indicator,"_Bin")] = bvar
+        #create disaggregated variables for that disjunct
+        for var in disj_vars
+            JuMP.is_binary(var) && continue #skip binary variables
+            #create disaggregated var
+            disag_var = _disaggregate_variable(model, d, var, bvar)
+            #update aggregation constraint
+            JuMP.add_to_expression!(sum_disag_vars[var], 1, disag_var)
+            #reformulate disjunct
+            _reformulate(model, method, d, bvar)
+        end
+    end
+    #create sum constraint for disaggregated variables
+    for var in disj_vars
+        JuMP.is_binary(var) && continue #skip binary variables
+        JuMP.@constraint(model, var == sum_disag_vars[var])
     end
 end
 
 """
 
 """
-function _reformulate(model::JuMP.Model, method::AbstractReformulationMethod, d::Disjunct, args...)
+function _reformulate(model::JuMP.Model, method::AbstractReformulationMethod, d::Disjunct, bvar::JuMP.VariableRef)
     #reformulate each constraint and add to the model
     for con in d.constraints
-        _reformulate(model, method, con, args...)
+        _reformulate(model, method, con, bvar)
     end
 end
 
@@ -57,7 +86,7 @@ function _reformulate(
     model::JuMP.Model, 
     method::BigM,
     con::JuMP.ScalarConstraint{T, <: _MOI.LessThan}, 
-    bvar::JuMP.VariableRef,
+    bvar::JuMP.VariableRef
     ) where {T}
     #TODO: need to pass _error to build_constraint
     M = _calculate_tight_M(con)
@@ -75,7 +104,7 @@ function _reformulate(
     model::JuMP.Model, 
     method::BigM,
     con::JuMP.ScalarConstraint{T, <: _MOI.GreaterThan}, 
-    bvar::JuMP.VariableRef,
+    bvar::JuMP.VariableRef
     ) where {T}
     #TODO: need to pass _error to build_constraint
     M = _calculate_tight_M(con)
@@ -93,7 +122,7 @@ function _reformulate(
     model::JuMP.Model, 
     method::BigM,
     con::JuMP.ScalarConstraint{T, <: _MOI.Interval}, 
-    bvar::JuMP.VariableRef,
+    bvar::JuMP.VariableRef
     ) where {T}
     #TODO: need to pass _error to build_constraint
     M = _calculate_tight_M(con)
@@ -120,7 +149,7 @@ function _reformulate(
     model::JuMP.Model, 
     method::BigM,
     con::JuMP.ScalarConstraint{T, <: _MOI.EqualTo}, 
-    bvar::JuMP.VariableRef,
+    bvar::JuMP.VariableRef
     ) where {T}
     #TODO: need to pass _error to build_constraint
     M = _calculate_tight_M(con)
@@ -151,11 +180,10 @@ function _reformulate(
     model::JuMP.Model, 
     method::Hull,
     con::JuMP.ScalarConstraint{JuMP.AffExpr, <: _MOI.LessThan}, 
-    lvar::LogicalVariableRef
+    bvar::JuMP.VariableRef
     )
     #TODO: need to pass _error to build_constraint
-    con_func = _disaggregated_constraint(model, con, lvar)
-    bvar = gdp_data(model).indicator_variables[Symbol(lvar,"_Bin")]
+    con_func = _disaggregated_constraint(model, con, bvar)
     con_func.terms[bvar] = -con.set.upper
 
     JuMP.add_constraint(model,
@@ -169,11 +197,10 @@ function _reformulate(
     model::JuMP.Model, 
     method::Hull,
     con::JuMP.ScalarConstraint{JuMP.AffExpr, <: _MOI.GreaterThan}, 
-    lvar::LogicalVariableRef
+    bvar::JuMP.VariableRef
     )
     #TODO: need to pass _error to build_constraint
-    con_func = _disaggregated_constraint(model, con, lvar)
-    bvar = gdp_data(model).indicator_variables[Symbol(lvar,"_Bin")]
+    con_func = _disaggregated_constraint(model, con, bvar)
     con_func.terms[bvar] = -con.set.lower
     
     JuMP.add_constraint(model,
@@ -187,12 +214,11 @@ function _reformulate(
     model::JuMP.Model, 
     method::Hull,
     con::JuMP.ScalarConstraint{JuMP.AffExpr, <: _MOI.Interval}, 
-    lvar::LogicalVariableRef
+    bvar::JuMP.VariableRef
     )
     #TODO: need to pass _error to build_constraint
-    con_func_GreaterThan = _disaggregated_constraint(model, con, lvar)
+    con_func_GreaterThan = _disaggregated_constraint(model, con, bvar)
     con_func_LessThan = copy(con_func_GreaterThan)
-    bvar = gdp_data(model).indicator_variables[Symbol(lvar,"_Bin")]
     con_func_GreaterThan.terms[bvar] = -con.set.lower
     con_func_LessThan.terms[bvar] = -con.set.upper
     
@@ -213,11 +239,10 @@ function _reformulate(
     model::JuMP.Model, 
     method::Hull,
     con::JuMP.ScalarConstraint{JuMP.AffExpr, <: _MOI.EqualTo}, 
-    lvar::LogicalVariableRef
+    bvar::JuMP.VariableRef
     )
     #TODO: need to pass _error to build_constraint
-    con_func = _disaggregated_constraint(model, con, lvar)
-    bvar = gdp_data(model).indicator_variables[Symbol(lvar,"_Bin")]
+    con_func = _disaggregated_constraint(model, con, bvar)
     con_func.terms[bvar] = -con.set.value
 
     JuMP.add_constraint(model,
