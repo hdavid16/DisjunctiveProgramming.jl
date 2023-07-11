@@ -155,7 +155,7 @@ function _reformulate(
     )
     #TODO: need to pass _error to build_constraint
     con_func = _disaggregated_constraint(model, con, lvar)
-    bvar = model[Symbol(lvar,"_Bin")]
+    bvar = gdp_data(model).indicator_variables[Symbol(lvar,"_Bin")]
     con_func.terms[bvar] = -con.set.upper
 
     JuMP.add_constraint(model,
@@ -173,7 +173,7 @@ function _reformulate(
     )
     #TODO: need to pass _error to build_constraint
     con_func = _disaggregated_constraint(model, con, lvar)
-    bvar = model[Symbol(lvar,"_Bin")]
+    bvar = gdp_data(model).indicator_variables[Symbol(lvar,"_Bin")]
     con_func.terms[bvar] = -con.set.lower
     
     JuMP.add_constraint(model,
@@ -192,7 +192,7 @@ function _reformulate(
     #TODO: need to pass _error to build_constraint
     con_func_GreaterThan = _disaggregated_constraint(model, con, lvar)
     con_func_LessThan = copy(con_func_GreaterThan)
-    bvar = model[Symbol(lvar,"_Bin")]
+    bvar = gdp_data(model).indicator_variables[Symbol(lvar,"_Bin")]
     con_func_GreaterThan.terms[bvar] = -con.set.lower
     con_func_LessThan.terms[bvar] = -con.set.upper
     
@@ -217,7 +217,7 @@ function _reformulate(
     )
     #TODO: need to pass _error to build_constraint
     con_func = _disaggregated_constraint(model, con, lvar)
-    bvar = model[Symbol(lvar,"_Bin")]
+    bvar = gdp_data(model).indicator_variables[Symbol(lvar,"_Bin")]
     con_func.terms[bvar] = -con.set.value
 
     JuMP.add_constraint(model,
@@ -226,4 +226,13 @@ function _reformulate(
             _MOI.EqualTo(0)
         )
     )
+end
+# define fallbacks for other constraint types
+function _reformulate(
+    model::JuMP.Model, 
+    method::AbstractReformulationMethod, 
+    con::JuMP.AbstractConstraint, 
+    lvar::LogicalVariableRef
+)
+    error("$method reformulation for constraint $con is not supported yet.")
 end

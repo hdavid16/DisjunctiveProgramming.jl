@@ -14,10 +14,20 @@ function _get_variables(d::Disjunct)
     ]...)
 end
 function _get_variables(con::JuMP.AbstractArray{<:JuMP.AbstractConstraint})
-    union(_get_variables.(c)...)
+    union(_get_variables.(con)...)
 end
-function _get_variables(con::JuMP.ScalarConstraint{JuMP.AffExpr, T}) where {T}
-    collect(keys(con.func.terms))
+function _get_variables(con::JuMP.ScalarConstraint)
+    _get_variables(con.func)
+end
+function _get_variables(expr::JuMP.AffExpr)
+    collect(keys(expr.terms))
+end
+function _get_variables(expr::JuMP.QuadExpr)
+    vars = collect(keys(expr.aff.terms))
+    for (pair, _) in expr.terms
+        push!(vars, pair.a, pair.b)
+    end
+    return union(vars)
 end
 
 """
@@ -25,16 +35,21 @@ end
 """
 function _disaggregate_variables(model::JuMP.Model, disj::DisjunctiveConstraintData)
     disj_vars = _get_variables(disj)
+    disag_var_dict = gdp_data(model).disaggregated_variables
+    ind_var_dict = gdp_data(model).indicator_variables
     for d in disj.constraint.disjuncts
         #create binary variable for logic variable (indicator)
         bvar = JuMP.@variable(model, 
             base_name = string(d.indicator), 
             binary = true, 
         )
-        model[Symbol(d.indicator,"_Bin")] = bvar
+        ind_var_dict[Symbol(d.indicator,"_Bin")] = bvar
     end
     for var in disj_vars
         JuMP.is_binary(var) && continue #skip binary variables
+        if !JuMP.has_lower_bound(var) | !JuMP.has_upper_bound(var)
+            error("Variable $var must have a lower and upper bound defined when using the Hull reformulation.")
+        end
         sum_disag_vars = JuMP.AffExpr(0) #sum of disaggregated variables
         for d in disj.constraint.disjuncts
             #create disaggregated var
@@ -46,9 +61,9 @@ function _disaggregate_variables(model::JuMP.Model, disj::DisjunctiveConstraintD
                 lower_bound = lb,
                 upper_bound = ub,
             )
-            model[Symbol(disag_var_name)] = disag_var
+            disag_var_dict[Symbol(disag_var_name)] = disag_var
             #create bounding constraints
-            bvar = model[Symbol(d.indicator,"_Bin")]
+            bvar = ind_var_dict[Symbol(d.indicator,"_Bin")]
             JuMP.@constraint(model, lb*bvar - disag_var ≤ 0)
             JuMP.@constraint(model, disag_var - ub*bvar ≤ 0)
             #update aggregation constraint
@@ -62,11 +77,12 @@ end
 """
 
 """
-function _disaggregated_constraint(model::JuMP.Model, con::JuMP.ScalarConstraint, lvar::LogicalVariableRef)
+function _disaggregated_constraint(model::JuMP.Model, con::JuMP.ScalarConstraint{JuMP.AffExpr,T}, lvar::LogicalVariableRef) where {T}
     new_con_func = JuMP.AffExpr()
+    disag_var_dict = gdp_data(model).disaggregated_variables
     for (var, coeff) in con.func.terms
         JuMP.is_binary(var) && continue #skip binary variables
-        disag_var = model[Symbol(var,"_",lvar)]
+        disag_var = disag_var_dict[Symbol(var,"_",lvar)]
         new_con_func.terms[disag_var] = coeff
     end
 

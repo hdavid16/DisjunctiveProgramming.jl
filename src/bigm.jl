@@ -34,7 +34,7 @@ _calculate_tight_M(con::JuMP.ScalarConstraint) = Inf
 """
 
 """
-function _interval_arithmetic_LessThan(con::JuMP.ScalarConstraint, M::Float64)
+function _interval_arithmetic_LessThan(con::JuMP.ScalarConstraint{JuMP.AffExpr,T}, M::Float64) where {T}
     for (var,coeff) in con.func.terms
         JuMP.is_binary(var) && continue #skip binary variables
         if coeff > 0
@@ -52,7 +52,7 @@ end
 """
 
 """
-function _interval_arithmetic_GreaterThan(con::JuMP.ScalarConstraint, M::Float64)
+function _interval_arithmetic_GreaterThan(con::JuMP.ScalarConstraint{JuMP.AffExpr,T}, M::Float64) where {T}
     for (var,coeff) in con.func.terms
         JuMP.is_binary(var) && continue #skip binary variables
         if coeff < 0

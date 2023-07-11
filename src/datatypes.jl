@@ -228,12 +228,12 @@ abstract type AbstractReformulationMethod <: AbstractSolutionMethod end
 A type for using the big-M reformulation approach for disjunctive constraints.
 
 **Fields**
-- `value::Real`: Big-M value.
+- `value::Float64`: Big-M value.
 """
 struct BigM <: AbstractReformulationMethod
-    value::Real
-    function BigM()
-        new(1e9)
+    value::Float64
+    function BigM(v = 1e9)
+        new(v)
     end
 end # TODO add fields if needed
 
@@ -259,6 +259,11 @@ mutable struct GDPData
     # Solution data
     solution_method::Union{Nothing, AbstractSolutionMethod}
     ready_to_optimize::Bool
+
+    # Map of disaggregated variables 
+    disaggregated_variables::Dict{Symbol, JuMP.VariableRef}
+    indicator_variables::Dict{Symbol, JuMP.VariableRef}
+
     # TODO track meta-data of any constraints/variables we add to the model
 
     # Default constructor
@@ -267,7 +272,9 @@ mutable struct GDPData
             _MOIUC.CleverDict{DisjunctionIndex, DisjunctiveConstraintData}(), 
             _MOIUC.CleverDict{PropositionIndex, PropositionData}(),
             nothing,
-            false
+            false,
+            Dict{Symbol, JuMP.VariableRef}(),
+            Dict{Symbol, JuMP.VariableRef}()
             )
     end
     function GDPData(args...)
