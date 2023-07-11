@@ -29,7 +29,6 @@ end
 """
 function _reformulate(model::JuMP.Model, method::Hull, disj::DisjunctiveConstraintData)
     ind_var_dict = gdp_data(model).indicator_variables
-    disag_var_dict = gdp_data(model).disaggregated_variables
     var_bounds_dict = gdp_data(model).variable_bounds
     disj_vars = _get_variables(disj)
     sum_disag_vars = Dict(var => JuMP.AffExpr() for var in disj_vars) #initialize sum constraint for disaggregated variables
@@ -73,7 +72,7 @@ end
 """
 
 """
-function _reformulate(model::JuMP.Model, method::AbstractReformulationMethod, con::JuMP.AbstractArray{<:JuMP.AbstractConstraint}, args...)
+function _reformulate(model::JuMP.Model, method::AbstractReformulationMethod, con::JuMP.AbstractArray{T}, args...) where {T <: JuMP.AbstractConstraint}
     for c in con
         _reformulate(model, method, c, args...)
     end
@@ -85,9 +84,9 @@ end
 function _reformulate(
     model::JuMP.Model, 
     method::BigM,
-    con::JuMP.ScalarConstraint{T, <: _MOI.LessThan}, 
+    con::JuMP.ScalarConstraint{T, S}, 
     bvar::JuMP.VariableRef
-    ) where {T}
+    ) where {T, S <: _MOI.LessThan}
     #TODO: need to pass _error to build_constraint
     M = _calculate_tight_M(con)
     if isinf(M)
@@ -103,9 +102,9 @@ end
 function _reformulate(
     model::JuMP.Model, 
     method::BigM,
-    con::JuMP.ScalarConstraint{T, <: _MOI.GreaterThan}, 
+    con::JuMP.ScalarConstraint{T, S}, 
     bvar::JuMP.VariableRef
-    ) where {T}
+    ) where {T, S <: _MOI.GreaterThan}
     #TODO: need to pass _error to build_constraint
     M = _calculate_tight_M(con)
     if isinf(M)
@@ -121,9 +120,9 @@ end
 function _reformulate(
     model::JuMP.Model, 
     method::BigM,
-    con::JuMP.ScalarConstraint{T, <: _MOI.Interval}, 
+    con::JuMP.ScalarConstraint{T, S}, 
     bvar::JuMP.VariableRef
-    ) where {T}
+    ) where {T, S <: _MOI.Interval}
     #TODO: need to pass _error to build_constraint
     M = _calculate_tight_M(con)
     if isinf(first(M))
@@ -148,9 +147,9 @@ end
 function _reformulate(
     model::JuMP.Model, 
     method::BigM,
-    con::JuMP.ScalarConstraint{T, <: _MOI.EqualTo}, 
+    con::JuMP.ScalarConstraint{T, S}, 
     bvar::JuMP.VariableRef
-    ) where {T}
+    ) where {T, S <: _MOI.EqualTo}
     #TODO: need to pass _error to build_constraint
     M = _calculate_tight_M(con)
     if isinf(first(M))
@@ -179,9 +178,9 @@ end
 function _reformulate(
     model::JuMP.Model, 
     method::Hull,
-    con::JuMP.ScalarConstraint{JuMP.AffExpr, <: _MOI.LessThan}, 
+    con::JuMP.ScalarConstraint{JuMP.AffExpr, S}, 
     bvar::JuMP.VariableRef
-    )
+    ) where {S <: _MOI.LessThan}
     #TODO: need to pass _error to build_constraint
     con_func = _disaggregated_constraint(model, con, bvar)
     con_func.terms[bvar] = -con.set.upper
@@ -196,9 +195,9 @@ end
 function _reformulate(
     model::JuMP.Model, 
     method::Hull,
-    con::JuMP.ScalarConstraint{JuMP.AffExpr, <: _MOI.GreaterThan}, 
+    con::JuMP.ScalarConstraint{JuMP.AffExpr, S}, 
     bvar::JuMP.VariableRef
-    )
+    ) where {S <: _MOI.GreaterThan}
     #TODO: need to pass _error to build_constraint
     con_func = _disaggregated_constraint(model, con, bvar)
     con_func.terms[bvar] = -con.set.lower
@@ -213,9 +212,9 @@ end
 function _reformulate(
     model::JuMP.Model, 
     method::Hull,
-    con::JuMP.ScalarConstraint{JuMP.AffExpr, <: _MOI.Interval}, 
+    con::JuMP.ScalarConstraint{JuMP.AffExpr, S}, 
     bvar::JuMP.VariableRef
-    )
+    ) where {S <: _MOI.Interval}
     #TODO: need to pass _error to build_constraint
     con_func_GreaterThan = _disaggregated_constraint(model, con, bvar)
     con_func_LessThan = copy(con_func_GreaterThan)
@@ -238,9 +237,9 @@ end
 function _reformulate(
     model::JuMP.Model, 
     method::Hull,
-    con::JuMP.ScalarConstraint{JuMP.AffExpr, <: _MOI.EqualTo}, 
+    con::JuMP.ScalarConstraint{JuMP.AffExpr, S}, 
     bvar::JuMP.VariableRef
-    )
+    ) where {S <: _MOI.EqualTo}
     #TODO: need to pass _error to build_constraint
     con_func = _disaggregated_constraint(model, con, bvar)
     con_func.terms[bvar] = -con.set.value

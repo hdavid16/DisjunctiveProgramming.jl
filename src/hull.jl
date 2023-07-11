@@ -15,7 +15,7 @@ function _get_variables(d::Disjunct)
     end
     return vars
 end
-function _get_variables(con::JuMP.AbstractArray{<:JuMP.AbstractConstraint})
+function _get_variables(con::JuMP.AbstractArray{T}) where {T <: JuMP.AbstractConstraint}
     vars = Set{JuMP.VariableRef}()
     for c in con
         union!(vars, _get_variables(c))
@@ -77,7 +77,7 @@ end
 """
 
 """
-function _disaggregated_constraint(model::JuMP.Model, con::JuMP.ScalarConstraint{JuMP.AffExpr,T}, bvar::JuMP.VariableRef) where {T}
+function _disaggregated_constraint(model::JuMP.Model, con::JuMP.ScalarConstraint{JuMP.AffExpr, T}, bvar::JuMP.VariableRef) where {T}
     new_con_func = JuMP.AffExpr()
     disag_var_dict = gdp_data(model).disaggregated_variables
     for (var, coeff) in con.func.terms
