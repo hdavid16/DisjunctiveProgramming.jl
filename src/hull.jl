@@ -4,32 +4,23 @@
 function _get_variables(disj::DisjunctiveConstraintData)
     vars = Set{JuMP.VariableRef}()
     for d in disj.constraint.disjuncts
-        push!(vars, _get_variables(d)...)
+        union!(vars, _get_variables(d))
     end
     return vars
-    # union([
-    #     _get_variables(d)
-    #     for d in disj.constraint.disjuncts
-    # ]...)
 end
 function _get_variables(d::Disjunct)
     vars = Set{JuMP.VariableRef}()
     for con in d.constraints
-        push!(vars, _get_variables(con)...)
+        union!(vars, _get_variables(con))
     end
     return vars
-    # union([
-    #     _get_variables(con)
-    #     for con in d.constraints
-    # ]...)
 end
 function _get_variables(con::JuMP.AbstractArray{<:JuMP.AbstractConstraint})
     vars = Set{JuMP.VariableRef}()
     for c in con
-        push!(vars, _get_variables(c)...)
+        union!(vars, _get_variables(c))
     end
     return vars
-    # union(_get_variables.(con)...)
 end
 function _get_variables(con::JuMP.ScalarConstraint)
     _get_variables(con.func)
