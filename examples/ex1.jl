@@ -72,3 +72,16 @@ print(m)
 #  x_Y[2] <= 10.0
 #  Y[1] binary
 #  Y[2] binary
+
+##
+DisjunctiveProgramming._reformulate(m, Indicator())
+print(m)
+# Feasibility
+# Subject to
+#  Y[2] => {x ≤ 9}
+#  x ≥ -5
+#  x ≤ 10
+#  Y[1] binary
+#  Y[2] binary
+#  Y[1] => {x ∈ [0, 3]}
+#  Y[2] => {x ≥ 5}

@@ -10,7 +10,7 @@ end
 """
 
 """
-function _reformulate(model::JuMP.Model, method::BigM, disj::DisjunctiveConstraintData)
+function _reformulate(model::JuMP.Model, method::Union{BigM,Indicator}, disj::DisjunctiveConstraintData)
     ind_var_dict = gdp_data(model).indicator_variables
     for d in disj.constraint.disjuncts
         #create binary variable for logic variable (indicator)
@@ -86,7 +86,7 @@ function _reformulate(
     method::BigM,
     con::JuMP.ScalarConstraint{T, S}, 
     bvar::JuMP.VariableRef
-    ) where {T, S <: _MOI.LessThan}
+) where {T, S <: _MOI.LessThan}
     #TODO: need to pass _error to build_constraint
     M = _calculate_tight_M(con)
     if isinf(M)
@@ -104,7 +104,7 @@ function _reformulate(
     method::BigM,
     con::JuMP.ScalarConstraint{T, S}, 
     bvar::JuMP.VariableRef
-    ) where {T, S <: _MOI.GreaterThan}
+) where {T, S <: _MOI.GreaterThan}
     #TODO: need to pass _error to build_constraint
     M = _calculate_tight_M(con)
     if isinf(M)
@@ -122,7 +122,7 @@ function _reformulate(
     method::BigM,
     con::JuMP.ScalarConstraint{T, S}, 
     bvar::JuMP.VariableRef
-    ) where {T, S <: _MOI.Interval}
+) where {T, S <: _MOI.Interval}
     #TODO: need to pass _error to build_constraint
     M = _calculate_tight_M(con)
     if isinf(first(M))
@@ -149,7 +149,7 @@ function _reformulate(
     method::BigM,
     con::JuMP.ScalarConstraint{T, S}, 
     bvar::JuMP.VariableRef
-    ) where {T, S <: _MOI.EqualTo}
+) where {T, S <: _MOI.EqualTo}
     #TODO: need to pass _error to build_constraint
     M = _calculate_tight_M(con)
     if isinf(first(M))
@@ -177,10 +177,10 @@ end
 """
 function _reformulate(
     model::JuMP.Model, 
-    method::Hull,
+    ::Hull,
     con::JuMP.ScalarConstraint{JuMP.AffExpr, S}, 
     bvar::JuMP.VariableRef
-    ) where {S <: _MOI.LessThan}
+) where {S <: _MOI.LessThan}
     #TODO: need to pass _error to build_constraint
     con_func = _disaggregated_constraint(model, con, bvar)
     con_func.terms[bvar] = -con.set.upper
@@ -194,10 +194,10 @@ function _reformulate(
 end
 function _reformulate(
     model::JuMP.Model, 
-    method::Hull,
+    ::Hull,
     con::JuMP.ScalarConstraint{JuMP.AffExpr, S}, 
     bvar::JuMP.VariableRef
-    ) where {S <: _MOI.GreaterThan}
+) where {S <: _MOI.GreaterThan}
     #TODO: need to pass _error to build_constraint
     con_func = _disaggregated_constraint(model, con, bvar)
     con_func.terms[bvar] = -con.set.lower
@@ -211,10 +211,10 @@ function _reformulate(
 end
 function _reformulate(
     model::JuMP.Model, 
-    method::Hull,
+    ::Hull,
     con::JuMP.ScalarConstraint{JuMP.AffExpr, S}, 
     bvar::JuMP.VariableRef
-    ) where {S <: _MOI.Interval}
+) where {S <: _MOI.Interval}
     #TODO: need to pass _error to build_constraint
     con_func_GreaterThan = _disaggregated_constraint(model, con, bvar)
     con_func_LessThan = copy(con_func_GreaterThan)
@@ -236,7 +236,7 @@ function _reformulate(
 end
 function _reformulate(
     model::JuMP.Model, 
-    method::Hull,
+    ::Hull,
     con::JuMP.ScalarConstraint{JuMP.AffExpr, S}, 
     bvar::JuMP.VariableRef
     ) where {S <: _MOI.EqualTo}
@@ -251,12 +251,30 @@ function _reformulate(
         )
     )
 end
+
+"""
+
+"""
+function _reformulate(
+    model::JuMP.Model,
+    ::Indicator,
+    con::JuMP.ScalarConstraint{JuMP.AffExpr, S},
+    bvar::JuMP.VariableRef
+) where {S}
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error,
+            [bvar, con.func],
+            _MOI.Indicator{_MOI.ACTIVATE_ON_ONE}(con.set)
+        )
+    )
+end
+
 # define fallbacks for other constraint types
 function _reformulate(
-    model::JuMP.Model, 
+    ::JuMP.Model, 
     method::AbstractReformulationMethod, 
     con::JuMP.AbstractConstraint, 
-    lvar::LogicalVariableRef
+    ::JuMP.VariableRef
 )
     error("$method reformulation for constraint $con is not supported yet.")
 end

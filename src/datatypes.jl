@@ -242,8 +242,23 @@ end # TODO add fields if needed
 
 A type for using the convex hull reformulation approach for disjunctive 
 constraints.
+
+**Fields**
+- `ϵ::Float64`: epsilon value for nonlinear hull reformulations.
 """
-struct Hull <: AbstractReformulationMethod end # TODO add fields if needed
+struct Hull <: AbstractReformulationMethod # TODO add fields if needed
+    ϵ::Float64
+    function Hull(ϵ = 1e-6)
+        new(ϵ)
+    end
+end
+
+"""
+    Indicator <: AbstractReformulationMethod
+
+A type for using indicator constraint approach for linear disjunctive constraints.
+"""
+struct Indicator <: AbstractReformulationMethod end
 
 """
     GDPData
