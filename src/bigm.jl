@@ -21,7 +21,10 @@ function _calculate_tight_M(con::JuMP.ScalarConstraint{JuMP.AffExpr, S}) where {
         _interval_arithmetic_LessThan(con, -con.set.value)
     ]
 end
-_calculate_tight_M(con::JuMP.ScalarConstraint) = Inf
+# fallbacks for other scalar constraints
+# TODO: Implement interval arithmetic for quadratic constraints
+_calculate_tight_M(con::JuMP.ScalarConstraint{JuMP.QuadExpr, S}) where {S <: Union{_MOI.Interval, _MOI.EqualTo}} = [Inf, Inf]
+_calculate_tight_M(con::JuMP.ScalarConstraint{JuMP.QuadExpr, S}) where {S <: Union{_MOI.LessThan, _MOI.GreaterThan}} = Inf
 
 """
 
