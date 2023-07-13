@@ -229,11 +229,13 @@ A type for using the big-M reformulation approach for disjunctive constraints.
 
 **Fields**
 - `value::Float64`: Big-M value.
+- `tight::Bool`: Attempt to tighten the Big-M value (default = `true`)?
 """
 struct BigM <: AbstractReformulationMethod
     value::Float64
-    function BigM(v = 1e9)
-        new(v)
+    tighten::Bool
+    function BigM(val = 1e9, tight = true)
+        new(val, tight)
     end
 end # TODO add fields if needed
 

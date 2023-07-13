@@ -11,6 +11,7 @@ const _LCRST = LeftChildRightSiblingTrees
 
 # Load in the source files
 include("datatypes.jl")
+include("copy.jl")
 include("model.jl")
 include("variables.jl")
 include("constraints.jl")

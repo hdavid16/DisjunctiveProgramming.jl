@@ -88,7 +88,7 @@ function _reformulate(
     bvar::JuMP.VariableRef
 ) where {T, S <: _MOI.LessThan}
     #TODO: need to pass _error to build_constraint
-    M = _calculate_tight_M(con)
+    M = method.tighten ? _calculate_tight_M(con) : method.value
     if isinf(M)
         M = method.value
     end
@@ -106,7 +106,7 @@ function _reformulate(
     bvar::JuMP.VariableRef
 ) where {T, S <: _MOI.GreaterThan}
     #TODO: need to pass _error to build_constraint
-    M = _calculate_tight_M(con)
+    M = method.tighten ? _calculate_tight_M(con) : method.value
     if isinf(M)
         M = method.value
     end
@@ -124,7 +124,7 @@ function _reformulate(
     bvar::JuMP.VariableRef
 ) where {T, S <: _MOI.Interval}
     #TODO: need to pass _error to build_constraint
-    M = _calculate_tight_M(con)
+    M = method.tighten ? _calculate_tight_M(con) : (method.value, method.value)
     if isinf(first(M))
         M[1] = method.value
     end
@@ -151,7 +151,7 @@ function _reformulate(
     bvar::JuMP.VariableRef
 ) where {T, S <: _MOI.EqualTo}
     #TODO: need to pass _error to build_constraint
-    M = _calculate_tight_M(con)
+    M = method.tighten ? _calculate_tight_M(con) : (method.value, method.value)
     if isinf(first(M))
         M[1] = method.value
     end
