@@ -23,8 +23,8 @@ function _calculate_tight_M(con::JuMP.ScalarConstraint{JuMP.AffExpr, S}) where {
 end
 # fallbacks for other scalar constraints
 # TODO: Implement interval arithmetic for quadratic constraints
-_calculate_tight_M(con::JuMP.ScalarConstraint{JuMP.QuadExpr, S}) where {S <: Union{_MOI.Interval, _MOI.EqualTo}} = [Inf, Inf]
-_calculate_tight_M(con::JuMP.ScalarConstraint{JuMP.QuadExpr, S}) where {S <: Union{_MOI.LessThan, _MOI.GreaterThan}} = Inf
+_calculate_tight_M(con::JuMP.ScalarConstraint{T, S}) where {T, S <: Union{_MOI.Interval, _MOI.EqualTo}} = [Inf, Inf]
+_calculate_tight_M(con::JuMP.ScalarConstraint{T, S}) where {T, S <: Union{_MOI.LessThan, _MOI.GreaterThan}} = Inf
 
 """
 

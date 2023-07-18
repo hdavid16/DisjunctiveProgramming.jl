@@ -1,8 +1,52 @@
 using JuMP
 using DisjunctiveProgramming
 
-m = Model()
-@variable(m, -5 ≤ x ≤ 10)
+m = GDPModel()
+@variables(m, begin
+    -5 ≤ x ≤ 10 
+end)
+@variable(m, Y[1:2], LogicalVariable)
+disjunct_1 = Disjunct(
+    tuple(
+        build_constraint(error, exp(x), MOI.LessThan(2)),
+        build_constraint(error, 1*x, MOI.GreaterThan(-3))
+    ),
+    Y[1]
+)
+disjunct_2 = Disjunct(
+    tuple(
+        build_constraint(error, exp(x), MOI.GreaterThan(3)),
+        build_constraint(error, 1*x, MOI.GreaterThan(5))
+    ),
+    Y[2]
+)
+disjunction = add_constraint(m, 
+    build_constraint(error, [disjunct_1, disjunct_2]),
+    "Disjunction"
+)
+print(m)
+# Feasibility
+# Subject to
+#  x ≥ -5
+#  x ≤ 10
+
+##
+m_bigm = copy(m)
+DisjunctiveProgramming._reformulate(m_bigm, BigM())
+print(m_bigm)
+# Feasibility
+# Subject to
+#  x - 2 Y[1] ≥ -5
+#  x - 10 Y[2] ≥ -5
+#  x ≥ -5
+#  x ≤ 10
+#  Y[1] binary
+#  Y[2] binary
+#  (exp(x) - -1000000000 Y[1] + 1000000000) ≤ 2
+#  (exp(x) + -1000000000 Y[2] + 1000000000) ≥ 3
+
+##
+
 @disjunction(
     m,
     begin

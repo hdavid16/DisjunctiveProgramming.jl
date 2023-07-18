@@ -9,7 +9,7 @@ function _copy_disjunctions(disjunctions::_MOIUC.CleverDict{DisjunctionIndex, Di
             new_disj_con = JuMP.AbstractConstraint[]
             for con in disj.constraints
                 new_con = JuMP.build_constraint(error,
-                    _copy_constraint(con, new_model),
+                    _copy_expression(con.func, new_model),
                     con.set 
                 )
                 push!(new_disj_con, new_con)
@@ -30,31 +30,53 @@ end
 """
 
 """
-function _copy_constraint(con::JuMP.ScalarConstraint{JuMP.AffExpr, T}, new_model::JuMP.Model) where {T}
-    new_con_func = JuMP.AffExpr()
-    for (var, coeff) in con.func.terms
-        new_var = JuMP.VariableRef(new_model, JuMP.index(var))
-        new_con_func.terms[new_var] = coeff
+# Constant
+function _copy_expression(c::Number, new_model::JuMP.Model)
+    return c
+end
+
+function _copy_expression(var::JuMP.VariableRef, new_model::JuMP.Model)
+    return JuMP.VariableRef(new_model, JuMP.index(var))
+end
+
+function _copy_expression(aff::JuMP.AffExpr, new_model::JuMP.Model)
+    new_expr = JuMP.AffExpr()
+    for (var, coeff) in aff.terms
+        new_var = _copy_expression(var, new_model)
+        new_expr.terms[new_var] = coeff
     end
 
-    return new_con_func
+    return new_expr
 end
 
 """
 
 """
-function _copy_constraint(con::JuMP.ScalarConstraint{JuMP.QuadExpr, T}, new_model::JuMP.Model) where {T}
-    new_con_func = JuMP.QuadExpr()
-    for (var, coeff) in con.func.aff.terms
-        new_var = JuMP.VariableRef(new_model, JuMP.index(var))
-        new_con_func.aff.terms[new_var] = coeff
+function _copy_expression(quad::JuMP.QuadExpr, new_model::JuMP.Model)
+    new_expr = JuMP.QuadExpr()
+    for (var, coeff) in quad.aff.terms
+        new_var = _copy_expression(var, new_model)
+        new_expr.aff.terms[new_var] = coeff
     end
-    for (pair, coeff) in con.func.terms
+    for (pair, coeff) in quad.terms
         vara = JuMP.VariableRef(new_model, JuMP.index(pair.a))
         varb = JuMP.VariableRef(new_model, JuMP.index(pair.b))
-        new_term = JuMP.UnorderedPair{VariableRef}(vara, varb)
-        new_con_func.terms[new_term] = coeff
+        new_term = JuMP.UnorderedPair{JuMP.VariableRef}(vara, varb)
+        new_expr.terms[new_term] = coeff
     end
 
-    return new_con_func
+    return new_expr
+end
+
+"""
+
+"""
+function _copy_expression(nlp::JuMP.NonlinearExpr, new_model::JuMP.Model)
+    new_args = Vector{Any}()
+    for arg in nlp.args
+        new_arg = _copy_expression(arg, new_model)
+        push!(new_args, new_arg)
+    end
+
+    return JuMP.NonlinearExpr(nlp.head, new_args)
 end

@@ -30,7 +30,7 @@ end
 function _reformulate(model::JuMP.Model, method::Hull, disj::DisjunctiveConstraintData)
     ind_var_dict = gdp_data(model).indicator_variables
     var_bounds_dict = gdp_data(model).variable_bounds
-    disj_vars = _get_variables(disj)
+    disj_vars = _get_disjunction_variables(disj)
     sum_disag_vars = Dict(var => JuMP.AffExpr() for var in disj_vars) #initialize sum constraint for disaggregated variables
     _update_variable_bounds!(var_bounds_dict, disj_vars) #update variable bounds dict
     #reformulate each disjunct
@@ -48,9 +48,9 @@ function _reformulate(model::JuMP.Model, method::Hull, disj::DisjunctiveConstrai
             disag_var = _disaggregate_variable(model, d, var, bvar)
             #update aggregation constraint
             JuMP.add_to_expression!(sum_disag_vars[var], 1, disag_var)
-            #reformulate disjunct
-            _reformulate(model, method, d, bvar)
         end
+        #reformulate disjunct
+        _reformulate(model, method, d, bvar)
     end
     #create sum constraint for disaggregated variables
     for var in disj_vars

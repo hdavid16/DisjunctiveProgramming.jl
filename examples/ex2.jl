@@ -32,8 +32,9 @@ print(m)
 #  x[2] <= 10.0
 
 ##
-DisjunctiveProgramming._reformulate(m, BigM())
-print(m)
+m_bigm = copy(m)
+DisjunctiveProgramming._reformulate(m_bigm, BigM())
+print(m_bigm)
 # Feasibility
 # Subject to
 #  x[1] - 5 Y[1] >= -5.0
@@ -52,8 +53,9 @@ print(m)
 #  Y[2] binary
 
 ##
-DisjunctiveProgramming._reformulate(m, Hull())
-print(m)
+m_hull = copy(m)
+DisjunctiveProgramming._reformulate(m_hull, Hull())
+print(m_hull)
 # Feasibility
 # Subject to
 #  x[1] - x[1]_Y[1] - x[1]_Y[2] == 0.0
