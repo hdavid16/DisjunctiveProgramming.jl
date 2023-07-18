@@ -93,10 +93,7 @@ function _reformulate(
         M = method.value
     end
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, 
-            con.func - M*(1-bvar), 
-            con.set
-        ),
+        JuMP.build_constraint(error, con.func - M*(1-bvar), con.set)
     )
 end
 function _reformulate(
@@ -111,10 +108,7 @@ function _reformulate(
         M = method.value
     end
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, 
-            con.func + M*(1-bvar), 
-            con.set
-        ),
+        JuMP.build_constraint(error, con.func + M*(1-bvar), con.set)
     )
 end
 function _reformulate(
@@ -132,16 +126,10 @@ function _reformulate(
         M[2] = method.value
     end
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, 
-            con.func + first(M)*(1-bvar), 
-            _MOI.GreaterThan(con.set.lower)
-        ),
+        JuMP.build_constraint(error, con.func + first(M)*(1-bvar), _MOI.GreaterThan(con.set.lower))
     )
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, 
-            con.func - last(M)*(1-bvar), 
-            _MOI.LessThan(con.set.upper)
-        ),
+        JuMP.build_constraint(error, con.func - last(M)*(1-bvar), _MOI.LessThan(con.set.upper))
     )
 end
 function _reformulate(
@@ -159,16 +147,10 @@ function _reformulate(
         M[2] = method.value
     end
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, 
-            con.func + first(M)*(1-bvar), 
-            _MOI.GreaterThan(con.set.value)
-        ),
+        JuMP.build_constraint(error, con.func + first(M)*(1-bvar), _MOI.GreaterThan(con.set.value))
     )
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, 
-            con.func - last(M)*(1-bvar), 
-            _MOI.LessThan(con.set.value)
-        ),
+        JuMP.build_constraint(error, con.func - last(M)*(1-bvar), _MOI.LessThan(con.set.value))
     )
 end
 
@@ -177,78 +159,91 @@ end
 """
 function _reformulate(
     model::JuMP.Model, 
-    ::Hull,
-    con::JuMP.ScalarConstraint{JuMP.AffExpr, S}, 
+    method::Hull,
+    con::JuMP.ScalarConstraint{T, S}, 
     bvar::JuMP.VariableRef
-) where {S <: _MOI.LessThan}
+) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: _MOI.LessThan}
     #TODO: need to pass _error to build_constraint
-    con_func = _disaggregated_constraint(model, con, bvar)
-    con_func.terms[bvar] = -con.set.upper
+    con_func = _disaggregate_expression(model, con.func, bvar, method)
+    con_func -= con.set.upper * bvar
 
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error,
-            con_func,
-            _MOI.LessThan(0)
-        )
+        JuMP.build_constraint(error, con_func, _MOI.LessThan(0))
     )
 end
 function _reformulate(
     model::JuMP.Model, 
-    ::Hull,
-    con::JuMP.ScalarConstraint{JuMP.AffExpr, S}, 
+    method::Hull,
+    con::JuMP.ScalarConstraint{T, S}, 
     bvar::JuMP.VariableRef
-) where {S <: _MOI.GreaterThan}
+) where {T <: JuMP.NonlinearExpr, S <: _MOI.LessThan}
     #TODO: need to pass _error to build_constraint
-    con_func = _disaggregated_constraint(model, con, bvar)
-    con_func.terms[bvar] = -con.set.lower
+    con_func, con_func0 = _disaggregate_nl_expression(model, con.func - con.set.upper, bvar, method)
+    ϵ = method.value
+    con_func = ((1-ϵ)*bvar+ϵ) * con_func - ϵ*(1-bvar)*con_func0
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error, con_func, _MOI.LessThan(0))
+    )
+end
+function _reformulate(
+    model::JuMP.Model, 
+    method::Hull,
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvar::JuMP.VariableRef
+) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: _MOI.GreaterThan}
+    #TODO: need to pass _error to build_constraint
+    con_func = _disaggregate_expression(model, con.func, bvar, method)
+    con_func -= con.set.lower * bvar
     
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error,
-            con_func,
-            _MOI.GreaterThan(0)
-        )
+        JuMP.build_constraint(error, con_func, _MOI.GreaterThan(0))
     )
 end
 function _reformulate(
     model::JuMP.Model, 
-    ::Hull,
-    con::JuMP.ScalarConstraint{JuMP.AffExpr, S}, 
+    method::Hull,
+    con::JuMP.ScalarConstraint{T, S}, 
     bvar::JuMP.VariableRef
-) where {S <: _MOI.Interval}
+) where {T <: JuMP.NonlinearExpr, S <: _MOI.GreaterThan}
     #TODO: need to pass _error to build_constraint
-    con_func_GreaterThan = _disaggregated_constraint(model, con, bvar)
+    con_func, con_func0 = _disaggregate_nl_expression(model, con.func - con.set.lower, bvar, method)
+    ϵ = method.value
+    con_func = ((1-ϵ)*bvar+ϵ) * con_func - ϵ*(1-bvar)*con_func0
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error, con_func, _MOI.GreaterThan(0))
+    )
+end
+function _reformulate(
+    model::JuMP.Model, 
+    method::Hull,
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvar::JuMP.VariableRef
+) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: _MOI.Interval}
+    #TODO: need to pass _error to build_constraint
+    con_func_GreaterThan = _disaggregate_expression(model, con.func, bvar, method)
     con_func_LessThan = copy(con_func_GreaterThan)
-    con_func_GreaterThan.terms[bvar] = -con.set.lower
-    con_func_LessThan.terms[bvar] = -con.set.upper
+    con_func_GreaterThan -= con.set.lower * bvar
+    con_func_LessThan -= con.set.upper * bvar
     
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error,
-            con_func_GreaterThan,
-            _MOI.GreaterThan(0)
-        )
+        JuMP.build_constraint(error, con_func_GreaterThan, _MOI.GreaterThan(0))
     )
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error,
-            con_func_LessThan,
-            _MOI.LessThan(0)
-        )
+        JuMP.build_constraint(error, con_func_LessThan, _MOI.LessThan(0))
     )
 end
 function _reformulate(
     model::JuMP.Model, 
-    ::Hull,
-    con::JuMP.ScalarConstraint{JuMP.AffExpr, S}, 
+    method::Hull,
+    con::JuMP.ScalarConstraint{T, S}, 
     bvar::JuMP.VariableRef
-    ) where {S <: _MOI.EqualTo}
+    ) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: _MOI.EqualTo}
     #TODO: need to pass _error to build_constraint
-    con_func = _disaggregated_constraint(model, con, bvar)
-    con_func.terms[bvar] = -con.set.value
+    con_func = _disaggregate_expression(model, con.func, bvar, method)
+    con_func -= con.set.value * bvar
 
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error,
-            con_func,
-            _MOI.EqualTo(0)
-        )
+        JuMP.build_constraint(error, con_func, _MOI.EqualTo(0))
     )
 end
 
@@ -262,10 +257,7 @@ function _reformulate(
     bvar::JuMP.VariableRef
 ) where {S}
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error,
-            [bvar, con.func],
-            _MOI.Indicator{_MOI.ACTIVATE_ON_ONE}(con.set)
-        )
+        JuMP.build_constraint(error, [bvar, con.func], _MOI.Indicator{_MOI.ACTIVATE_ON_ONE}(con.set))
     )
 end
 

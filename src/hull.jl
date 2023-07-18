@@ -162,14 +162,83 @@ end
 """
 
 """
-function _disaggregated_constraint(model::JuMP.Model, con::JuMP.ScalarConstraint{JuMP.AffExpr, T}, bvar::JuMP.VariableRef) where {T}
-    new_con_func = JuMP.AffExpr()
+function _disaggregate_expression(model::JuMP.Model, aff::JuMP.AffExpr, bvar::JuMP.VariableRef, ::Hull)
     disag_var_dict = gdp_data(model).disaggregated_variables
-    for (var, coeff) in con.func.terms
+    new_expr = JuMP.AffExpr()
+    for (var, coeff) in aff.terms
         JuMP.is_binary(var) && continue #skip binary variables
         disag_var = disag_var_dict[Symbol(var,"_",bvar)]
-        new_con_func.terms[disag_var] = coeff
+        new_expr.terms[disag_var] = coeff
     end
 
-    return new_con_func
+    return new_expr
+end
+
+function _disaggregate_expression(model::JuMP.Model, quad::JuMP.QuadExpr, bvar::JuMP.VariableRef, method::Hull)
+    disag_var_dict = gdp_data(model).disaggregated_variables
+    #get affine part
+    new_expr = _disaggregate_expression(model, quad.aff, bvar, method)
+    #get nonlinear part
+    ϵ = method.value
+    for (pair, coeff) in quad.terms
+        disag_var_a = disag_var_dict[Symbol(pair.a,"_",bvar)]
+        disag_var_b = disag_var_dict[Symbol(pair.b,"_",bvar)]
+        new_expr += coeff * disag_var_a * disag_var_b / ((1-ϵ)*bvar+ϵ)
+    end
+
+    return new_expr
+end
+
+
+function _disaggregate_nl_expression(model::JuMP.Model, c::Number, ::JuMP.VariableRef, ::Hull)
+    return c, c
+end
+
+function _disaggregate_nl_expression(model::JuMP.Model, var::JuMP.VariableRef, bvar::JuMP.VariableRef, method::Hull)
+    ϵ = method.value
+    disag_var_dict = gdp_data(model).disaggregated_variables
+    new_var = disag_var_dict[Symbol(var,"_",bvar)] / ((1-ϵ)*bvar+ϵ)
+
+    return new_var, 0
+end
+
+function _disaggregate_nl_expression(model::JuMP.Model, aff::JuMP.AffExpr, bvar::JuMP.VariableRef, ::Hull)
+    disag_var_dict = gdp_data(model).disaggregated_variables
+    new_expr = JuMP.AffExpr()
+    for (var, coeff) in aff.terms
+        JuMP.is_binary(var) && continue #skip binary variables
+        disag_var = disag_var_dict[Symbol(var,"_",bvar)]
+        new_expr += coef * disag_var / ((1-ϵ)*bvar+ϵ)
+    end
+
+    return new_expr, 0
+end
+
+function _disaggregate_nl_expression(model::JuMP.Model, quad::JuMP.QuadExpr, bvar::JuMP.VariableRef, method::Hull)
+    disag_var_dict = gdp_data(model).disaggregated_variables
+    #get affine part
+    new_expr = _disaggregate_nl_expression(model, quad.aff, bvar, method)
+    #get nonlinear part
+    ϵ = method.value
+    for (pair, coeff) in quad.terms
+        disag_var_a = disag_var_dict[Symbol(pair.a,"_",bvar)]
+        disag_var_b = disag_var_dict[Symbol(pair.b,"_",bvar)]
+        new_expr += coeff * disag_var_a * disag_var_b / ((1-ϵ)*bvar+ϵ)^2
+    end
+
+    return new_expr, 0
+end
+
+function _disaggregate_nl_expression(model::JuMP.Model, nlp::JuMP.NonlinearExpr, bvar::JuMP.VariableRef, method::Hull)
+    new_args = Vector{Any}()
+    new_args0 = Vector{Any}()
+    for arg in nlp.args
+        new_arg, new_arg0 = _disaggregate_nl_expression(model, arg, bvar, method)
+        push!(new_args, new_arg)
+        push!(new_args0, new_arg0)
+    end
+    new_expr = JuMP.NonlinearExpr(nlp.head, new_args)
+    new_expr0 = eval(:($(nlp.head)($new_args0...)))
+
+    return new_expr, new_expr0
 end

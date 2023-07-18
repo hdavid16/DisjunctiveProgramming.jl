@@ -246,10 +246,10 @@ A type for using the convex hull reformulation approach for disjunctive
 constraints.
 
 **Fields**
-- `ϵ::Float64`: epsilon value for nonlinear hull reformulations.
+- `value::Float64`: epsilon value for nonlinear hull reformulations.
 """
 struct Hull <: AbstractReformulationMethod # TODO add fields if needed
-    ϵ::Float64
+    value::Float64
     function Hull(ϵ = 1e-6)
         new(ϵ)
     end
