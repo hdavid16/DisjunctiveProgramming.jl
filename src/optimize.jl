@@ -9,7 +9,9 @@ function _optimize_hook(
 
         # TODO do what is needed to solve the model (e.g., add reformulations)
         # TODO check all variables must have bounds if using Hull reformulation
-        _reformulate(model, method) #reformulate
+        _reformulate_logical_variables(model)
+        _reformulate_disjunctive_constraints(model, method) #reformulate
+        _reformulate_logical_constraints(model)
 
         _set_ready_to_optimize(model, true)
         _set_solution_method(model, method)

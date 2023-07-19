@@ -24,6 +24,7 @@ disjunction = add_constraint(m,
     build_constraint(error, [disjunct_1, disjunct_2]),
     "Disjunction"
 )
+DisjunctiveProgramming._reformulate_logical_variables(m)
 print(m)
 # Feasibility
 # Subject to
@@ -32,7 +33,7 @@ print(m)
 
 ##
 m_bigm = copy(m)
-DisjunctiveProgramming._reformulate(m_bigm, BigM())
+DisjunctiveProgramming._reformulate_disjunctive_constraints(m_bigm, BigM())
 print(m_bigm)
 # Feasibility
 # Subject to
@@ -47,23 +48,8 @@ print(m_bigm)
 
 ##
 m_hull = copy(m)
-DisjunctiveProgramming._reformulate(m_hull, Hull())
+DisjunctiveProgramming._reformulate_disjunctive_constraints(m_hull, Hull())
 print(m_hull)
-##
-@disjunction(
-    m,
-    begin
-        exp(x) ≤ 2
-        -3 ≤ x
-    end,
-    begin
-        3 ≤ exp(x)
-        5 ≤ x
-    end,
-    reformulation=:hull,
-    name=:z
-)
-print(m)
 
 # Feasibility
 # Subject to

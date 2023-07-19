@@ -120,69 +120,57 @@ struct DisjunctiveConstraintRef
 end
 
 """
-    NodeData
 
-A node data type for building [`Proposition`](@ref)s and it can contain 
-a logical operator symbol or a [`LogicalVariableRef`](@ref).
+"""
+const LogicalExpr = JuMP.NonlinearExpr{LogicalVariableRef}
+
+"""
+    LogicalConstraint <: JuMP.AbstractConstraint
+
+A type for a logical constraint that is comprised of an expression on LogicalVariables 
+    with logic operators.
 
 **Fields**
-- `value`: Contains one of the above types.
+- `expression::LogicalExpr`: The logical constraint.
 """
-struct NodeData
-    value
+struct LogicalConstraint <: JuMP.AbstractConstraint
+    expression::LogicalExpr
 end
 
 """
-    Proposition <: JuMP.AbstractJuMPScalar
+    LogicalConstraintData
 
-An expression tree type for storing proposition expressions.
-
-**Fields**
-- `tree_root::LeftChildRightSiblingTrees.Node{NodeData}`: The root node of the tree.
-"""
-struct Proposition <: JuMP.AbstractJuMPScalar
-    tree_root::_LCRST.Node{NodeData}
-
-    # Constructor
-    function Proposition(tree_root::_LCRST.Node{NodeData})
-        return new(tree_root)
-    end
-end
-
-"""
-    PropositionData
-
-A type for storing [`Proposition`](@ref)s and any meta-data they possess.
+A type for storing [`LogicalConstraint`](@ref)s and any meta-data they possess.
 
 **Fields**
-- `proposition::Proposition`: The proposition expression.
+- `constraint::LogicalConstraint`: The logical constraint.
 - `name::String`: The name of the proposition.
 """
-mutable struct PropositionData
-    proposition::Proposition
+mutable struct LogicalConstraintData
+    constraint::LogicalConstraint
     name::String
 end
 
 """
-    PropositionIndex
+    LogicalConstraintIndex
 
-A type for storing the index of a [`Proposition`](@ref).
+A type for storing the index of a [`LogicalConstraint`](@ref).
 
 **Fields**
 - `value::Int64`: The index value.
 """
-struct PropositionIndex
+struct LogicalConstraintIndex
     value::Int64
 end
 
 """
-    PropositionRef
+    LogicalConstraintRef
 
-A type for looking up propositions.
+A type for looking up logical constraints.
 """
-struct PropositionRef
+struct LogicalConstraintRef
     model::JuMP.Model
-    index::PropositionIndex
+    index::LogicalConstraintIndex
 end
 
 ## Extend the CleverDicts key access methods
@@ -193,8 +181,8 @@ end
 function _MOIUC.index_to_key(::Type{DisjunctionIndex}, index::Int64)
     return DisjunctionIndex(index)
 end
-function _MOIUC.index_to_key(::Type{PropositionIndex}, index::Int64)
-    return PropositionIndex(index)
+function _MOIUC.index_to_key(::Type{LogicalConstraintIndex}, index::Int64)
+    return LogicalConstraintIndex(index)
 end
 
 # key_to_index
@@ -204,7 +192,7 @@ end
 function _MOIUC.key_to_index(key::DisjunctionIndex)
     return key.value
 end
-function _MOIUC.key_to_index(key::PropositionIndex)
+function _MOIUC.key_to_index(key::LogicalConstraintIndex)
     return key.value
 end
 
@@ -270,8 +258,8 @@ The core type for storing information in a [`GDPModel`](@ref).
 mutable struct GDPData
     # Objects
     logical_variables::_MOIUC.CleverDict{LogicalVariableIndex, LogicalVariableData}
-    disjunctions::_MOIUC.CleverDict{DisjunctionIndex, DisjunctiveConstraintData}
-    propositions::_MOIUC.CleverDict{PropositionIndex, PropositionData}
+    logical_constraints::_MOIUC.CleverDict{LogicalConstraintIndex, LogicalConstraintData}
+    disjunctive_constraints::_MOIUC.CleverDict{DisjunctionIndex, DisjunctiveConstraintData}
     
     # Solution data
     solution_method::Union{Nothing, AbstractSolutionMethod}
@@ -279,7 +267,7 @@ mutable struct GDPData
 
     # Map of disaggregated variables 
     disaggregated_variables::Dict{Symbol, JuMP.VariableRef}
-    indicator_variables::Dict{Symbol, JuMP.VariableRef}
+    indicator_variables::Dict{LogicalVariableRef, JuMP.VariableRef}
     variable_bounds::Dict{JuMP.VariableRef, Tuple{Float64, Float64}}
 
     # TODO track meta-data of any constraints/variables we add to the model
@@ -287,12 +275,12 @@ mutable struct GDPData
     # Default constructor
     function GDPData()
         new(_MOIUC.CleverDict{LogicalVariableIndex, LogicalVariableData}(),
+            _MOIUC.CleverDict{LogicalConstraintIndex, LogicalConstraintData}(),
             _MOIUC.CleverDict{DisjunctionIndex, DisjunctiveConstraintData}(), 
-            _MOIUC.CleverDict{PropositionIndex, PropositionData}(),
             nothing,
             false,
             Dict{Symbol, JuMP.VariableRef}(),
-            Dict{Symbol, JuMP.VariableRef}(),
+            Dict{LogicalVariableRef, JuMP.VariableRef}(),
             Dict{JuMP.VariableRef, Tuple{Float64, Float64}}()
             )
     end

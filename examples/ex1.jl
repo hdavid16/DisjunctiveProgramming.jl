@@ -30,54 +30,68 @@ disjunction = add_constraint(m,
     build_constraint(error, [disjunct_1, disjunct_2]),
     "Disjunction"
 )
+logic_1 = LogicalConstraint(
+    LogicalExpr(:exactly, Any[1, Y[1], Y[2]])
+)
+selector = add_constraint(m,
+    logic_1,
+    "Exclussive Selector"
+)
+DisjunctiveProgramming._reformulate_logical_variables(m)
+DisjunctiveProgramming._reformulate_logical_constraints(m)
 print(m)
 # Feasibility
 # Subject to
-#  x >= -5.0
-#  x <= 10.0
+#  x ≥ -5
+#  x ≤ 10
+#  Y[1] binary
+#  Y[2] binary
+#  (Y[1] + Y[2]) = 1
 
 ##
 m_bigm = copy(m)
-DisjunctiveProgramming._reformulate(m_bigm, BigM())
+DisjunctiveProgramming._reformulate_disjunctive_constraints(m_bigm, BigM())
 print(m_bigm)
 # Feasibility
 # Subject to
-#  x - 5 Y[1] >= -5.0
-#  x - 10 Y[2] >= -5.0
-#  x + 7 Y[1] <= 10.0
-#  x + Y[2] <= 10.0
-#  x >= -5.0
-#  x <= 10.0
+#  x - 5 Y[1] ≥ -5
+#  x - 10 Y[2] ≥ -5
+#  x + 7 Y[1] ≤ 10
+#  x + Y[2] ≤ 10
+#  x ≥ -5
+#  x ≤ 10
 #  Y[1] binary
 #  Y[2] binary
+#  (Y[1] + Y[2]) = 1
 
 ##
 m_hull = copy(m)
-DisjunctiveProgramming._reformulate(m_hull, Hull())
+DisjunctiveProgramming._reformulate_disjunctive_constraints(m_hull, Hull())
 print(m_hull)
 # Feasibility
 # Subject to
-#  x - x_Y[1] - x_Y[2] == 0.0
-#  x_Y[1] >= 0.0
-#  -5 Y[2] + x_Y[2] >= 0.0
-#  -5 Y[1] - x_Y[1] <= 0.0
-#  -10 Y[1] + x_Y[1] <= 0.0
-#  -5 Y[2] - x_Y[2] <= 0.0
-#  -10 Y[2] + x_Y[2] <= 0.0
-#  -3 Y[1] + x_Y[1] <= 0.0
-#  -9 Y[2] + x_Y[2] <= 0.0
-#  x >= -5.0
-#  x_Y[1] >= -5.0
-#  x_Y[2] >= -5.0
-#  x <= 10.0
-#  x_Y[1] <= 10.0
-#  x_Y[2] <= 10.0
+#  x - x_Y[1] - x_Y[2] = 0
+#  x_Y[1] ≥ 0
+#  -5 Y[2] + x_Y[2] ≥ 0
+#  -5 Y[1] - x_Y[1] ≤ 0
+#  -10 Y[1] + x_Y[1] ≤ 0
+#  -3 Y[1] + x_Y[1] ≤ 0
+#  -5 Y[2] - x_Y[2] ≤ 0
+#  -10 Y[2] + x_Y[2] ≤ 0
+#  -9 Y[2] + x_Y[2] ≤ 0
+#  x ≥ -5
+#  x_Y[1] ≥ -5
+#  x_Y[2] ≥ -5
+#  x ≤ 10
+#  x_Y[1] ≤ 10
+#  x_Y[2] ≤ 10
 #  Y[1] binary
 #  Y[2] binary
+#  (Y[1] + Y[2]) = 1
 
 ##
 m_ind = copy(m)
-DisjunctiveProgramming._reformulate(m_ind, Indicator())
+DisjunctiveProgramming._reformulate_disjunctive_constraints(m_ind, Indicator())
 print(m_ind)
 # Feasibility
 # Subject to
@@ -86,5 +100,6 @@ print(m_ind)
 #  x ≤ 10
 #  Y[1] binary
 #  Y[2] binary
+#  (Y[1] + Y[2]) = 1
 #  Y[1] => {x ∈ [0, 3]}
 #  Y[2] => {x ≥ 5}
