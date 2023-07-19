@@ -217,7 +217,7 @@ end
 function _disaggregate_nl_expression(model::JuMP.Model, quad::JuMP.QuadExpr, bvar::JuMP.VariableRef, method::Hull)
     disag_var_dict = gdp_data(model).disaggregated_variables
     #get affine part
-    new_expr = _disaggregate_nl_expression(model, quad.aff, bvar, method)
+    new_expr, _ = _disaggregate_nl_expression(model, quad.aff, bvar, method)
     #get nonlinear part
     ϵ = method.value
     for (pair, coeff) in quad.terms
@@ -239,6 +239,9 @@ function _disaggregate_nl_expression(model::JuMP.Model, nlp::JuMP.NonlinearExpr,
     end
     new_expr = JuMP.NonlinearExpr(nlp.head, new_args)
     new_expr0 = eval(:($(nlp.head)($new_args0...)))
+    if isinf(new_expr0)
+        error("Operator `$(nlp.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
+    end
 
     return new_expr, new_expr0
 end
