@@ -1,40 +1,142 @@
+"""
+    _eliminate_equivalence!(expr)
 
+Eliminate equivalence logical operator.
+"""
+function _eliminate_equivalence(lvar::LogicalVariableRef)
+    return lvar
+end
+function _eliminate_equivalence(lexpr::LogicalExpr)
+    if lexpr.head == :⇔
+        if length(lexpr.args) != 2 
+            error("The equivalence operator must have two clauses.")
+        end
+        A = _eliminate_equivalence(lexpr.args[1])
+        B = _eliminate_equivalence(lexpr.args[2])
+        new_lexpr = LogicalExpr(:∧, Any[
+            LogicalExpr(:⇒, Any[A, B]),
+            LogicalExpr(:⇒, Any[B, A])
+        ])
+    else
+        new_lexpr = lexpr
+    end
 
+    return new_lexpr
+end
 
+"""
+    eliminate_implication!(expr)
 
+Eliminate implication logical operator.
+"""
+function _eliminate_implication(lvar::LogicalVariableRef)
+    return lvar
+end
+function _eliminate_implication(lexpr::LogicalExpr)
+    if lexpr.head == :⇒
+        if length(lexpr.args) != 2 
+            error("The implication operator must have two clauses.")
+        end
+        A = _eliminate_implication(lexpr.args[1])
+        B = _eliminate_implication(lexpr.args[2])
+        new_lexpr = LogicalExpr(:∨, Any[
+            LogicalExpr(:¬, Any[A]),
+            B
+        ])
+    else
+        new_lexpr = lexpr
+    end
 
+    return new_lexpr
+end
 
+"""
+    _move_negations_inwards(expr)
 
-# """
-#     choose!(m::JuMP.Model, n::Union{Int,LogicalVariable}, vars::LogicalVariable...; mode::Symbol=:exactly, name::String="")
+Move negation inwards in logical proposition expression.
+"""
+function _move_negations_inward(lvar::LogicalVariableRef)
+    return lvar
+end
+function _move_negations_inward(lexpr::LogicalExpr)
+    if lexpr.head == :¬
+        if length(lexpr.args) != 1
+            error("The negation operator can only have 1 clause.")
+        end
+        new_lexpr = _negate(lexpr.args[1])
+    else
+        new_lexpr = lexpr
+    end
 
-# Add constraint to select n elements from the list of variables. Options for mode
-# are `:at_least`, `:at_most`, `:exactly`. Alternately, if `n` is a Binary variable, 
-# it becomes the RHS of the constraint. If `name` is provided, it will be converted 
-# to a Symbol and stored in the object dictionary.
-# """
-# function choose!(m::JuMP.Model, n::Int, vars::LogicalVariable...; mode::Symbol=:exactly, name::String="")
-#     @assert length(vars) >= n "Not enough variables passed."
-#     @assert all(is_valid.(m, vars)) "Invalid VariableRefs passed."
-#     add_selection!(m, n, vars...; mode, name)
-# end
-# function choose!(m::JuMP.Model, var::LogicalVariable, vars::LogicalVariable...; mode::Symbol=:exactly, name::String="")
-#     @assert all(is_valid.(m, vcat(var,vars...))) "Invalid VariableRefs passed."
-#     add_selection!(m, var, vars...; mode, name)
-# end
-# function add_selection!(m::JuMP.Model, n, vars::LogicalVariable...; mode::Symbol, name::String)
-#     if mode == :exactly
-#         con = @constraint(m, sum(vars) == n)
-#     elseif mode == :at_least
-#         con = @constraint(m, sum(vars) ≥ n)
-#     elseif mode == :at_most
-#         con = @constraint(m, sum(vars) ≤ n)
-#     end
-#     if !isempty(name)
-#         set_name(con, name)
-#         m[Symbol(name)] = con
-#     end
-# end
+    return new_lexpr
+end
+
+"""
+
+"""
+function _negate(lvar::LogicalVariableRef)
+    return LogicalExpr(:¬, Any[lvar])
+end
+function _negate(lexpr::LogicalExpr)
+    if lexpr.head == :∨
+        new_lexpr = _negate_or(lexpr)
+    elseif lexpr.head == :∧
+        new_lexpr = _negate_and(lexpr)
+    elseif lexpr.head == :¬
+        new_lexpr = _negate_negation(lexpr)
+    else
+        #TODO: maybe catch error here if other operator is present
+    end
+
+    return new_lexpr
+end
+
+"""
+    _negate_or(expr)
+
+Negate OR boolean operator.
+"""
+function _negate_or(lexpr::LogicalExpr)
+    if length(lexpr.args) != 2 
+        error("The OR operator must have two clauses.")
+    end
+    A = lexpr.args[1]
+    B = lexpr.args[2]
+    return LogicalExpr(:∧, Any[ #flip OR to AND
+        _move_negations_inward(LogicalExpr(:¬, Any[A])),
+        _move_negations_inward(LogicalExpr(:¬, Any[B]))
+    ])
+end
+
+"""
+    _negate_and(expr)
+
+Negate AND boolean operator.
+"""
+function _negate_and(lexpr::LogicalExpr)
+    if length(lexpr.args) != 2 
+        error("The AND operator must have two clauses.")
+    end
+    A = lexpr.args[1]
+    B = lexpr.args[2]
+    return LogicalExpr(:∨, Any[ #flip AND to OR
+        _move_negations_inward(LogicalExpr(:¬, Any[A])),
+        _move_negations_inward(LogicalExpr(:¬, Any[B]))
+    ])
+end
+
+"""
+    _negate_negation(expr)
+
+Negate negation boolean operator.
+"""
+function _negate_negation(lexpr::LogicalExpr)
+    if length(lexpr.args) != 1
+        error("The negation operator can only have 1 clause.")
+    end
+    return _move_negations_inward(lexpr.args[1])
+end
+
 
 # """
 #     add_proposition!(m::JuMP.Model, expr::Expr; name::String = "")
@@ -95,122 +197,11 @@
 #     @assert isempty(setdiff(operator_list, ["∨", "∧", "¬", "⇒", "⇔", "variables"])) "Logical expression does not use valid model variables or allowed Boolean symbols (∨, ∧, ¬, ⇒, ⇔)."
 # end
 
-# """
-#     eliminate_equivalence!(expr)
 
-# Eliminate equivalence logical operator.
-# """
-# function eliminate_equivalence!(expr)
-#     if expr isa Expr
-#         if expr.args[1] == :⇔
-#             @assert length(expr.args) == 3 "Double implication cannot have more than two clauses."
-#             A1 = expr.args[2]
-#             B1 = expr.args[3]
-#             A2 = A1 isa Expr ? copy(A1) : A1
-#             B2 = B1 isa Expr ? copy(B1) : B1
-#             expr.args[1] = :∧
-#             expr.args[2] = :($A1 ⇒ $B1)
-#             expr.args[3] = :($B2 ⇒ $A2)
-#         end
-#         for i in eachindex(expr.args)
-#             expr.args[i] = eliminate_equivalence!(expr.args[i])
-#         end
-#     end
 
-#     return expr
-# end
 
-# """
-#     eliminate_implication!(expr)
 
-# Eliminate implication logical operator.
-# """
-# function eliminate_implication!(expr)
-#     if expr isa Expr
-#         if expr.args[1] == :⇒
-#             @assert length(expr.args) == 3 "Implication cannot have more than two clauses."
-#             A = expr.args[2]
-#             expr.args[1] = :∨
-#             expr.args[2] = :(¬$A)
-#         end
-#         for i in eachindex(expr.args)
-#             expr.args[i] = eliminate_implication!(expr.args[i])
-#         end
-#     end
 
-#     return expr
-# end
-
-# """
-#     move_negations_inwards!(expr)
-
-# Move negation inwards in logical proposition expression.
-# """
-# function move_negations_inwards!(expr)
-#     if expr isa Expr
-#         if expr.args[1] == :¬
-#             @assert length(expr.args) == 2 "Negation cannot have more than one clause."
-#             A = expr.args[2]
-#             if A isa Expr #only modify if an expression (not a Symbolic variable) is being negated
-#                 if A.args[1] == :∨
-#                     expr.args = negate_or!(A).args
-#                 elseif A.args[1] == :∧
-#                     expr.args = negate_and!(A).args
-#                 elseif A.args[1] == :¬
-#                     expr = negate_negation!(A)
-#                 end
-#             end
-#         end
-#         if expr isa Expr
-#             for i in eachindex(expr.args)
-#                 expr.args[i] = move_negations_inwards!(expr.args[i])
-#             end
-#         end
-#     end
-
-#     return expr
-# end
-
-# """
-#     negate_or!(expr)
-
-# Negate OR boolean operator.
-# """
-# function negate_or!(expr)
-#     @assert expr.args[1] == :∨ "Cannot call negate_or! unless the top operator is an OR operator."
-#     expr.args[1] = :∧ #flip OR to AND
-#     expr.args[2] = :(¬$(expr.args[2]))
-#     expr.args[3] = :(¬$(expr.args[3]))
-    
-#     return expr
-# end
-
-# """
-#     negate_and!(expr)
-
-# Negate AND boolean operator.
-# """
-# function negate_and!(expr)
-#     @assert expr.args[1] == :∧ "Cannot call negate_and! unless the top operator is an AND operator."
-#     expr.args[1] = :∨ #flip AND to OR
-#     expr.args[2] = :(¬$(expr.args[2]))
-#     expr.args[3] = :(¬$(expr.args[3]))
-    
-#     return expr
-# end
-
-# """
-#     negate_negation!(expr)
-
-# Negate negation boolean operator.
-# """
-# function negate_negation!(expr)
-#     @assert expr.args[1] == :¬ "Cannot call negate_negation! unless the top operator is a Negation operator."
-#     @assert length(expr.args) == 2 "Negation cannot have more than one clause."
-#     expr = expr.args[2] #remove negation
-    
-#     return expr
-# end
 
 # """
 #     distribute_and_over_or!(expr)
