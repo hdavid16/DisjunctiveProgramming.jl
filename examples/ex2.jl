@@ -15,7 +15,7 @@ disjunct_1 = Disjunct(
 disjunct_2 = Disjunct(
     (
         build_constraint(error, 1*x[1], MOI.Interval(5,9)),
-        build_constraint(error, 1*x[2]^2 + x[1]*log(x[2]), MOI.Interval(4,6))
+        build_constraint(error, 1*x[2], MOI.Interval(4,6))
     ),
     Y[2]
 )
