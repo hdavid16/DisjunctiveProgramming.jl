@@ -1,4 +1,15 @@
 """
+    _variable_info(binary::Bool=false, lower_bound::Float64=-Inf, upper_bound::Float64=Inf)
+
+Wrapper to build `JuMP.VariableInfo` for 
+"""
+function _variable_info(;binary::Bool=false, lower_bound::Float64=-Inf, upper_bound::Float64=Inf)
+    JuMP.VariableInfo(
+        !isinf(lower_bound), lower_bound, !isinf(upper_bound), upper_bound, false, NaN, false, nothing, binary, false
+    )
+end
+
+"""
     JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, 
                         ::Type{LogicalVariable})::LogicalVariable
 
