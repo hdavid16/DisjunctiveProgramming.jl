@@ -6,9 +6,9 @@ function _reformulate_logical_variables(model::JuMP.Model)
     ind_var_dict = gdp_data(model).indicator_variables
     for (idx, _) in logical_variables(model)
         lvar = LogicalVariableRef(model, idx)
-        bvar = JuMP.@variable(model, 
-            base_name = string(lvar), 
-            binary = true,
+        bvar = JuMP.add_variable(model,
+            JuMP.build_variable(error, _variable_info(binary=true)),
+            string(lvar)
         )
         ind_var_dict[lvar] = bvar
     end
@@ -24,7 +24,7 @@ function _reformulate_disjunctive_constraints(model::JuMP.Model, method::Abstrac
 end
 
 function _reformulate_disjunctive_constraints(model::JuMP.Model, method::Union{BigM,Indicator}, disj::DisjunctiveConstraintData)
-    @show ind_var_dict = gdp_data(model).indicator_variables
+    ind_var_dict = gdp_data(model).indicator_variables
     for d in disj.constraint.disjuncts
         bvar = ind_var_dict[d.indicator]
         _reformulate_disjunctive_constraints(model, method, d, bvar)
@@ -54,7 +54,10 @@ function _reformulate_disjunctive_constraints(model::JuMP.Model, method::Hull, d
     #create sum constraint for disaggregated variables
     for var in disj_vars
         JuMP.is_binary(var) && continue #skip binary variables
-        JuMP.@constraint(model, var == sum_disag_vars[var])
+        JuMP.add_constraint(model, #var == sum_disag_vars[var]
+            JuMP.build_constraint(error, sum_disag_vars[var] - var, _MOI.EqualTo(0)),
+            "$var aggregation"
+        )
     end
 end
 
@@ -311,6 +314,8 @@ end
 function _reformulate_logical_constraints(model::JuMP.Model, lexpr::LogicalExpr)
     if lexpr.head in [:exactly, :atmost, :atleast]
         _reformulate_selector(model, lexpr.head, lexpr.args[1], lexpr.args[2:end])
+    else
+        _reformulate_proposition(model, lexpr)
     end
 end
 
@@ -339,4 +344,42 @@ function _reformulate_selector(model::JuMP.Model, kind::Symbol, lvar::LogicalVar
     JuMP.add_constraint(model,
         build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, vars), var0]), op)
     )
+end
+
+function _reformulate_proposition(model::JuMP.Model, lexpr::LogicalExpr)
+    expr = _to_cnf(lexpr)
+    if expr.head == :∧
+        func = JuMP.AffExpr()
+        for arg in expr.args
+            func = _reformulate_clause(model, arg)
+            JuMP.add_constraint(model,
+                JuMP.build_constraint(error, func, _MOI.GreaterThan(1))
+            )
+        end
+    end
+end
+
+function _reformulate_clause(model::JuMP.Model, lvar::LogicalVariableRef)
+    ind_var_dict = gdp_data(model).indicator_variables
+    func = 1*ind_var_dict[lvar]
+    return func
+end
+
+function _reformulate_clause(model::JuMP.Model, lexpr::LogicalExpr)
+    ind_var_dict = gdp_data(model).indicator_variables
+    if lexpr.head != :∨
+        error("Expression was not converted to proper Conjunctive Normal Form:\n$(expr.args)")
+    end
+    func = JuMP.AffExpr() #initialize func expression
+    for literal in lexpr.args
+        if literal isa LogicalVariableRef
+            func += ind_var_dict[literal]
+        elseif literal.head == :¬ && literal.args[1] isa LogicalVariableRef
+            func += (1 - ind_var_dict[literal.args[1]])
+        else
+            error("Expression was not converted to proper Conjunctive Normal Form:\n$(expr.args)")
+        end
+    end
+
+    return func
 end
