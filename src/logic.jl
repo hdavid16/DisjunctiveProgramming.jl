@@ -18,7 +18,9 @@ function _eliminate_equivalence(lexpr::LogicalExpr)
             LogicalExpr(:⇒, Any[B, A])
         ])
     else
-        new_lexpr = lexpr
+        new_lexpr = LogicalExpr(lexpr.head, Any[
+            _eliminate_equivalence(arg) for arg in lexpr.args
+        ])
     end
 
     return new_lexpr
@@ -44,7 +46,9 @@ function _eliminate_implication(lexpr::LogicalExpr)
             B
         ])
     else
-        new_lexpr = lexpr
+        new_lexpr = LogicalExpr(lexpr.head, Any[
+            _eliminate_implication(arg) for arg in lexpr.args
+        ])
     end
 
     return new_lexpr
@@ -65,7 +69,9 @@ function _move_negations_inward(lexpr::LogicalExpr)
         end
         new_lexpr = _negate(lexpr.args[1])
     else
-        new_lexpr = lexpr
+        new_lexpr = LogicalExpr(lexpr.head, Any[
+            _move_negations_inward(arg) for arg in lexpr.args
+        ])
     end
 
     return new_lexpr
@@ -97,14 +103,12 @@ end
 Negate OR boolean operator.
 """
 function _negate_or(lexpr::LogicalExpr)
-    if length(lexpr.args) != 2 
-        error("The OR operator must have two clauses.")
+    if length(lexpr.args) < 2 
+        error("The OR operator must have at least two clauses.")
     end
-    A = lexpr.args[1]
-    B = lexpr.args[2]
     return LogicalExpr(:∧, Any[ #flip OR to AND
-        _move_negations_inward(LogicalExpr(:¬, Any[A])),
-        _move_negations_inward(LogicalExpr(:¬, Any[B]))
+        _move_negations_inward(LogicalExpr(:¬, Any[arg]))
+        for arg in lexpr.args
     ])
 end
 
@@ -114,14 +118,12 @@ end
 Negate AND boolean operator.
 """
 function _negate_and(lexpr::LogicalExpr)
-    if length(lexpr.args) != 2 
-        error("The AND operator must have two clauses.")
+    if length(lexpr.args) < 2 
+        error("The AND operator must have at least two clauses.")
     end
-    A = lexpr.args[1]
-    B = lexpr.args[2]
     return LogicalExpr(:∨, Any[ #flip AND to OR
-        _move_negations_inward(LogicalExpr(:¬, Any[A])),
-        _move_negations_inward(LogicalExpr(:¬, Any[B]))
+        _move_negations_inward(LogicalExpr(:¬, Any[arg]))
+        for arg in lexpr.args
     ])
 end
 
@@ -137,6 +139,130 @@ function _negate_negation(lexpr::LogicalExpr)
     return _move_negations_inward(lexpr.args[1])
 end
 
+
+"""
+    _distribute_and_over_or(expr)
+
+Distribute AND over OR boolean operators.
+"""
+function _distribute_and_over_or(lvar::LogicalVariableRef)
+    return lvar
+end
+function _distribute_and_over_or(lexpr::LogicalExpr)
+    if lexpr.head == :∨
+        if length(lexpr.args) < 2 
+            error("The OR operator must have at least two clauses.")
+        end
+        new_lexpr = _distribute_and_over_or_left(lexpr)
+        new_lexpr = _distribute_and_over_or_right(new_lexpr)
+    else
+        new_lexpr = LogicalExpr(lexpr.head, Any[
+            _distribute_and_over_or(arg) for arg in lexpr.args
+        ])
+    end
+
+    return new_lexpr
+end
+function _distribute_and_over_or_left(lexpr::LogicalExpr)
+    A = lexpr.args[1]
+    B = lexpr.args[2]
+    if A isa LogicalExpr && A.head == :∧ #first clause has AND
+        if length(A.args) < 2 
+            error("The AND operator must have at least two clauses.")
+        end
+        C = A.args[1] #first subclause
+        D = A.args[2] #second subclause
+        new_lexpr0 = LogicalExpr(:∧, Any[ #flip OR to AND in main expr
+            _distribute_and_over_or(LogicalExpr(:∨, Any[C, B])),
+            _distribute_and_over_or(LogicalExpr(:∨, Any[D, B]))
+        ])
+        if length(lexpr.args) == 2
+            new_lexpr = new_lexpr0
+        else    
+            new_lexpr = LogicalExpr(:∨, Any[new_lexpr0, lexpr.arg[3:end]...])
+        end
+    else
+        new_lexpr = lexpr
+    end
+    return new_lexpr
+end
+function _distribute_and_over_or_right(lexpr::LogicalExpr)
+    A = lexpr.args[1] #first clause
+    B = lexpr.args[2] #second clause
+    if B isa LogicalExpr && lexpr.head == :∨ && B.head == :∧ #second clause has AND
+        if length(B.args) < 2 
+            error("The AND operator must have at least two clauses.")
+        end
+        C = B.args[1] #first subclause
+        D = B.args[2] #second subclause
+        new_lexpr0 = LogicalExpr(:∧, Any[ #flip OR to AND in main expr
+            _distribute_and_over_or(LogicalExpr(:∨, Any[A, C])),
+            _distribute_and_over_or(LogicalExpr(:∨, Any[A, D]))
+        ])
+        if length(lexpr.args) == 2
+            new_lexpr = new_lexpr0
+        else    
+            new_lexpr = LogicalExpr(:∨, Any[new_lexpr0, lexpr.arg[3:end]...])
+        end
+    else
+        new_lexpr = lexpr
+    end
+    return new_lexpr
+end
+
+"""
+
+"""
+function _flatten(lvar::LogicalVariableRef)
+    return lvar
+end
+function _flatten(lexpr::LogicalExpr)
+    if lexpr.head in (:∧, :∨)
+        nary_args = Set{Any}()
+        for arg in lexpr.args
+            if arg isa LogicalExpr && arg.head == lexpr.head
+                for a in arg.args
+                    push!(nary_args, _flatten(a))
+                end
+            else
+                return lexpr
+            end
+        end
+        new_lexpr = LogicalExpr(lexpr.head, collect(nary_args))
+    else 
+        new_lexpr = LogicalExpr(lexpr.head, Any[
+            _flatten(arg) for arg in lexpr.args
+        ])
+    end
+
+    return new_lexpr
+end
+# function JuMP.flatten(expr::LogicalExpr)
+#     root = LogicalExpr(expr.head, Any[])
+#     nodes_to_visit = Any[(root, arg) for arg in reverse(expr.args)]
+#     while !isempty(nodes_to_visit)
+#         parent, arg = pop!(nodes_to_visit)
+#         if !(arg isa LogicalExpr)
+#             # Not a nonlinear expression, so can use recursion.
+#             push!(parent.args, JuMP.flatten(arg))
+#         elseif parent.head in (:∨, :∧) && arg.head == parent.head
+#             # A special case: the arg can be lifted to an n-ary argument of the
+#             # parent.
+#             for n in reverse(arg.args)
+#                 push!(nodes_to_visit, (parent, n))
+#             end
+#         else
+#             # The default case for nonlinear expressions. Put the args on the
+#             # stack, so that we may walk them later.
+#             for n in reverse(arg.args)
+#                 push!(nodes_to_visit, (arg, n))
+#             end
+#             empty!(arg.args)
+#             push!(parent.args, arg)
+#         end
+#     end
+#     return root
+# end
 
 # """
 #     add_proposition!(m::JuMP.Model, expr::Expr; name::String = "")
