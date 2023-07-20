@@ -145,16 +145,21 @@ function _disaggregate_variable(model::JuMP.Model, d::Disjunct, var::JuMP.Variab
     #create disaggregated var
     lb, ub = gdp_data(model).variable_bounds[var]
     disag_var_name = string(var, "_", d.indicator)
-    disag_var = JuMP.@variable(model, 
-        base_name = disag_var_name,
-        lower_bound = lb,
-        upper_bound = ub,
+    disag_var = JuMP.add_variable(model,
+        JuMP.build_variable(error, _variable_info(lower_bound = lb, upper_bound = ub)),
+        disag_var_name
     )
     #store ref to disaggregated variable
     gdp_data(model).disaggregated_variables[Symbol(disag_var_name)] = disag_var
     #create bounding constraints
-    JuMP.@constraint(model, lb*bvar - disag_var ≤ 0)
-    JuMP.@constraint(model, disag_var - ub*bvar ≤ 0)
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error, lb*bvar - disag_var, _MOI.LessThan(0)),
+        "$disag_var upper bound"
+    )
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error, disag_var - ub*bvar, _MOI.LessThan(0)),
+        "$disag_var lower bound"
+    )
 
     return disag_var
 end
