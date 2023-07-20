@@ -1,4 +1,16 @@
 """
+
+"""
+function _to_cnf(lexpr::LogicalExpr)
+    lexpr |> 
+        _eliminate_equivalence |>  
+        _eliminate_implication |> 
+        _move_negations_inward |> 
+        _distribute_and_over_or |>
+        _flatten
+end
+
+"""
     _eliminate_equivalence!(expr)
 
 Eliminate equivalence logical operator.
@@ -220,8 +232,13 @@ function _flatten(lexpr::LogicalExpr)
     if lexpr.head in (:∧, :∨)
         nary_args = Set{Any}()
         for arg in lexpr.args
-            if arg isa LogicalExpr && arg.head == lexpr.head
-                for a in arg.args
+            if arg isa LogicalVariableRef
+                push!(nary_args, arg)
+            elseif arg.head == :¬
+                push!(nary_args, arg)
+            elseif arg.head == lexpr.head
+                arg_flat = _flatten(arg)
+                for a in arg_flat.args
                     push!(nary_args, _flatten(a))
                 end
             else

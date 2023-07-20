@@ -1,7 +1,7 @@
 # example with proposition reformulations
 
 m = GDPModel()
-@variable(m, Y[1:4], LogicalVariable)
+@variable(m, Y[1:5], LogicalVariable)
 lexpr =
     LogicalExpr(:¬, Any[
         LogicalExpr(:⇔, Any[
@@ -14,9 +14,7 @@ lexpr =
             ]
         )
     ])
-DisjunctiveProgramming._eliminate_equivalence(lexpr) |>
-DisjunctiveProgramming._eliminate_implication |>
-DisjunctiveProgramming._move_negations_inward
+lexpr_cnf = DisjunctiveProgramming._to_cnf(lexpr)
 
 # logical_con = add_constraint(m, logic_1, "logic_con")
 # DisjunctiveProgramming._reformulate_logical_variables(m)
