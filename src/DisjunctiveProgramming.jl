@@ -22,6 +22,17 @@ include("hull.jl")
 include("macros.jl")
 include("optimize.jl")
 
+# export logic operators
+export 
+    ∨, lor, 
+    ∧, land, 
+    ⇔, <-->, iff, equals, 
+    ⇒, -->, implies, 
+    ¬, neg,
+    Ξ, exactly,
+    Λ, atmost,
+    Γ, atleast
+
 # Define additional stuff that should not be exported
 const _EXCLUDE_SYMBOLS = [Symbol(@__MODULE__), :eval, :include]
 

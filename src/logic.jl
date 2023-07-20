@@ -1,3 +1,65 @@
+# Define all the logic functions/operators that use 3+ arguments
+for (name, func) in (
+    (:Ξ, :Ξ), (:Ξ, :exactly), # \Xi + tab
+    (:Λ, :Λ), (:Λ, :atmost), # \Lambda + tab
+    (:Γ, :Γ), (:Γ, :atleast) # \Gamma + tab
+)
+    # make an expression constructor
+    @eval begin 
+        function $func(
+            v1::Union{LogicalVariableRef, LogicalExpr, Number}, 
+            v2::Union{LogicalVariableRef, LogicalExpr},
+            v3::Union{LogicalVariableRef, LogicalExpr},
+            v...
+            )
+            return LogicalExpr(Symbol($name), Any[v1, v2, v3, v...])
+        end
+    end
+end
+
+# Define all the logic functions/operators that use 2+ arguments
+for (name, func) in (
+    (:∨, :∨), (:∨, :lor), # \vee + tab
+    (:∧, :∧), (:∧, :land), # \wedge + tab
+)
+    # make an expression constructor
+    @eval begin 
+        function $func(
+            v1::Union{LogicalVariableRef, LogicalExpr}, 
+            v2::Union{LogicalVariableRef, LogicalExpr},
+            v...
+            )
+            return LogicalExpr(Symbol($name), Any[v1, v2, v...])
+        end
+    end
+end
+
+# Define all the logic functions/operators that use 2 arguments
+for (name, func) in (
+    (:⇔, :⇔), (:⇔, :(<-->)), (:⇔, :iff), (:⇔, :equals), # \Leftrightarrow + tab
+    (:⇒, :⇒), (:⇒, :(-->)), (:⇒, :implies) # \Rightarrow + tab
+)
+    # make an expression constructor
+    @eval begin 
+        function $func(
+            v1::Union{LogicalVariableRef, LogicalExpr}, 
+            v2::Union{LogicalVariableRef, LogicalExpr}
+            )
+            return LogicalExpr(Symbol($name), Any[v1, v2])
+        end
+    end
+end
+
+# Define all the logic functions/operators that use 1 argument
+for (name, func) in ((:¬, :¬), (:¬, :lneg))
+    # make an expression constructor
+    @eval begin 
+        function $func(v::Union{LogicalVariableRef, LogicalExpr})
+            return LogicalExpr(Symbol($name), Any[v])
+        end
+    end
+end
+
 """
 
 """

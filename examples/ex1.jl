@@ -31,7 +31,7 @@ disjunction = add_constraint(m,
     "Disjunction"
 )
 logic_1 = LogicalConstraint(
-    LogicalExpr(:exactly, Any[1, Y[1], Y[2]])
+    exactly(1, Y[1], Y[2])
 )
 selector = add_constraint(m,
     logic_1,
