@@ -1,14 +1,6 @@
 """
 
 """
-# function JuMP.build_constraint(_error::Function, func::_MOI.AbstractVectorFunction, set::_MOI.AbstractVectorSet, tag::Type{DisjunctConstraint})
-#     # TODO add error checking
-#     # NOTE: assumes function is of the form MOI.ACTIVATE_ON_ONE (not negating the Logical Variable)
-#     lvar = func[1].terms |> keys |> first
-#     con = func[2]
-
-#     return DisjunctConstraint(func, set.set, lvar)
-# end
 function JuMP._build_indicator_constraint(
     _error::Function,
     lvar::LogicalVariableRef,
@@ -40,6 +32,7 @@ function JuMP.build_constraint(_error::Function, disjuncts::Vector{<:Disjunct})
 end
 
 for op in _logic_operators
+    # TODO use MOI constraint programming sets where possible
     function JuMP.parse_constraint_call(_error::Function, ::Bool, ::Val{op}, args...)
         parse_code = :()
         constr = :($op($(args...)))
@@ -51,12 +44,6 @@ end
 function JuMP.build_constraint(_error::Function, con::LogicalExpr, tag::Type{LogicalConstraint})
     # TODO add error checking
     return LogicalConstraint(con, _MOI.EqualTo(true))
-end
-
-function JuMP.build_constraint(_error::Function, func::JuMP.AbstractJuMPScalar, set::_MOI.AbstractScalarSet, tag::Type{LogicalConstraint})
-    # TODO add error checking
-    # NOTE: excatly(1, Y[1], Y[2]) == true creates a constraint of the form LogicalExpr - 1.0 in MOI.EqualTo(0)
-    return LogicalConstraint(func.args[1], _MOI.EqualTo(true))
 end
 
 function JuMP.add_constraint(
