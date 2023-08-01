@@ -39,11 +39,7 @@ disjunction = add_disjunction(m,
 Y = disjunction_indicators(disjunction)
 
 # Logical Constraint
-# Notes: Could be handled better 
-#   `== true` is currently a hack to avoid having to extend JuMP.parse_constraint for the exactly operator
-#   This creates `exactly(1, Y[1], Y[2]) - 1 ∈ MOI.EqualTo(0)`
-#   and then we just take the first arg to extract `exactly(1, Y[1], Y[2])` and wrap it in LogicalConstraint.
-@constraint(m, exclussive, exactly(1, Y[1], Y[2]) == true, LogicalConstraint)
+@constraint(m, exclussive, exactly(1, Y[1], Y[2]))
 
 # Reformulate logical variables and logical constraints
 DisjunctiveProgramming._reformulate_logical_variables(m)

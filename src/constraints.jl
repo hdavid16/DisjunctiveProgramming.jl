@@ -39,11 +39,19 @@ function JuMP.build_constraint(_error::Function, disjuncts::Vector{<:Disjunct})
     return Disjunction(disjuncts)
 end
 
-# function JuMP.parse_constraint_call(_error::Function, is_vectorized::Bool, ::Val{:exactly}, args...)
-#     parse_code = :()
-#     build_code = :(JuMP.build_constraint($(_error), $exactly($(args...)), LogicalConstraint))
-#     return parse_code, build_code 
-# end
+for op in _logic_operators
+    function JuMP.parse_constraint_call(_error::Function, ::Bool, ::Val{op}, args...)
+        parse_code = :()
+        constr = :($op($(args...)))
+        build_code = :(JuMP.build_constraint($(_error), $(esc(constr)), $LogicalConstraint))
+        return parse_code, build_code 
+    end
+end
+
+function JuMP.build_constraint(_error::Function, con::LogicalExpr, tag::Type{LogicalConstraint})
+    # TODO add error checking
+    return LogicalConstraint(con, _MOI.EqualTo(true))
+end
 
 function JuMP.build_constraint(_error::Function, func::JuMP.AbstractJuMPScalar, set::_MOI.AbstractScalarSet, tag::Type{LogicalConstraint})
     # TODO add error checking

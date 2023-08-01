@@ -1,3 +1,11 @@
+# logic operators
+_logic_operators = [
+    :Ξ, :exactly, :Λ, :atmost, :Γ, :atleast,
+    :∨, :lor, :∧, :land, 
+    :⇔, :(<-->), :iff, :equals,
+    :⇒, :(-->), :implies, :¬, :lneg
+]
+
 # Define all the logic functions/operators that use 3+ arguments
 for (name, func) in (
     (:Ξ, :Ξ), (:Ξ, :exactly), # \Xi + tab
