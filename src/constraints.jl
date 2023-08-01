@@ -40,7 +40,7 @@ _first_order_op = (
 for (ops, set) in zip(_first_order_op, [Exactly, AtMost, AtLeast])
     for op in ops
         function JuMP.parse_constraint_call(_error::Function, ::Bool, ::Val{op}, val, lvec)
-            build_code = :(JuMP.build_constraint($(_error), $(esc(lvec)), $set($val)))
+            build_code = :(JuMP.build_constraint($(_error), $(esc(lvec)), $set($(esc(val)))))
             return :(), build_code
         end
     end
