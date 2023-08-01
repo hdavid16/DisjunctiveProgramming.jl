@@ -7,13 +7,7 @@ using DisjunctiveProgramming
 
 m = GDPModel()
 @variable(m, Y[1:4], LogicalVariable)
-logic_1 = LogicalConstraint(
-    ¬((Y[1] ∧ ¬Y[2]) ⇔ (Y[3] ∨ Y[4]))
-)
-selector = add_constraint(m,
-    logic_1,
-    "Logic Proposition"
-)
+@constraint(m, logic, ¬((Y[1] ∧ ¬Y[2]) ⇔ (Y[3] ∨ Y[4])) == true, LogicalConstraint)
 DisjunctiveProgramming._reformulate_logical_variables(m)
 DisjunctiveProgramming._reformulate_logical_constraints(m)
 print(m)

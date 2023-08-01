@@ -2,28 +2,13 @@ using JuMP
 using DisjunctiveProgramming
 
 m = GDPModel()
-@variables(m, begin
-    -5 ≤ x ≤ 10 
-end)
+@variable(m, -5 ≤ x ≤ 10)
 @variable(m, Y[1:2], LogicalVariable)
-disjunct_1 = Disjunct(
-    tuple(
-        build_constraint(error, exp(x), MOI.LessThan(2)),
-        build_constraint(error, 1*x, MOI.GreaterThan(-3))
-    ),
-    Y[1]
-)
-disjunct_2 = Disjunct(
-    tuple(
-        build_constraint(error, exp(x), MOI.GreaterThan(3)),
-        build_constraint(error, 1*x, MOI.GreaterThan(5))
-    ),
-    Y[2]
-)
-disjunction = add_constraint(m, 
-    build_constraint(error, [disjunct_1, disjunct_2]),
-    "Disjunction"
-)
+@constraint(m, disj1_con_a, Y[1] => {exp(x) <= 2})
+@constraint(m, disj1_con_b, Y[1] => {x >= -3})
+@constraint(m, disj2_con_a, Y[2] => {exp(x) >= 3})
+@constraint(m, disj2_con_b, Y[2] => {x >= 5})
+disjunction = add_disjunction(m, Y, "Disjunction")
 DisjunctiveProgramming._reformulate_logical_variables(m)
 print(m)
 # Feasibility
@@ -70,7 +55,5 @@ print(m_hull)
 #  y binary
 #  Y[1] binary
 #  Y[2] binary
-#  (x ^ 3) ∈ [-1, 1]
-#  (x ^ 3) ∈ [-1, 1]
 #  ((((0.999999 Y[1] + 1.0e-6) * exp((x_Y[1] / (0.999999 Y[1] + 1.0e-6)))) - (-1.0e-6 Y[1] + 1.0e-6)) - 2 Y[1]) ≤ 0
-#  ((((0.999999 Y[2] + 1.0e-6) * exp((x_Y[2] / (0.999999 Y[2] + 1.0e-6)))) - (-1.0e-6 Y[2] + 1.0e-6)) - 3 Y[2]) ≥ 0
+#  ((((0.999999 Y[2] + 1.0e-6) * exp((x_Y[2] / (0.999999 Y[2] + 1.0e-6)))) - 2*(-1.0e-6 Y[2] + 1.0e-6)) - 3 Y[2]) ≥ 0

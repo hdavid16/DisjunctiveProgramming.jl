@@ -32,15 +32,40 @@ end
 """
 
 """
-function disjunctive_constraints(model::JuMP.Model)
-    is_gdp_model(model) || error("Cannot access disjunctions from a regular `JuMP.Model`.")
-    return model.ext[:GDP].disjunctive_constraints
+function disjunction_indicators(disjunction::DisjunctionRef)
+    model, idx = disjunction.model, disjunction.index
+    disjuncts = _disjunctions(model)[idx].constraint.disjuncts
+    return LogicalVariableRef[disj.indicator for disj in disjuncts]
 end
 
 """
 
 """
-function logical_constraints(model::JuMP.Model)
+function _disjunct_constraint_map(model::JuMP.Model)
+    is_gdp_model(model) || error("Cannot access disjunct constraint map from a regular `JuMP.Model`.")
+    return model.ext[:GDP].disjunct_constraint_map
+end
+
+"""
+
+"""
+function _disjunct_constraints(model::JuMP.Model)
+    is_gdp_model(model) || error("Cannot access disjunct constraints from a regular `JuMP.Model`.")
+    return model.ext[:GDP].disjunct_constraints
+end
+
+"""
+
+"""
+function _disjunctions(model::JuMP.Model)
+    is_gdp_model(model) || error("Cannot access disjunctions from a regular `JuMP.Model`.")
+    return model.ext[:GDP].disjunctions
+end
+
+"""
+
+"""
+function _logical_constraints(model::JuMP.Model)
     is_gdp_model(model) || error("Cannot access logical constraints from a regular `JuMP.Model`.")
     return model.ext[:GDP].logical_constraints
 end
@@ -48,20 +73,23 @@ end
 """
 
 """
-function logical_variables(model::JuMP.Model)
+function _logical_variables(model::JuMP.Model)
     is_gdp_model(model) || error("Cannot access logical variables from a regular `JuMP.Model`.")
     return model.ext[:GDP].logical_variables
 end
 
-function JuMP.copy_extension_data(data::GDPData, new_model::JuMP.AbstractModel, model::JuMP.AbstractModel)
-    #TODO need to copy disjunction constraints over to the new model
-    #   (maybe something similar to what is done in copy_to in MOI.jl/src/Utilities/copy.jl).
-    #   Otherwise, the constraints inside the disjuncts are not owned by the new model...
+"""
 
+"""
+
+
+function JuMP.copy_extension_data(data::GDPData, new_model::JuMP.AbstractModel, model::JuMP.AbstractModel)
     new_model.ext[:GDP] = GDPData(
         data.logical_variables, 
         _copy(data.logical_constraints, new_model), 
-        _copy(data.disjunctive_constraints, new_model), 
+        _copy(data.disjunct_constraints, new_model),
+        data.disjunct_constraint_map,
+        _copy(data.disjunctions, new_model), 
         data.solution_method, 
         data.ready_to_optimize,
         _copy(data.disaggregated_variables, new_model), 

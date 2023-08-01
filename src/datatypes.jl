@@ -50,6 +50,42 @@ struct LogicalVariableRef <: JuMP.AbstractVariableRef
     index::LogicalVariableIndex
 end
 
+#######################################################################
+
+"""
+
+"""
+struct DisjunctConstraintIndex
+    value::Int64
+end
+
+"""
+
+"""
+struct DisjunctConstraint{T, S} <: JuMP.AbstractConstraint
+    func::T
+    set::S
+    indicator::Union{Nothing, LogicalVariableRef}
+end
+
+"""
+
+"""
+mutable struct DisjunctConstraintData
+    constraint::DisjunctConstraint
+    name::String
+end
+
+"""
+
+"""
+struct DisjunctConstraintRef
+    model::JuMP.Model
+    index::DisjunctConstraintIndex
+end
+
+#######################################################################
+
 """
     Disjunct{C <: Tuple}
 
@@ -70,37 +106,9 @@ struct Disjunct{C <: Tuple}
 end
 
 """
-    DisjunctiveConstraint <: JuMP.AbstractConstraint
-
-A type for a disjunctive constraint that is comprised of a collection of 
-disjuncts of type [`Disjunct`](@ref).
-
-**Fields**
-- `disjuncts::Vector{Disjunct}`: The disjuncts that comprise the constraint.
-"""
-struct DisjunctiveConstraint <: JuMP.AbstractConstraint
-    disjuncts::Vector{Disjunct}
-end
-
-"""
-    DisjunctiveConstraintData
-
-A type for storing [`DisjunctiveConstraint`](@ref)s and any meta-data they 
-possess.
-
-**Fields**
-- `constraint::DisjunctiveConstraint`: The disjunctive constraint object.
-- `name::String`: The name of the constraint.
-"""
-mutable struct DisjunctiveConstraintData
-    constraint::DisjunctiveConstraint
-    name::String
-end
-
-"""
     DisjunctionIndex
 
-A type for storing the index of a [`DisjunctiveConstraint`](@ref).
+A type for storing the index of a [`Disjunction`](@ref).
 
 **Fields**
 - `value::Int64`: The index value.
@@ -110,14 +118,44 @@ struct DisjunctionIndex
 end
 
 """
-    DisjunctiveConstraintRef
+    Disjunction <: JuMP.AbstractConstraint
+
+A type for a disjunctive constraint that is comprised of a collection of 
+disjuncts of type [`Disjunct`](@ref).
+
+**Fields**
+- `disjuncts::Vector{Disjunct}`: The disjuncts that comprise the constraint.
+"""
+struct Disjunction <: JuMP.AbstractConstraint
+    disjuncts::Vector{Disjunct}
+end
+
+"""
+    DisjunctionData
+
+A type for storing [`Disjunction`](@ref)s and any meta-data they 
+possess.
+
+**Fields**
+- `constraint::Disjunction`: The disjunctive constraint object.
+- `name::String`: The name of the constraint.
+"""
+mutable struct DisjunctionData
+    constraint::Disjunction
+    name::String
+end
+
+"""
+    DisjunctionRef
 
 A type for looking up disjunctive constraints.
 """
-struct DisjunctiveConstraintRef
+struct DisjunctionRef
     model::JuMP.Model
     index::DisjunctionIndex
 end
+
+#######################################################################
 
 """
 
@@ -135,6 +173,7 @@ A type for a logical constraint that is comprised of an expression on LogicalVar
 """
 struct LogicalConstraint <: JuMP.AbstractConstraint
     expression::LogicalExpr
+    set::_MOI.EqualTo
 end
 
 """
@@ -173,10 +212,15 @@ struct LogicalConstraintRef
     index::LogicalConstraintIndex
 end
 
+#######################################################################
+
 ## Extend the CleverDicts key access methods
 # index_to_key
 function _MOIUC.index_to_key(::Type{LogicalVariableIndex}, index::Int64)
     return LogicalVariableIndex(index)
+end
+function _MOIUC.index_to_key(::Type{DisjunctConstraintIndex}, index::Int64)
+    return DisjunctConstraintIndex(index)
 end
 function _MOIUC.index_to_key(::Type{DisjunctionIndex}, index::Int64)
     return DisjunctionIndex(index)
@@ -187,6 +231,9 @@ end
 
 # key_to_index
 function _MOIUC.key_to_index(key::LogicalVariableIndex)
+    return key.value
+end
+function _MOIUC.key_to_index(key::DisjunctConstraintIndex)
     return key.value
 end
 function _MOIUC.key_to_index(key::DisjunctionIndex)
@@ -259,7 +306,9 @@ mutable struct GDPData
     # Objects
     logical_variables::_MOIUC.CleverDict{LogicalVariableIndex, LogicalVariableData}
     logical_constraints::_MOIUC.CleverDict{LogicalConstraintIndex, LogicalConstraintData}
-    disjunctive_constraints::_MOIUC.CleverDict{DisjunctionIndex, DisjunctiveConstraintData}
+    disjunct_constraints::_MOIUC.CleverDict{DisjunctConstraintIndex, DisjunctConstraintData}
+    disjunct_constraint_map::Dict{DisjunctConstraintIndex, LogicalVariableIndex}
+    disjunctions::_MOIUC.CleverDict{DisjunctionIndex, DisjunctionData}
     
     # Solution data
     solution_method::Union{Nothing, AbstractSolutionMethod}
@@ -276,7 +325,9 @@ mutable struct GDPData
     function GDPData()
         new(_MOIUC.CleverDict{LogicalVariableIndex, LogicalVariableData}(),
             _MOIUC.CleverDict{LogicalConstraintIndex, LogicalConstraintData}(),
-            _MOIUC.CleverDict{DisjunctionIndex, DisjunctiveConstraintData}(), 
+            _MOIUC.CleverDict{DisjunctConstraintIndex, DisjunctConstraintData}(),
+            Dict{DisjunctConstraintIndex, LogicalVariableIndex}(),
+            _MOIUC.CleverDict{DisjunctionIndex, DisjunctionData}(), 
             nothing,
             false,
             Dict{Symbol, JuMP.VariableRef}(),

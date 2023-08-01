@@ -1,14 +1,14 @@
 """
 
 """
-function _get_disjunction_variables(disj::DisjunctiveConstraintData)
+function _get_disjunction_variables(disj::DisjunctionData)
     vars = Set{JuMP.VariableRef}()
     for d in disj.constraint.disjuncts
         _interrogate_variables(v -> push!(vars, v), d)
     end
     return vars
 end
-# function _get_variables(disj::DisjunctiveConstraintData)
+# function _get_variables(disj::DisjunctionData)
 #     vars = Set{JuMP.VariableRef}()
 #     for d in disj.constraint.disjuncts
 #         union!(vars, _get_variables(d))
@@ -29,7 +29,7 @@ end
 #     end
 #     return vars
 # end
-# function _get_variables(con::JuMP.ScalarConstraint)
+# function _get_variables(con::DisjunctConstraint)
 #     _get_variables(con.func)
 # end
 # function _get_variables(expr::JuMP.AffExpr)
@@ -95,7 +95,7 @@ function _interrogate_variables(interrogator::Function, nlp::JuMP.NonlinearExpr)
 end
 
 # Constraint
-function _interrogate_variables(interrogator::Function, con::JuMP.ScalarConstraint)
+function _interrogate_variables(interrogator::Function, con::DisjunctConstraint)
     _interrogate_variables(interrogator, con.func)
 end
 
@@ -174,8 +174,8 @@ function _disaggregate_expression(model::JuMP.Model, aff::JuMP.AffExpr, bvar::Ju
         JuMP.is_binary(var) && continue #skip binary variables
         disag_var = disag_var_dict[Symbol(var,"_",bvar)]
         new_expr.terms[disag_var] = coeff
+        new_expr.terms[bvar] = aff.constant
     end
-
     return new_expr
 end
 
@@ -209,7 +209,7 @@ end
 
 function _disaggregate_nl_expression(model::JuMP.Model, aff::JuMP.AffExpr, bvar::JuMP.VariableRef, ::Hull)
     disag_var_dict = gdp_data(model).disaggregated_variables
-    new_expr = JuMP.AffExpr()
+    new_expr = JuMP.AffExpr(aff.constant)
     for (var, coeff) in aff.terms
         JuMP.is_binary(var) && continue #skip binary variables
         disag_var = disag_var_dict[Symbol(var,"_",bvar)]

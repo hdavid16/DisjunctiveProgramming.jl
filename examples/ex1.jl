@@ -3,40 +3,49 @@ using DisjunctiveProgramming
 
 #TODO: Add proposition for exactly 1 disjunct selected
 
-## Model 1: 
-#   1 variable: x
-#   1 disjunction:
-#       2 disjuncts: 
-#           1st disjucnt: MOI.Interval linear constraint (1)
-#           2nd disjunct: MOI.GreaterThan & MOI.LessThan linear constraints (2)
+## Example 1: 
 
+# Disjunction Method 1: Assign Logical Variables Explicitly
 m = GDPModel()
 @variable(m, -5 ≤ x ≤ 10)
 @variable(m, Y[1:2], LogicalVariable)
-disjunct_1 = Disjunct(
-    tuple(
-        build_constraint(error, 1*x, MOI.Interval(0,3))
-    ),
-    Y[1]
-)
-disjunct_2 = Disjunct(
-    tuple(
-        build_constraint(error, 1*x, MOI.GreaterThan(5)),
-        build_constraint(error, 1*x, MOI.LessThan(9))
-    ),
-    Y[2]
-)
-disjunction = add_constraint(m, 
-    build_constraint(error, [disjunct_1, disjunct_2]),
+@constraint(m, disjunct_1_con, 0 ≤ x ≤ 3, Y[1])
+@constraint(m, disjunct_2_con_a, 5 ≤ x, Y[2])
+@constraint(m, disjunct_2_con_b, x ≤ 9, Y[2])
+disjunction = add_disjunction(m,
+    [Y[1], Y[2]],
     "Disjunction"
 )
-logic_1 = LogicalConstraint(
-    exactly(1, Y[1], Y[2])
+
+# Disjunction Method 2: Same as Method 1, but using Indicator Constraint notation
+m = GDPModel()
+@variable(m, -5 ≤ x ≤ 10)
+@variable(m, Y[1:2], LogicalVariable)
+@constraint(m, disjunct_1_con, Y[1] => {0 ≤ x ≤ 3})
+@constraint(m, disjunct_2_con_a, Y[2] => {5 ≤ x})
+@constraint(m, disjunct_2_con_b, Y[2] => {x ≤ 9})
+disjunction = add_disjunction(m, Y, "Disjunction")
+
+# Disjunction Method 3: Create Logical Variables from Disjunctions
+m = GDPModel()
+@variable(m, -5 ≤ x ≤ 10)
+@constraint(m, disjunct_1_con, 0 ≤ x ≤ 3, DisjunctConstraint)
+@constraint(m, disjunct_2_con_a, 5 ≤ x, DisjunctConstraint)
+@constraint(m, disjunct_2_con_b, x ≤ 9, DisjunctConstraint)
+disjunction = add_disjunction(m,
+    [[disjunct_1_con], [disjunct_2_con_a, disjunct_2_con_b]],
+    "Y"
 )
-selector = add_constraint(m,
-    logic_1,
-    "Exclussive Selector"
-)
+Y = disjunction_indicators(disjunction)
+
+# Logical Constraint
+# Notes: Could be handled better 
+#   `== true` is currently a hack to avoid having to extend JuMP.parse_constraint for the exactly operator
+#   This creates `exactly(1, Y[1], Y[2]) - 1 ∈ MOI.EqualTo(0)`
+#   and then we just take the first arg to extract `exactly(1, Y[1], Y[2])` and wrap it in LogicalConstraint.
+@constraint(m, exclussive, exactly(1, Y[1], Y[2]) == true, LogicalConstraint)
+
+# Reformulate logical variables and logical constraints
 DisjunctiveProgramming._reformulate_logical_variables(m)
 DisjunctiveProgramming._reformulate_logical_constraints(m)
 print(m)
@@ -48,7 +57,7 @@ print(m)
 #  Y[2] binary
 #  (Y[1] + Y[2]) = 1
 
-##
+## BigM reformulation
 m_bigm = copy(m)
 DisjunctiveProgramming._reformulate_disjunctive_constraints(m_bigm, BigM())
 print(m_bigm)
@@ -64,7 +73,7 @@ print(m_bigm)
 #  Y[2] binary
 #  (Y[1] + Y[2]) = 1
 
-##
+## Hull reformulation
 m_hull = copy(m)
 DisjunctiveProgramming._reformulate_disjunctive_constraints(m_hull, Hull())
 print(m_hull)
@@ -89,7 +98,7 @@ print(m_hull)
 #  Y[2] binary
 #  (Y[1] + Y[2]) = 1
 
-##
+## Indicator Constraints reformulation
 m_ind = copy(m)
 DisjunctiveProgramming._reformulate_disjunctive_constraints(m_ind, Indicator())
 print(m_ind)

@@ -5,24 +5,9 @@ using DisjunctiveProgramming
 m = GDPModel()
 @variable(m, -5 ≤ x[1:2] ≤ 10)
 @variable(m, Y[1:2], LogicalVariable)
-disjunct_1 = Disjunct(
-    (
-        build_constraint(error, 1*x[1], MOI.Interval(0,3)),
-        build_constraint(error, 1*x[2], MOI.Interval(0,4))
-    ),
-    Y[1]
-)
-disjunct_2 = Disjunct(
-    (
-        build_constraint(error, 1*x[1], MOI.Interval(5,9)),
-        build_constraint(error, 1*x[2], MOI.Interval(4,6))
-    ),
-    Y[2]
-)
-disjunction = add_constraint(m, 
-    build_constraint(error, [disjunct_1, disjunct_2]),
-    "Disjunction"
-)
+@constraint(m, disjunct_1_con[i = 1:2], Y[1] => {0 ≤ x[i] ≤ [3,4][i]})
+@constraint(m, disjunct_2_con[i = 1:2], Y[2] => {[5,4][i] ≤ x[i] ≤ [9,6][i]})
+disjunction = add_disjunction(m, Y)
 DisjunctiveProgramming._reformulate_logical_variables(m)
 print(m)
 # Feasibility
