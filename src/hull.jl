@@ -8,48 +8,6 @@ function _get_disjunction_variables(disj::DisjunctionData)
     end
     return vars
 end
-# function _get_variables(disj::DisjunctionData)
-#     vars = Set{JuMP.VariableRef}()
-#     for d in disj.constraint.disjuncts
-#         union!(vars, _get_variables(d))
-#     end
-#     return vars
-# end
-# function _get_variables(d::Disjunct)
-#     vars = Set{JuMP.VariableRef}()
-#     for con in d.constraints
-#         union!(vars, _get_variables(con))
-#     end
-#     return vars
-# end
-# function _get_variables(con::JuMP.AbstractArray{T}) where {T <: JuMP.AbstractConstraint}
-#     vars = Set{JuMP.VariableRef}()
-#     for c in con
-#         union!(vars, _get_variables(c))
-#     end
-#     return vars
-# end
-# function _get_variables(con::DisjunctConstraint)
-#     _get_variables(con.func)
-# end
-# function _get_variables(expr::JuMP.AffExpr)
-#     return keys(expr.terms)
-# end
-# function _get_variables(expr::JuMP.QuadExpr)
-#     vars = Set(keys(expr.aff.terms))
-#     for (pair, _) in expr.terms
-#         push!(vars, pair.a, pair.b)
-#     end
-#     return vars
-# end
-# function _get_variables(expr::JuMP.NonlinearExpr)
-#     vars = Set{JuMP.VariableRef}()
-#     _interrogate_variables(v -> push!(vars, v), expr)
-#     return vars
-# end
-# function _get_variables(expr)
-#     error("`_all_function_variables` not defined for expression of type $(typeof(expr)).")
-# end
 
 ################################################################################
 #                              VARIABLE ITERATION
