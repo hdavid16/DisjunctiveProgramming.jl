@@ -1,3 +1,7 @@
+################################################################################
+#                              VARIABLE ITERATION
+################################################################################
+
 """
 
 """
@@ -9,10 +13,6 @@ function _get_disjunction_variables(disj::DisjunctionData)
     return vars
 end
 
-################################################################################
-#                              VARIABLE ITERATION
-################################################################################
-## Create helper methods to interrogate the variables of an expr w/ a function
 # Constant
 function _interrogate_variables(interrogator::Function, c::Number)
     return
@@ -78,6 +78,9 @@ function _interrogate_variables(interrogator::Function, other)
     error("Cannot extract variables from object of type $(typeof(other)) inside of a disjunctive constraint.")
 end
 
+################################################################################
+#                              VARIABLE DISAGGREGATION
+################################################################################
 
 """
 
@@ -122,6 +125,10 @@ function _disaggregate_variable(model::JuMP.Model, d::Disjunct, var::JuMP.Variab
     return disag_var
 end
 
+################################################################################
+#                              DISAGGREGATE CONSTRAINT
+################################################################################
+
 """
 
 """
@@ -151,7 +158,6 @@ function _disaggregate_expression(model::JuMP.Model, quad::JuMP.QuadExpr, bvar::
 
     return new_expr
 end
-
 
 function _disaggregate_nl_expression(model::JuMP.Model, c::Number, ::JuMP.VariableRef, ::Hull)
     return c, c

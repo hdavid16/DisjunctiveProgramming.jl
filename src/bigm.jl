@@ -22,7 +22,6 @@ function _calculate_tight_M(con::DisjunctConstraint{JuMP.AffExpr, S}) where {S <
     ]
 end
 # fallbacks for other scalar constraints
-# TODO: Implement interval arithmetic for quadratic constraints
 _calculate_tight_M(con::DisjunctConstraint{T, S}) where {T <: Union{JuMP.QuadExpr, JuMP.NonlinearExpr}, S <: Union{_MOI.Interval, _MOI.EqualTo}} = [Inf, Inf]
 _calculate_tight_M(con::DisjunctConstraint{T, S}) where {T <: Union{JuMP.QuadExpr, JuMP.NonlinearExpr}, S <: Union{_MOI.LessThan, _MOI.GreaterThan}} = Inf
 

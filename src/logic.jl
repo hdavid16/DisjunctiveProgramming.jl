@@ -1,10 +1,6 @@
-# logic operators
-_logic_operators = [
-    :Ξ, :exactly, :Λ, :atmost, :Γ, :atleast,
-    :∨, :lor, :∧, :land, 
-    :⇔, :(<-->), :iff, :equals,
-    :⇒, :(-->), :implies, :¬, :lneg
-]
+################################################################################
+#                              LOGIC OPERATORS
+################################################################################
 
 # Define all the logic functions/operators that use 2+ arguments
 for (name, func) in (
@@ -51,6 +47,10 @@ for (name, func) in ((:¬, :¬), (:¬, :lneg))
         end
     end
 end
+
+################################################################################
+#                            CONJUNCTIVE NORMAL FORM
+################################################################################
 
 """
 

@@ -22,7 +22,7 @@ include("hull.jl")
 include("macros.jl")
 include("optimize.jl")
 
-# export logic operators
+# export logic operators (NOTE: these don't get exported although defined in logic.jl)
 export ∨, ∧, ⇔, <-->, ⇒, -->, ¬
 
 # Define additional stuff that should not be exported

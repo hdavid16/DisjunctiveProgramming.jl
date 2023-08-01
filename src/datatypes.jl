@@ -1,36 +1,6 @@
-"""
-
-"""
-# Logical sets
-struct MOIIsTrue <: _MOI.AbstractScalarSet end
-struct IsTrue <: JuMP.AbstractScalarSet end
-JuMP.moi_set(set::IsTrue) = MOIIsTrue()
-
-abstract type MOIFirstOrderSet <: _MOI.AbstractVectorSet end
-struct MOIAtLeast{T} <: MOIFirstOrderSet
-    value::T
-    dimension::Int
-end
-struct MOIAtMost{T} <: MOIFirstOrderSet
-    value::T
-    dimension::Int
-end
-struct MOIExactly{T} <: MOIFirstOrderSet
-    value::T
-    dimension::Int
-end
-struct AtLeast{T} <: JuMP.AbstractVectorSet
-    value::T
-end
-struct AtMost{T} <: JuMP.AbstractVectorSet
-    value::T
-end
-struct Exactly{T} <: JuMP.AbstractVectorSet
-    value::T
-end
-JuMP.moi_set(set::AtLeast, dim::Int) = MOIAtLeast(set.value, dim)
-JuMP.moi_set(set::AtMost, dim::Int) = MOIAtMost(set.value, dim)
-JuMP.moi_set(set::Exactly, dim::Int) = MOIExactly(set.value, dim)
+################################################################################
+#                              LOGICAL VARIABLES
+################################################################################
 
 """
     LogicalVariable <: JuMP.AbstractVariable
@@ -84,7 +54,99 @@ struct LogicalVariableRef <: JuMP.AbstractVariableRef
     index::LogicalVariableIndex
 end
 
-#######################################################################
+################################################################################
+#                              LOGICAL CONSTRAINTS
+################################################################################
+"""
+
+"""
+# Logical sets
+struct MOIIsTrue <: _MOI.AbstractScalarSet end
+struct IsTrue <: JuMP.AbstractScalarSet end
+JuMP.moi_set(set::IsTrue) = MOIIsTrue()
+
+abstract type MOIFirstOrderSet <: _MOI.AbstractVectorSet end
+struct MOIAtLeast{T} <: MOIFirstOrderSet
+    value::T
+    dimension::Int
+end
+struct MOIAtMost{T} <: MOIFirstOrderSet
+    value::T
+    dimension::Int
+end
+struct MOIExactly{T} <: MOIFirstOrderSet
+    value::T
+    dimension::Int
+end
+struct AtLeast{T} <: JuMP.AbstractVectorSet
+    value::T
+end
+struct AtMost{T} <: JuMP.AbstractVectorSet
+    value::T
+end
+struct Exactly{T} <: JuMP.AbstractVectorSet
+    value::T
+end
+JuMP.moi_set(set::AtLeast, dim::Int) = MOIAtLeast(set.value, dim)
+JuMP.moi_set(set::AtMost, dim::Int) = MOIAtMost(set.value, dim)
+JuMP.moi_set(set::Exactly, dim::Int) = MOIExactly(set.value, dim)
+
+
+const LogicalExpr = JuMP.NonlinearExpr{LogicalVariableRef}
+
+"""
+    LogicalConstraint <: JuMP.AbstractConstraint
+
+A type for a logical constraint that is comprised of an expression on LogicalVariables 
+    with logic operators.
+
+**Fields**
+- `expression::LogicalExpr`: The logical constraint.
+"""
+struct LogicalConstraint{T,S} <: JuMP.AbstractConstraint
+    func::T
+    set::S
+end
+
+"""
+    LogicalConstraintData
+
+A type for storing [`LogicalConstraint`](@ref)s and any meta-data they possess.
+
+**Fields**
+- `constraint::LogicalConstraint`: The logical constraint.
+- `name::String`: The name of the proposition.
+"""
+mutable struct LogicalConstraintData
+    constraint::LogicalConstraint
+    name::String
+end
+
+"""
+    LogicalConstraintIndex
+
+A type for storing the index of a [`LogicalConstraint`](@ref).
+
+**Fields**
+- `value::Int64`: The index value.
+"""
+struct LogicalConstraintIndex
+    value::Int64
+end
+
+"""
+    LogicalConstraintRef
+
+A type for looking up logical constraints.
+"""
+struct LogicalConstraintRef
+    model::JuMP.Model
+    index::LogicalConstraintIndex
+end
+
+################################################################################
+#                              DISJUNCT CONSTRAINTS
+################################################################################
 
 """
 
@@ -118,7 +180,9 @@ struct DisjunctConstraintRef
     index::DisjunctConstraintIndex
 end
 
-#######################################################################
+################################################################################
+#                              DISJUNCTIONS
+################################################################################
 
 """
     Disjunct{C <: Tuple}
@@ -189,64 +253,9 @@ struct DisjunctionRef
     index::DisjunctionIndex
 end
 
-#######################################################################
-
-"""
-
-"""
-const LogicalExpr = JuMP.NonlinearExpr{LogicalVariableRef}
-
-"""
-    LogicalConstraint <: JuMP.AbstractConstraint
-
-A type for a logical constraint that is comprised of an expression on LogicalVariables 
-    with logic operators.
-
-**Fields**
-- `expression::LogicalExpr`: The logical constraint.
-"""
-struct LogicalConstraint{T,S} <: JuMP.AbstractConstraint
-    func::T
-    set::S
-end
-
-"""
-    LogicalConstraintData
-
-A type for storing [`LogicalConstraint`](@ref)s and any meta-data they possess.
-
-**Fields**
-- `constraint::LogicalConstraint`: The logical constraint.
-- `name::String`: The name of the proposition.
-"""
-mutable struct LogicalConstraintData
-    constraint::LogicalConstraint
-    name::String
-end
-
-"""
-    LogicalConstraintIndex
-
-A type for storing the index of a [`LogicalConstraint`](@ref).
-
-**Fields**
-- `value::Int64`: The index value.
-"""
-struct LogicalConstraintIndex
-    value::Int64
-end
-
-"""
-    LogicalConstraintRef
-
-A type for looking up logical constraints.
-"""
-struct LogicalConstraintRef
-    model::JuMP.Model
-    index::LogicalConstraintIndex
-end
-
-#######################################################################
+################################################################################
+#                              CLEVER DICTS
+################################################################################
 
 ## Extend the CleverDicts key access methods
 # index_to_key
@@ -276,6 +285,10 @@ end
 function _MOIUC.key_to_index(key::LogicalConstraintIndex)
     return key.value
 end
+
+################################################################################
+#                              SOLUTION METHODS
+################################################################################
 
 """
     AbstractSolutionMethod
@@ -330,6 +343,10 @@ end
 A type for using indicator constraint approach for linear disjunctive constraints.
 """
 struct Indicator <: AbstractReformulationMethod end
+
+################################################################################
+#                              GDP Data
+################################################################################
 
 """
     GDPData

@@ -1,3 +1,6 @@
+################################################################################
+#                              LOGICAL VARIABLES
+################################################################################
 """
 
 Create binary (indicator) variables for logic variables.
@@ -14,6 +17,9 @@ function _reformulate_logical_variables(model::JuMP.Model)
     end
 end
 
+################################################################################
+#                              DISJUNCTIONS
+################################################################################
 """
 
 """
@@ -301,38 +307,45 @@ function _reformulate_disjunctive_constraints(
     error("$method reformulation for constraint $con is not supported yet.")
 end
 
+################################################################################
+#                              LOGICAL CONSTRAINTS
+################################################################################
+
 """
 
 """
 function _reformulate_logical_constraints(model::JuMP.Model)
     for (_, lcon) in _logical_constraints(model)
-        _reformulate_logical_constraint(model, lcon.constraint.func, lcon.constraint.set)
-        # _reformulate_logical_constraints(model, lcon.constraint.expression)
+        _reformulate_logical_constraints(model, lcon.constraint.func, lcon.constraint.set)
     end
 end
 
-function _reformulate_logical_constraint(model::JuMP.Model, lvec::Vector{LogicalVariableRef}, set::MOIFirstOrderSet)
-    _reformulate_selector(model, set, set.value, lvec)
+function _reformulate_logical_constraints(model::JuMP.Model, lvec::Vector{LogicalVariableRef}, set::MOIFirstOrderSet)
+    return _reformulate_selector(model, set, set.value, lvec)
+end
+
+function _reformulate_logical_constraints(model::JuMP.Model, lexpr::LogicalExpr, ::MOIIsTrue)
+    return _reformulate_proposition(model, lexpr)
 end
 
 function _reformulate_selector(model::JuMP.Model, kind::MOIAtLeast, val::Number, lvars::Vector{LogicalVariableRef})
     ind_var_dict = gdp_data(model).indicator_variables
     vars = Any[ind_var_dict[var] for var in lvars]
-    JuMP.add_constraint(model,
+    return JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, vars), _MOI.GreaterThan(val))
     )
 end
 function _reformulate_selector(model::JuMP.Model, kind::MOIAtMost, val::Number, lvars::Vector{LogicalVariableRef})
     ind_var_dict = gdp_data(model).indicator_variables
     vars = Any[ind_var_dict[var] for var in lvars]
-    JuMP.add_constraint(model,
+    return JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, vars), _MOI.LessThan(val))
     )
 end
 function _reformulate_selector(model::JuMP.Model, kind::MOIExactly, val::Number, lvars::Vector{LogicalVariableRef})
     ind_var_dict = gdp_data(model).indicator_variables
     vars = Any[ind_var_dict[var] for var in lvars]
-    JuMP.add_constraint(model,
+    return JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, vars), _MOI.EqualTo(val))
     )
 end
@@ -340,7 +353,7 @@ function _reformulate_selector(model::JuMP.Model, kind::MOIAtLeast, lvar::Logica
     ind_var_dict = gdp_data(model).indicator_variables
     var0 = ind_var_dict[lvar]
     vars = Any[ind_var_dict[v] for v in lvars]
-    JuMP.add_constraint(model,
+    return JuMP.add_constraint(model,
         build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, vars), var0]), _MOI.GreaterThan(0))
     )
 end
@@ -348,7 +361,7 @@ function _reformulate_selector(model::JuMP.Model, kind::MOIAtMost, lvar::Logical
     ind_var_dict = gdp_data(model).indicator_variables
     var0 = ind_var_dict[lvar]
     vars = Any[ind_var_dict[v] for v in lvars]
-    JuMP.add_constraint(model,
+    return JuMP.add_constraint(model,
         build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, vars), var0]), _MOI.LessThan(0))
     )
 end
@@ -356,13 +369,9 @@ function _reformulate_selector(model::JuMP.Model, kind::MOIExactly, lvar::Logica
     ind_var_dict = gdp_data(model).indicator_variables
     var0 = ind_var_dict[lvar]
     vars = Any[ind_var_dict[v] for v in lvars]
-    JuMP.add_constraint(model,
+    return JuMP.add_constraint(model,
         build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, vars), var0]), _MOI.EqualTo(0))
     )
-end
-
-function _reformulate_logical_constraint(model::JuMP.Model, lexpr::LogicalExpr, ::MOIIsTrue)
-    return _reformulate_proposition(model, lexpr)
 end
 
 function _reformulate_proposition(model::JuMP.Model, lexpr::LogicalExpr)

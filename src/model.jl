@@ -1,3 +1,7 @@
+################################################################################
+#                              GDP MODEL
+################################################################################
+
 """
     GDPModel([optimizer]; [kwargs...])::JuMP.Model
 
@@ -9,6 +13,28 @@ function GDPModel(args...; kwargs...)
     JuMP.set_optimize_hook(model, _optimize_hook)
     return model
 end
+
+# Determine if the model is ready to call `optimize!` without a optimize hook
+_ready_to_optimize(model::JuMP.Model) = gdp_data(model).ready_to_optimize
+
+# Update the ready_to_optimize field
+function _set_ready_to_optimize(model::JuMP.Model, is_ready::Bool)
+    gdp_data(model).ready_to_optimize = is_ready
+    return
+end
+
+# Get the current solution method
+_solution_method(model::JuMP.Model) = gdp_data(model).solution_method
+
+# Set the solution method
+function _set_solution_method(model::JuMP.Model, method::AbstractSolutionMethod)
+    gdp_data(model).solution_method = method
+    return
+end
+
+################################################################################
+#                              GDP DATA
+################################################################################
 
 """
     gdp_data(model::JuMP.Model)::GDPData
@@ -82,6 +108,9 @@ end
 
 """
 
+################################################################################
+#                              COPY EXT
+################################################################################
 
 function JuMP.copy_extension_data(data::GDPData, new_model::JuMP.AbstractModel, model::JuMP.AbstractModel)
     new_model.ext[:GDP] = GDPData(
@@ -98,20 +127,3 @@ function JuMP.copy_extension_data(data::GDPData, new_model::JuMP.AbstractModel, 
     )
 end
 
-# Determine if the model is ready to call `optimize!` without a optimize hook
-_ready_to_optimize(model::JuMP.Model) = gdp_data(model).ready_to_optimize
-
-# Update the ready_to_optimize field
-function _set_ready_to_optimize(model::JuMP.Model, is_ready::Bool)
-    gdp_data(model).ready_to_optimize = is_ready
-    return
-end
-
-# Get the current solution method
-_solution_method(model::JuMP.Model) = gdp_data(model).solution_method
-
-# Set the solution method
-function _set_solution_method(model::JuMP.Model, method::AbstractSolutionMethod)
-    gdp_data(model).solution_method = method
-    return
-end

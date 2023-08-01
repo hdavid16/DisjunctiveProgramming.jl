@@ -1,6 +1,71 @@
 """
 
 """
+JuMP.owner_model(cref::DisjunctConstraintRef) = cref.model
+
+"""
+
+"""
+JuMP.owner_model(cref::DisjunctionRef) = cref.model
+
+"""
+
+"""
+JuMP.index(cref::DisjunctConstraintRef) = cref.index
+
+"""
+
+"""
+JuMP.index(cref::DisjunctionRef) = cref.index
+
+"""
+
+"""
+function JuMP.is_valid(model::JuMP.Model, cref::DisjunctionRef)
+    return model === JuMP.owner_model(cref)
+end
+
+"""
+
+"""
+function JuMP.name(cref::DisjunctionRef)
+    constr_data = gdp_data(JuMP.owner_model(cref))
+    return constr_data.disjunctions[JuMP.index(cref)].name
+end
+
+"""
+
+"""
+function JuMP.set_name(cref::DisjunctionRef, name::String)
+    constr_data = gdp_data(JuMP.owner_model(cref))
+    constr_data.disjunctions[JuMP.index(cref)].name = name
+    return
+end
+
+"""
+
+"""
+function JuMP.delete(model::JuMP.Model, cref::DisjunctionRef)
+    @assert JuMP.is_valid(model, cref) "Disjunctive constraint does not belong to model."
+    constr_data = gdp_data(JuMP.owner_model(cref))
+    dict = constr_data.disjunctions[JuMP.index(cref)]
+    # TODO check if used by a disjunction and/or a proposition
+    delete!(dict, index(cref))
+    return 
+end
+
+Base.copy(con::DisjunctConstraintRef) = con
+#NOTE: copying a GDPmodel gives an error for any named DisjunctConstraints since 
+#   it doesn't know how to copy these.
+#   However, they are copied in the GDPData ext Dict.
+
+################################################################################
+#                              DisjunctConstraints
+################################################################################
+
+"""
+
+"""
 function JuMP._build_indicator_constraint(
     _error::Function,
     lvar::LogicalVariableRef,
@@ -31,41 +96,6 @@ function JuMP.build_constraint(_error::Function, disjuncts::Vector{<:Disjunct})
     return Disjunction(disjuncts)
 end
 
-# TODO: implement parse_constraint_call for the different logical operators 
-_first_order_op = (
-    (:Ξ, :exactly),
-    (:Λ, :atmost), 
-    (:Γ, :atleast)
-)
-for (ops, set) in zip(_first_order_op, [Exactly, AtMost, AtLeast])
-    for op in ops
-        function JuMP.parse_constraint_call(_error::Function, ::Bool, ::Val{op}, val, lvec)
-            build_code = :(JuMP.build_constraint($(_error), $(esc(lvec)), $set($(esc(val)))))
-            return :(), build_code
-        end
-    end
-end
-
-function JuMP.build_constraint(_error::Function, con::Vector{LogicalVariableRef}, set::S) where {S <: Union{MOIAtLeast, MOIAtMost, MOIExactly}}
-    return LogicalConstraint(con, set)
-end
-
-function JuMP.build_constraint(_error::Function, con::LogicalExpr, set::MOIIsTrue)
-    return LogicalConstraint(con, set)
-end
-
-function JuMP.add_constraint(
-    model::JuMP.Model,
-    c::LogicalConstraint,
-    name::String = ""
-)
-    is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")
-    # TODO maybe check the variables in the disjuncts belong to the model
-    constr_data = LogicalConstraintData(c, name)
-    idx = _MOIUC.add_item(_logical_constraints(model), constr_data)
-    return LogicalConstraintRef(model, idx)
-end
-
 """
 
 """
@@ -85,17 +115,9 @@ function JuMP.add_constraint(
     return DisjunctConstraintRef(model, idx)
 end
 
-function JuMP.add_constraint(
-    model::JuMP.Model, 
-    c::Disjunction, 
-    name::String = ""
-)
-    is_gdp_model(model) || error("Can only add _disjunctions to `GDPModel`s.")
-    # TODO maybe check the variables in the disjuncts belong to the model
-    constr_data = DisjunctionData(c, name)
-    idx = _MOIUC.add_item(_disjunctions(model), constr_data)
-    return DisjunctionRef(model, idx)
-end
+################################################################################
+#                              DISJUNCTIONS
+################################################################################
 
 function add_disjunction(
     model::JuMP.Model, 
@@ -155,60 +177,44 @@ function add_disjunction(
     return DisjunctionRef(model, idx)
 end
 
-"""
+################################################################################
+#                              LOGICAL CONSTRAINTS
+################################################################################
 
-"""
-JuMP.owner_model(cref::DisjunctConstraintRef) = cref.model
-
-"""
-
-"""
-JuMP.owner_model(cref::DisjunctionRef) = cref.model
-
-"""
-
-"""
-JuMP.index(cref::DisjunctConstraintRef) = cref.index
+_first_order_ops = (
+    (:Ξ, :exactly),
+    (:Λ, :atmost), 
+    (:Γ, :atleast)
+)
 
 """
 
 """
-JuMP.index(cref::DisjunctionRef) = cref.index
-
-"""
-
-"""
-function JuMP.is_valid(model::JuMP.Model, cref::DisjunctionRef)
-    return model === JuMP.owner_model(cref)
+for (ops, set) in zip(_first_order_ops, [Exactly, AtMost, AtLeast])
+    for op in ops
+        function JuMP.parse_constraint_call(_error::Function, ::Bool, ::Val{op}, val, lvec)
+            build_code = :(JuMP.build_constraint($(_error), $(esc(lvec)), $set($(esc(val)))))
+            return :(), build_code
+        end
+    end
 end
 
-"""
-
-"""
-function JuMP.name(cref::DisjunctionRef)
-    constr_data = gdp_data(JuMP.owner_model(cref))
-    return constr_data.disjunctions[JuMP.index(cref)].name
+function JuMP.build_constraint(_error::Function, con::Vector{LogicalVariableRef}, set::S) where {S <: Union{MOIAtLeast, MOIAtMost, MOIExactly}}
+    return LogicalConstraint(con, set)
 end
 
-"""
-
-"""
-function JuMP.set_name(cref::DisjunctionRef, name::String)
-    constr_data = gdp_data(JuMP.owner_model(cref))
-    constr_data.disjunctions[JuMP.index(cref)].name = name
-    return
+function JuMP.build_constraint(_error::Function, con::LogicalExpr, set::MOIIsTrue)
+    return LogicalConstraint(con, set)
 end
 
-"""
-
-"""
-function JuMP.delete(model::JuMP.Model, cref::DisjunctionRef)
-    @assert JuMP.is_valid(model, cref) "Disjunctive constraint does not belong to model."
-    constr_data = gdp_data(JuMP.owner_model(cref))
-    dict = constr_data.disjunctions[JuMP.index(cref)]
-    # TODO check if used by a disjunction and/or a proposition
-    delete!(dict, index(cref))
-    return 
+function JuMP.add_constraint(
+    model::JuMP.Model,
+    c::LogicalConstraint,
+    name::String = ""
+)
+    is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")
+    # TODO maybe check the variables in the disjuncts belong to the model
+    constr_data = LogicalConstraintData(c, name)
+    idx = _MOIUC.add_item(_logical_constraints(model), constr_data)
+    return LogicalConstraintRef(model, idx)
 end
-
-Base.copy(con::DisjunctConstraintRef) = con
