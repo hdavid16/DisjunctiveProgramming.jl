@@ -186,10 +186,6 @@ _first_order_ops = (
     (:Λ, :atmost), 
     (:Γ, :atleast)
 )
-
-"""
-
-"""
 for (ops, set) in zip(_first_order_ops, [Exactly, AtMost, AtLeast])
     for op in ops
         function JuMP.parse_constraint_call(_error::Function, ::Bool, ::Val{op}, val, lvec)
