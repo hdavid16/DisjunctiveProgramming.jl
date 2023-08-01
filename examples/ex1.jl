@@ -38,8 +38,11 @@ disjunction = add_disjunction(m,
 )
 Y = disjunction_indicators(disjunction)
 
-# Logical Constraint
+# Logical Constraint Method 1: Use func in set notation
 @constraint(m, exclussinve, Y in Exactly(1))
+
+# Logical Constraint Method 2: Use NonlinearExpr that gets parsed to func in set notation
+@constraint(m, exclussive, exactly(1, Y))
 
 # Reformulate logical variables and logical constraints
 DisjunctiveProgramming._reformulate_logical_variables(m)

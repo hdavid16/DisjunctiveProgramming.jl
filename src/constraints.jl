@@ -31,22 +31,20 @@ function JuMP.build_constraint(_error::Function, disjuncts::Vector{<:Disjunct})
     return Disjunction(disjuncts)
 end
 
-# TODO: implement parse_constraint_call for the different logical operators
-
-# for op in _logic_operators
-#     # TODO use MOI constraint programming sets where possible
-#     function JuMP.parse_constraint_call(_error::Function, ::Bool, ::Val{op}, args...)
-#         parse_code = :()
-#         constr = :($op($(args...)))
-#         build_code = :(JuMP.build_constraint($(_error), $(esc(constr)), $LogicalConstraint))
-#         return parse_code, build_code 
-#     end
-# end
-
-# function JuMP.build_constraint(_error::Function, con::LogicalExpr, tag::Type{LogicalConstraint})
-#     # TODO add error checking
-#     return LogicalConstraint(con, _MOI.EqualTo(true))
-# end
+# TODO: implement parse_constraint_call for the different logical operators 
+_first_order_op = (
+    (:Ξ, :exactly),
+    (:Λ, :atmost), 
+    (:Γ, :atleast)
+)
+for (ops, set) in zip(_first_order_op, [Exactly, AtMost, AtLeast])
+    for op in ops
+        function JuMP.parse_constraint_call(_error::Function, ::Bool, ::Val{op}, val, lvec)
+            build_code = :(JuMP.build_constraint($(_error), $(esc(lvec)), $set($val)))
+            return :(), build_code
+        end
+    end
+end
 
 function JuMP.build_constraint(_error::Function, con::Vector{LogicalVariableRef}, set::S) where {S <: Union{MOIAtLeast, MOIAtMost, MOIExactly}}
     return LogicalConstraint(con, set)

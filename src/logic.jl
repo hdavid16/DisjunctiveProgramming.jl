@@ -6,24 +6,24 @@ _logic_operators = [
     :⇒, :(-->), :implies, :¬, :lneg
 ]
 
-# Define all the logic functions/operators that use 3+ arguments
-for (name, func) in (
-    (:Ξ, :Ξ), (:Ξ, :exactly), # \Xi + tab
-    (:Λ, :Λ), (:Λ, :atmost), # \Lambda + tab
-    (:Γ, :Γ), (:Γ, :atleast) # \Gamma + tab
-)
-    # make an expression constructor
-    @eval begin 
-        function $func(
-            v1::Union{LogicalVariableRef, LogicalExpr, Number}, 
-            v2::Union{LogicalVariableRef, LogicalExpr},
-            v3::Union{LogicalVariableRef, LogicalExpr},
-            v...
-            )
-            return LogicalExpr(Symbol($name), Any[v1, v2, v3, v...])
-        end
-    end
-end
+# # Define all the logic functions/operators that use 3+ arguments
+# for (name, func) in (
+#     (:Ξ, :Ξ), (:Ξ, :exactly), # \Xi + tab
+#     (:Λ, :Λ), (:Λ, :atmost), # \Lambda + tab
+#     (:Γ, :Γ), (:Γ, :atleast) # \Gamma + tab
+# )
+#     # make an expression constructor
+#     @eval begin 
+#         function $func(
+#             v1::Union{LogicalVariableRef, LogicalExpr, Number}, 
+#             v2::Union{LogicalVariableRef, LogicalExpr},
+#             v3::Union{LogicalVariableRef, LogicalExpr},
+#             v...
+#             )
+#             return LogicalExpr(Symbol($name), Any[v1, v2, v3, v...])
+#         end
+#     end
+# end
 
 # Define all the logic functions/operators that use 2+ arguments
 for (name, func) in (
@@ -45,7 +45,10 @@ end
 # Define all the logic functions/operators that use 2 arguments
 for (name, func) in (
     (:⇔, :⇔), (:⇔, :(<-->)), (:⇔, :iff), (:⇔, :equals), # \Leftrightarrow + tab
-    (:⇒, :⇒), (:⇒, :(-->)), (:⇒, :implies) # \Rightarrow + tab
+    (:⇒, :⇒), (:⇒, :(-->)), (:⇒, :implies), # \Rightarrow + tab
+    (:Ξ, :Ξ), (:Ξ, :exactly), # \Xi + tab
+    (:Λ, :Λ), (:Λ, :atmost), # \Lambda + tab
+    (:Γ, :Γ), (:Γ, :atleast) # \Gamma + tab
 )
     # make an expression constructor
     @eval begin 
