@@ -1,4 +1,38 @@
 """
+
+"""
+# Logical sets
+struct MOIIsTrue <: _MOI.AbstractScalarSet end
+struct IsTrue <: JuMP.AbstractScalarSet end
+JuMP.moi_set(set::IsTrue) = MOIIsTrue()
+
+abstract type MOIFirstOrderSet <: _MOI.AbstractVectorSet end
+struct MOIAtLeast{T} <: MOIFirstOrderSet
+    value::T
+    dimension::Int
+end
+struct MOIAtMost{T} <: MOIFirstOrderSet
+    value::T
+    dimension::Int
+end
+struct MOIExactly{T} <: MOIFirstOrderSet
+    value::T
+    dimension::Int
+end
+struct AtLeast{T} <: JuMP.AbstractVectorSet
+    value::T
+end
+struct AtMost{T} <: JuMP.AbstractVectorSet
+    value::T
+end
+struct Exactly{T} <: JuMP.AbstractVectorSet
+    value::T
+end
+JuMP.moi_set(set::AtLeast, dim::Int) = MOIAtLeast(set.value, dim)
+JuMP.moi_set(set::AtMost, dim::Int) = MOIAtMost(set.value, dim)
+JuMP.moi_set(set::Exactly, dim::Int) = MOIExactly(set.value, dim)
+
+"""
     LogicalVariable <: JuMP.AbstractVariable
 
 A variable type the logical variables associated with 
@@ -171,9 +205,9 @@ A type for a logical constraint that is comprised of an expression on LogicalVar
 **Fields**
 - `expression::LogicalExpr`: The logical constraint.
 """
-struct LogicalConstraint <: JuMP.AbstractConstraint
-    expression::LogicalExpr
-    set::_MOI.EqualTo
+struct LogicalConstraint{T,S} <: JuMP.AbstractConstraint
+    func::T
+    set::S
 end
 
 """

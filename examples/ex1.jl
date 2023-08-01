@@ -39,7 +39,7 @@ disjunction = add_disjunction(m,
 Y = disjunction_indicators(disjunction)
 
 # Logical Constraint
-@constraint(m, exclussive, exactly(1, Y[1], Y[2]))
+@constraint(m, exclussinve, Y in Exactly(1))
 
 # Reformulate logical variables and logical constraints
 DisjunctiveProgramming._reformulate_logical_variables(m)

@@ -55,7 +55,7 @@ function _copy(logical_constraints::_MOIUC.CleverDict{LogicalConstraintIndex, Lo
     new_logical_cons = _MOIUC.CleverDict{LogicalConstraintIndex, LogicalConstraintData}()
     for (_, LCD) in logical_constraints
         new_lcon = LogicalConstraint(
-            _copy(LCD.constraint.expression, new_model),
+            _copy(LCD.constraint.func, new_model),
             LCD.constraint.set
         )
         new_LCD = LogicalConstraintData(new_lcon, LCD.name)
@@ -103,6 +103,10 @@ end
 
 function _copy(lvar::LogicalVariableRef, new_model::JuMP.Model)
     return LogicalVariableRef(new_model, JuMP.index(lvar))
+end
+
+function _copy(lvec::Vector{LogicalVariableRef}, new_model::JuMP.Model)
+    return _copy.(lvec, new_model)
 end
 
 function _copy(aff::JuMP.AffExpr, new_model::JuMP.Model)

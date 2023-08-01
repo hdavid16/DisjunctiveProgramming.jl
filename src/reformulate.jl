@@ -306,44 +306,99 @@ end
 """
 function _reformulate_logical_constraints(model::JuMP.Model)
     for (_, lcon) in _logical_constraints(model)
-        _reformulate_logical_constraints(model, lcon.constraint.expression)
+        _reformulate_logical_constraint(model, lcon.constraint.func, lcon.constraint.set)
+        # _reformulate_logical_constraints(model, lcon.constraint.expression)
     end
 end
 
-function _reformulate_logical_constraints(model::JuMP.Model, lexpr::LogicalExpr)
-    if lexpr.head in (:exactly, :atmost, :atleast, :Ξ, :Λ, :Γ)
-        _reformulate_selector(model, lexpr.head, lexpr.args[1], lexpr.args[2:end])
-    else
-        _reformulate_proposition(model, lexpr)
-    end
+function _reformulate_logical_constraint(model::JuMP.Model, lvec::Vector{LogicalVariableRef}, set::MOIFirstOrderSet)
+    _reformulate_selector(model, set, set.value, lvec)
 end
 
-function _reformulate_selector(model::JuMP.Model, kind::Symbol, val::Number, lvars::Vector{Any})
+function _reformulate_selector(model::JuMP.Model, kind::MOIAtLeast, val::Number, lvars::Vector{LogicalVariableRef})
     ind_var_dict = gdp_data(model).indicator_variables
     vars = Any[ind_var_dict[var] for var in lvars]
-    op = 
-        kind in (:Ξ, :exactly) ? _MOI.EqualTo(val) :
-        kind in (:Γ, :atleast) ? _MOI.GreaterThan(val) :
-        kind in (:Λ, :atmost) ? _MOI.LessThan(val) :
-        error("Selector operator `$(kind)` is not valid (allowed selectors are `:exactly`, `:atmost`, `:atleast`).")
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, vars), op)
+        JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, vars), _MOI.GreaterThan(val))
     )
 end
-
-function _reformulate_selector(model::JuMP.Model, kind::Symbol, lvar::LogicalVariableRef, lvars::Vector{Any})
+function _reformulate_selector(model::JuMP.Model, kind::MOIAtMost, val::Number, lvars::Vector{LogicalVariableRef})
+    ind_var_dict = gdp_data(model).indicator_variables
+    vars = Any[ind_var_dict[var] for var in lvars]
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, vars), _MOI.LessThan(val))
+    )
+end
+function _reformulate_selector(model::JuMP.Model, kind::MOIExactly, val::Number, lvars::Vector{LogicalVariableRef})
+    ind_var_dict = gdp_data(model).indicator_variables
+    vars = Any[ind_var_dict[var] for var in lvars]
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, vars), _MOI.EqualTo(val))
+    )
+end
+function _reformulate_selector(model::JuMP.Model, kind::MOIAtLeast, lvar::LogicalVariableRef, lvars::Vector{LogicalVariableRef})
     ind_var_dict = gdp_data(model).indicator_variables
     var0 = ind_var_dict[lvar]
     vars = Any[ind_var_dict[v] for v in lvars]
-    op = 
-        kind in (:Ξ, :exactly) ? _MOI.EqualTo(0) :
-        kind in (:Γ, :atleast) ? _MOI.GreaterThan(0) :
-        kind in (:Λ, :atmost) ? _MOI.LessThan(0) :
-        error("Selector operator `$(kind)` is not valid (allowed selectors are `:exactly`, `:atmost`, `:atleast`).")
     JuMP.add_constraint(model,
-        build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, vars), var0]), op)
+        build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, vars), var0]), _MOI.GreaterThan(0))
     )
 end
+function _reformulate_selector(model::JuMP.Model, kind::MOIAtMost, lvar::LogicalVariableRef, lvars::Vector{LogicalVariableRef})
+    ind_var_dict = gdp_data(model).indicator_variables
+    var0 = ind_var_dict[lvar]
+    vars = Any[ind_var_dict[v] for v in lvars]
+    JuMP.add_constraint(model,
+        build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, vars), var0]), _MOI.LessThan(0))
+    )
+end
+function _reformulate_selector(model::JuMP.Model, kind::MOIExactly, lvar::LogicalVariableRef, lvars::Vector{LogicalVariableRef})
+    ind_var_dict = gdp_data(model).indicator_variables
+    var0 = ind_var_dict[lvar]
+    vars = Any[ind_var_dict[v] for v in lvars]
+    JuMP.add_constraint(model,
+        build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, vars), var0]), _MOI.EqualTo(0))
+    )
+end
+
+function _reformulate_logical_constraint(model::JuMP.Model, lexpr::LogicalExpr, ::MOIIsTrue)
+    return _reformulate_proposition(model, lexpr)
+end
+
+# function _reformulate_logical_constraints(model::JuMP.Model, lexpr::LogicalExpr)
+#     if lexpr.head in (:exactly, :atmost, :atleast, :Ξ, :Λ, :Γ)
+#         _reformulate_selector(model, lexpr.head, lexpr.args[1], lexpr.args[2:end])
+#     else
+#         _reformulate_proposition(model, lexpr)
+#     end
+# end
+
+# function _reformulate_selector(model::JuMP.Model, kind::Symbol, val::Number, lvars::Vector{Any})
+#     ind_var_dict = gdp_data(model).indicator_variables
+#     vars = Any[ind_var_dict[var] for var in lvars]
+#     op = 
+#         kind in (:Ξ, :exactly) ? _MOI.EqualTo(val) :
+#         kind in (:Γ, :atleast) ? _MOI.GreaterThan(val) :
+#         kind in (:Λ, :atmost) ? _MOI.LessThan(val) :
+#         error("Selector operator `$(kind)` is not valid (allowed selectors are `:exactly`, `:atmost`, `:atleast`).")
+#     JuMP.add_constraint(model,
+#         JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, vars), op)
+#     )
+# end
+
+# function _reformulate_selector(model::JuMP.Model, kind::Symbol, lvar::LogicalVariableRef, lvars::Vector{Any})
+#     ind_var_dict = gdp_data(model).indicator_variables
+#     var0 = ind_var_dict[lvar]
+#     vars = Any[ind_var_dict[v] for v in lvars]
+#     op = 
+#         kind in (:Ξ, :exactly) ? _MOI.EqualTo(0) :
+#         kind in (:Γ, :atleast) ? _MOI.GreaterThan(0) :
+#         kind in (:Λ, :atmost) ? _MOI.LessThan(0) :
+#         error("Selector operator `$(kind)` is not valid (allowed selectors are `:exactly`, `:atmost`, `:atleast`).")
+#     JuMP.add_constraint(model,
+#         build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, vars), var0]), op)
+#     )
+# end
 
 function _reformulate_proposition(model::JuMP.Model, lexpr::LogicalExpr)
     expr = _to_cnf(lexpr)

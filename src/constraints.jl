@@ -31,19 +31,29 @@ function JuMP.build_constraint(_error::Function, disjuncts::Vector{<:Disjunct})
     return Disjunction(disjuncts)
 end
 
-for op in _logic_operators
-    # TODO use MOI constraint programming sets where possible
-    function JuMP.parse_constraint_call(_error::Function, ::Bool, ::Val{op}, args...)
-        parse_code = :()
-        constr = :($op($(args...)))
-        build_code = :(JuMP.build_constraint($(_error), $(esc(constr)), $LogicalConstraint))
-        return parse_code, build_code 
-    end
+# TODO: implement parse_constraint_call for the different logical operators
+
+# for op in _logic_operators
+#     # TODO use MOI constraint programming sets where possible
+#     function JuMP.parse_constraint_call(_error::Function, ::Bool, ::Val{op}, args...)
+#         parse_code = :()
+#         constr = :($op($(args...)))
+#         build_code = :(JuMP.build_constraint($(_error), $(esc(constr)), $LogicalConstraint))
+#         return parse_code, build_code 
+#     end
+# end
+
+# function JuMP.build_constraint(_error::Function, con::LogicalExpr, tag::Type{LogicalConstraint})
+#     # TODO add error checking
+#     return LogicalConstraint(con, _MOI.EqualTo(true))
+# end
+
+function JuMP.build_constraint(_error::Function, con::Vector{LogicalVariableRef}, set::S) where {S <: Union{MOIAtLeast, MOIAtMost, MOIExactly}}
+    return LogicalConstraint(con, set)
 end
 
-function JuMP.build_constraint(_error::Function, con::LogicalExpr, tag::Type{LogicalConstraint})
-    # TODO add error checking
-    return LogicalConstraint(con, _MOI.EqualTo(true))
+function JuMP.build_constraint(_error::Function, con::LogicalExpr, set::MOIIsTrue)
+    return LogicalConstraint(con, set)
 end
 
 function JuMP.add_constraint(

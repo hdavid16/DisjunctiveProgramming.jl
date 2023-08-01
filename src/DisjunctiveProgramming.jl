@@ -13,9 +13,9 @@ const _LCRST = LeftChildRightSiblingTrees
 include("datatypes.jl")
 include("copy.jl")
 include("model.jl")
+include("logic.jl")
 include("variables.jl")
 include("constraints.jl")
-include("logic.jl")
 include("reformulate.jl")
 include("bigm.jl")
 include("hull.jl")
@@ -23,15 +23,7 @@ include("macros.jl")
 include("optimize.jl")
 
 # export logic operators
-export 
-    ∨, lor, 
-    ∧, land, 
-    ⇔, <-->, iff, equals, 
-    ⇒, -->, implies, 
-    ¬, neg,
-    Ξ, exactly,
-    Λ, atmost,
-    Γ, atleast
+export ∨, ∧, ⇔, <-->, ⇒, -->, ¬
 
 # Define additional stuff that should not be exported
 const _EXCLUDE_SYMBOLS = [Symbol(@__MODULE__), :eval, :include]
