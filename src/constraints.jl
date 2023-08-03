@@ -2,8 +2,8 @@
 #                         BOILERPLATE EXTENSION METHODS
 ################################################################################
 for (RefType, loc) in ((:DisjunctConstraintRef, :disjunct_constraints), 
-                       (:DisjunctionRef, disjunctions), 
-                       (:LogicalConstraintRef, logical_constraints))
+                       (:DisjunctionRef, :disjunctions), 
+                       (:LogicalConstraintRef, :logical_constraints))
     @eval begin
         @doc """
             JuMP.owner_model(cref::$($RefType))
@@ -104,6 +104,7 @@ struct _DisjunctConstraint{C <: JuMP.AbstractConstraint, L <: Union{Nothing, Log
     lvref::L
 end
 
+
 """
 
 """
@@ -116,9 +117,7 @@ function JuMP.build_constraint(
     return _DisjunctConstraint(JuMP.build_constraint(_error, func, set), nothing)
 end
 
-"""
-
-"""
+# DisjunctConstraint with indicator variable
 function JuMP.build_constraint(
     _error::Function, 
     func, 
@@ -129,21 +128,39 @@ function JuMP.build_constraint(
     return _DisjunctConstraint(constr, tag.indicator)
 end
 
+# Allow intervals to handle tags
+function JuMP.build_constraint(
+    _error::Function, 
+    func::JuMP.AbstractJuMPScalar, 
+    lb::Real, 
+    ub::Real,
+    args...
+)
+    constr = JuMP.build_constraint(_error, func, lb, ub)
+    func = JuMP.jump_function(constr)
+    set = JuMP.moi_set(constr)
+    return JuMP.build_constraint(_error, func, set, args...)
+end
+
 ## Dispatch on _DisjunctConstraint to update indicator mappings if needed
 # Do nothing
-function _add_indicator_var(::DisjunctConstraint{C, Nothing}, idx, model) where {C}
+function _add_indicator_var(::_DisjunctConstraint{C, Nothing}, idx, model) where {C}
     return
 end
 
 # Add the variable mappings
-function _add_indicator_var(con::DisjunctConstraint, idx, model)
+function _add_indicator_var(
+    con::_DisjunctConstraint{C, LogicalVariableRef}, 
+    idx, 
+    model
+    ) where {C}
     JuMP.is_valid(model, con.lvref) || error("Logical variable belongs to a different model.")
     ind_idx = JuMP.index(con.lvref)
-    model.constraint_to_logical[idx] = ind_idx
-    if haskey(model.indicator_to_constraints, ind_idx)
-        push!(model.indicator_to_constraints[ind_idx], idx)
+    _constraint_to_indicator(model)[idx] = ind_idx
+    if haskey(_indicator_to_constraints(model), ind_idx)
+        push!(_indicator_to_constraints(model)[ind_idx], idx)
     else
-        model.indicator_to_constraints[ind_idx] = [idx]
+        _indicator_to_constraints(model)[ind_idx] = [idx]
     end
     return
 end
@@ -165,7 +182,7 @@ end
 
 # Helper function to access the logical variable index
 function _logical_variable_index(cref::DisjunctConstraintRef)
-    dict = JuMP.owner_model(cref).constraint_to_indicator
+    dict = _constraint_to_indicator(JuMP.owner_model(cref))
     return get(dict, JuMP.index(cref), nothing)
 end
 
@@ -184,7 +201,7 @@ function _process_structure(
     has_indicator = !isnothing(_logical_variable_index(first(first(s))))
     for crefs in s
         for cref in crefs
-            if !is_valid(model, cref)
+            if !JuMP.is_valid(model, cref)
                 _error("`$cref` is not a valid constraint reference for this model.")
             elseif has_indicator != !isnothing(_logical_variable_index(cref))
                 _error("Cannot create a disjunction where logical variable " *
@@ -207,9 +224,9 @@ function _process_structure(
     else 
         for (i, crefs) in enumerate(s)
             var = LogicalVariable(nothing, nothing)
-            lvref = JuMP.add_variable(model, var, "$(name)_i")
+            lvref = JuMP.add_variable(model, var, "$(name)_$i")
             indicators[i] = lvref
-            model.indicator_to_constraints[JuMP.index(lvref)] = [JuMP.index(cref) for cref in crefs]
+            _indicator_to_constraints(model)[JuMP.index(lvref)] = [JuMP.index(cref) for cref in crefs]
         end
         return indicators
     end
@@ -242,9 +259,9 @@ end
 function _process_structure(_error, s::Vector{LogicalVariableRef}, model, name)
     allunique(s) ||_error("Not all the logical indicator variables are unique.")
     for lvref in s
-        if !is_valid(model, lvref)
+        if !JuMP.is_valid(model, lvref)
             _error("`$lvref` is not a valid logical variable reference.")
-        elseif !haskey(model.indicator_to_constraints, JuMP.index(lvref))
+        elseif !haskey(_indicator_to_constraints(model), JuMP.index(lvref))
             _error("`$lvref` is not associated with any constraints.")
         end
     end
@@ -271,10 +288,11 @@ function _disjunction(
 
     # build the disjunction
     indicators = _process_structure(_error, structure, model, name)
-    disjuncts = Vector{Disjunct}(undef, length(indicator))
+    disjuncts = Vector{Disjunct}(undef, length(indicators))
     for (i, lvref) in enumerate(indicators)
         ind_idx = JuMP.index(lvref)
-        disjuncts[i] = Disjunct(model.indicator_to_constraints[ind_idx], lvref)
+        crefs = [DisjunctConstraintRef(model, idx) for idx in _indicator_to_constraints(model)[ind_idx]]
+        disjuncts[i] = Disjunct(crefs, lvref)
     end
     disjunction = Disjunction(disjuncts)
 
@@ -384,7 +402,7 @@ end
 # EqualTo{Bool} w/ LogicalExpr
 function JuMP.build_constraint(
     _error::Function, 
-    func::_LogicalExpr
+    func::_LogicalExpr,
     set::_MOI.EqualTo{Bool}
     )
     set.value && return JuMP.ScalarConstraint(func, set)

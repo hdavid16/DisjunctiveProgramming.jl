@@ -2,6 +2,7 @@ module DisjunctiveProgramming
 
 # Import dependencies
 import JuMP
+using Base.Meta
 
 # Create aliases
 const _MOI = JuMP.MOI
@@ -9,15 +10,15 @@ const _MOIUC = JuMP.MOIU.CleverDicts
 
 # Load in the source files
 include("datatypes.jl")
-include("copy.jl")
+# include("copy.jl")
 include("model.jl")
 include("logic.jl")
 include("variables.jl")
 include("constraints.jl")
-include("reformulate.jl")
-include("bigm.jl")
-include("hull.jl")
 include("macros.jl")
+# include("reformulate.jl")
+# include("bigm.jl")
+# include("hull.jl")
 include("optimize.jl")
 
 # export logic operators (NOTE: these don't get exported although defined in logic.jl)

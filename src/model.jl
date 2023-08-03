@@ -64,36 +64,29 @@ function disjunction_indicators(disjunction::DisjunctionRef)
     return LogicalVariableRef[disj.indicator for disj in disjuncts] # TODO account for nested disjunctions
 end
 
-"""
-
-"""
+# Create accessors for GDP data fields
 function _disjunct_constraints(model::JuMP.Model)
-    is_gdp_model(model) || error("Cannot access disjunct constraints from a regular `JuMP.Model`.")
     return model.ext[:GDP].disjunct_constraints
 end
 
-"""
-
-"""
 function _disjunctions(model::JuMP.Model)
-    is_gdp_model(model) || error("Cannot access disjunctions from a regular `JuMP.Model`.")
     return model.ext[:GDP].disjunctions
 end
 
-"""
-
-"""
 function _logical_constraints(model::JuMP.Model)
-    is_gdp_model(model) || error("Cannot access logical constraints from a regular `JuMP.Model`.")
     return model.ext[:GDP].logical_constraints
 end
 
-"""
-
-"""
 function _logical_variables(model::JuMP.Model)
-    is_gdp_model(model) || error("Cannot access logical variables from a regular `JuMP.Model`.")
     return model.ext[:GDP].logical_variables
+end
+
+function _constraint_to_indicator(model::JuMP.Model)
+    return model.ext[:GDP].constraint_to_indicator
+end
+
+function _indicator_to_constraints(model::JuMP.Model)
+    return model.ext[:GDP].indicator_to_constraints
 end
 
 """

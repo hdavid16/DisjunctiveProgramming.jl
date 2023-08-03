@@ -185,9 +185,9 @@ macro disjunction(model, args...)
         c = y
         x = _esc_non_constant(popfirst!(extra))
         is_anon = isexpr(y, :vcat)
-    elseif (isa(Symbol, y) || isexpr(y, :vect)) && 
+    elseif (isa(y, Symbol) || isexpr(y, :vect)) && 
         !isempty(extra) && 
-        (isa(Symbol, extra[1]) || isexpr(extra[1], (:vect, :comprehension)))
+        (isa(extra[1], Symbol) || isexpr(extra[1], (:vect, :comprehension)))
         c = y
         x = _esc_non_constant(popfirst!(extra))
         is_anon = isexpr(y, :vcat)
@@ -239,5 +239,10 @@ macro disjunction(model, args...)
     return _finalize_macro(_error, esc_model, macro_code, __source__)
 end
 
-# Temporary hack to test plural syntax
-JuMP._pluralize_macro(:disjunctions, Symbol("@disjunction"))
+"""
+
+"""
+macro disjunctions(model, args...)
+    # TODO
+end
+

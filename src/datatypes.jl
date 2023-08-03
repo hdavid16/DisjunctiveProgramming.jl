@@ -389,7 +389,7 @@ mutable struct GDPData
             _MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}(),
             _MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}(), 
             Dict{DisjunctConstraintIndex, LogicalVariableIndex}(),
-            Dict{LogicalVariableIndex, Vector{DisjunctConstraintindex}}(),
+            Dict{LogicalVariableIndex, Vector{DisjunctConstraintIndex}}(),
             nothing,
             false,
             Dict{Symbol, JuMP.VariableRef}(),
