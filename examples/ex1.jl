@@ -12,10 +12,7 @@ m = GDPModel()
 @constraint(m, disjunct_1_con, 0 ≤ x ≤ 3, Y[1])
 @constraint(m, disjunct_2_con_a, 5 ≤ x, Y[2])
 @constraint(m, disjunct_2_con_b, x ≤ 9, Y[2])
-disjunction = add_disjunction(m,
-    [Y[1], Y[2]],
-    "Disjunction"
-)
+@disjunction(m, disjunction, [Y[1], Y[2]])
 
 # Disjunction Method 2: Same as Method 1, but using Indicator Constraint notation
 m = GDPModel()

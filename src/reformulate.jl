@@ -324,7 +324,7 @@ function _reformulate_logical_constraints(model::JuMP.Model, lvec::Vector{Logica
     return _reformulate_selector(model, set, set.value, lvec)
 end
 
-function _reformulate_logical_constraints(model::JuMP.Model, lexpr::LogicalExpr, ::MOIIsTrue)
+function _reformulate_logical_constraints(model::JuMP.Model, lexpr::_LogicalExpr, ::MOIIsTrue)
     return _reformulate_proposition(model, lexpr)
 end
 
@@ -374,7 +374,7 @@ function _reformulate_selector(model::JuMP.Model, kind::MOIExactly, lvar::Logica
     )
 end
 
-function _reformulate_proposition(model::JuMP.Model, lexpr::LogicalExpr)
+function _reformulate_proposition(model::JuMP.Model, lexpr::_LogicalExpr)
     expr = _to_cnf(lexpr)
     if expr.head == :∧
         func = JuMP.AffExpr()
@@ -393,7 +393,7 @@ function _reformulate_clause(model::JuMP.Model, lvar::LogicalVariableRef)
     return func
 end
 
-function _reformulate_clause(model::JuMP.Model, lexpr::LogicalExpr)
+function _reformulate_clause(model::JuMP.Model, lexpr::_LogicalExpr)
     ind_var_dict = gdp_data(model).indicator_variables
     if lexpr.head != :∨
         error("Expression was not converted to proper Conjunctive Normal Form:\n$(expr.args)")

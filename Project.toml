@@ -4,14 +4,10 @@ authors = ["hdavid16 <hperez16@gmail.com>"]
 version = "0.4.0"
 
 [deps]
-IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
-LeftChildRightSiblingTrees = "1d6d02ad-be62-4b6b-8a6d-2f90e265016e"
 
 [compat]
-IntervalArithmetic = "0.20"
 JuMP = "1"
-LeftChildRightSiblingTrees = "0.1"
 julia = "1.6"
 
 [extras]

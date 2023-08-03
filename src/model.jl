@@ -58,18 +58,10 @@ end
 """
 
 """
-function disjunction_indicators(disjunction::DisjunctionRef)
+function disjunction_indicators(disjunction::DisjunctionRef) 
     model, idx = disjunction.model, disjunction.index
     disjuncts = _disjunctions(model)[idx].constraint.disjuncts
-    return LogicalVariableRef[disj.indicator for disj in disjuncts]
-end
-
-"""
-
-"""
-function _disjunct_constraint_map(model::JuMP.Model)
-    is_gdp_model(model) || error("Cannot access disjunct constraint map from a regular `JuMP.Model`.")
-    return model.ext[:GDP].disjunct_constraint_map
+    return LogicalVariableRef[disj.indicator for disj in disjuncts] # TODO account for nested disjunctions
 end
 
 """

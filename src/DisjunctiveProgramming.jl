@@ -2,12 +2,10 @@ module DisjunctiveProgramming
 
 # Import dependencies
 import JuMP
-import LeftChildRightSiblingTrees
 
 # Create aliases
 const _MOI = JuMP.MOI
 const _MOIUC = JuMP.MOIU.CleverDicts
-const _LCRST = LeftChildRightSiblingTrees
 
 # Load in the source files
 include("datatypes.jl")
@@ -23,7 +21,7 @@ include("macros.jl")
 include("optimize.jl")
 
 # export logic operators (NOTE: these don't get exported although defined in logic.jl)
-export ∨, ∧, ⇔, <-->, ⇒, -->, ¬
+export ∨, ∧, ⇔, <-->, ⇒, -->, ¬ # TODO investigate why this is
 
 # Define additional stuff that should not be exported
 const _EXCLUDE_SYMBOLS = [Symbol(@__MODULE__), :eval, :include]

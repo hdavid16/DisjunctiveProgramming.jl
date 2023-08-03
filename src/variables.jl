@@ -61,6 +61,7 @@ function JuMP.add_variable(
     is_gdp_model(model) || error("Can only add logical variables to `GDPModel`s.")
     data = LogicalVariableData(v, name)
     idx = _MOIUC.add_item(_logical_variables(model), data)
+    _set_ready_to_optimize(model, false)
     return LogicalVariableRef(model, idx)
 end
 

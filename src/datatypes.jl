@@ -50,82 +50,105 @@ end
 A type for looking up logical variables.
 """
 struct LogicalVariableRef <: JuMP.AbstractVariableRef
-    model::JuMP.Model
+    model::JuMP.Model # TODO: generalize for AbstractModels
     index::LogicalVariableIndex
 end
 
 ################################################################################
 #                              LOGICAL CONSTRAINTS
 ################################################################################
-"""
-
-"""
 # Logical sets
-struct MOIIsTrue <: _MOI.AbstractScalarSet end
-struct IsTrue <: JuMP.AbstractScalarSet end
-JuMP.moi_set(set::IsTrue) = MOIIsTrue()
+# struct MOIIsTrue <: _MOI.AbstractScalarSet end # we can just use MOI.Equalto(true) instead behind the scenes
+# struct IsTrue <: JuMP.AbstractScalarSet end # we can probably avoid having to make a new set
+# JuMP.moi_set(set::IsTrue) = MOIIsTrue()
 
-abstract type MOIFirstOrderSet <: _MOI.AbstractVectorSet end
-struct MOIAtLeast{T} <: MOIFirstOrderSet
-    value::T
+# abstract type MOIFirstOrderSet <: _MOI.AbstractVectorSet end # This is probably not needed
+"""
+    _MOIAtLeast <: MOI.AbstractVectorSet
+
+MOI level set for AtLeast constraints, see [`AtLeast`](@ref) for recommended syntax.
+"""
+struct MOIAtLeast <: _MOI.AbstractVectorSet
+    value::Int
     dimension::Int
 end
-struct MOIAtMost{T} <: MOIFirstOrderSet
-    value::T
+"""
+    _MOIAtMost <: MOI.AbstractVectorSet
+
+MOI level set for AtMost constraints, see [`AtMost`](@ref) for recommended syntax.
+"""
+struct MOIAtMost <: _MOI.AbstractVectorSet
+    value::Int
     dimension::Int
 end
-struct MOIExactly{T} <: MOIFirstOrderSet
-    value::T
+
+
+"""
+    _MOIExactly <: _MOI.AbstractVectorSet
+
+MOI level set for Exactly constraints, see [`Exactly`](@ref) for recommended syntax.
+"""
+struct MOIExactly <: _MOI.AbstractVectorSet
+    value::Int
     dimension::Int
 end
-struct AtLeast{T} <: JuMP.AbstractVectorSet
-    value::T
+
+# Create our own JuMP level sets to infer the dimension using the expression
+"""
+    AtLeast <: JuMP.AbstractVectorSet
+
+Convenient alias for using [`MOIAtLeast`](@ref).
+"""
+struct AtLeast <: JuMP.AbstractVectorSet
+    value::Int
 end
-struct AtMost{T} <: JuMP.AbstractVectorSet
-    value::T
+
+"""
+    AtMost <: JuMP.AbstractVectorSet
+
+Convenient alias for using [`MOIAtMost`](@ref).
+"""
+struct AtMost <: JuMP.AbstractVectorSet
+    value::Int
 end
-struct Exactly{T} <: JuMP.AbstractVectorSet
-    value::T
+
+"""
+    Exactly <: JuMP.AbstractVectorSet
+
+Convenient alias for using [`MOIExactly`](@ref).
+"""
+struct Exactly <: JuMP.AbstractVectorSet
+    value::Int
 end
+
+# Extend JuMP.moi_set as needed
 JuMP.moi_set(set::AtLeast, dim::Int) = MOIAtLeast(set.value, dim)
 JuMP.moi_set(set::AtMost, dim::Int) = MOIAtMost(set.value, dim)
 JuMP.moi_set(set::Exactly, dim::Int) = MOIExactly(set.value, dim)
 
 
-const LogicalExpr = JuMP.NonlinearExpr{LogicalVariableRef}
+const _LogicalExpr = JuMP.NonlinearExpr{LogicalVariableRef}
+
 
 """
-    LogicalConstraint <: JuMP.AbstractConstraint
+    ConstraintData{C <: JuMP.AbstractConstraint}
 
-A type for a logical constraint that is comprised of an expression on LogicalVariables 
-    with logic operators.
+A type for storing constraint objects in [`GDPData`](@ref) and any meta-data 
+they possess.
 
 **Fields**
-- `expression::LogicalExpr`: The logical constraint.
-"""
-struct LogicalConstraint{T,S} <: JuMP.AbstractConstraint
-    func::T
-    set::S
-end
-
-"""
-    LogicalConstraintData
-
-A type for storing [`LogicalConstraint`](@ref)s and any meta-data they possess.
-
-**Fields**
-- `constraint::LogicalConstraint`: The logical constraint.
+- `constraint::C`: The constraint.
 - `name::String`: The name of the proposition.
 """
-mutable struct LogicalConstraintData
-    constraint::LogicalConstraint
+mutable struct ConstraintData{C <: JuMP.AbstractConstraint}
+    constraint::C
     name::String
 end
 
 """
     LogicalConstraintIndex
 
-A type for storing the index of a [`LogicalConstraint`](@ref).
+A type for storing the index of a logical constraint.
 
 **Fields**
 - `value::Int64`: The index value.
@@ -140,14 +163,13 @@ end
 A type for looking up logical constraints.
 """
 struct LogicalConstraintRef
-    model::JuMP.Model
+    model::JuMP.Model # TODO: generalize for AbstractModels
     index::LogicalConstraintIndex
 end
 
 ################################################################################
 #                              DISJUNCT CONSTRAINTS
 ################################################################################
-
 """
 
 """
@@ -156,50 +178,51 @@ struct DisjunctConstraintIndex
 end
 
 """
+    DisjunctConstraint
 
-"""
-struct DisjunctConstraint{T, S} <: JuMP.AbstractConstraint
-    func::T
-    set::S
-    indicator::Union{Nothing, LogicalVariableRef}
-end
+Used as a tag for constraints that will be used in disjunctions. This is done via 
+the following syntax:
+```julia-repl
+julia> @constraint(model, [constr_expr], DisjunctConstraint)
 
+julia> @constraint(model, [constr_expr], DisjunctConstraint(lvref))
+```
+where `lvref` is a [`LogicalVariableRef`](@ref) that will ultimately be associated 
+with the disjunct the constraint is added to. If no `lvref` is given, then one is 
+generated when the disjunction is created.
 """
-
-"""
-mutable struct DisjunctConstraintData
-    constraint::DisjunctConstraint
-    name::String
+struct DisjunctConstraint
+    indicator::LogicalVariableRef
 end
 
 """
 
 """
 struct DisjunctConstraintRef
-    model::JuMP.Model
+    model::JuMP.Model # TODO: generalize for AbstractModels
     index::DisjunctConstraintIndex
 end
 
 ################################################################################
 #                              DISJUNCTIONS
 ################################################################################
-
 """
-    Disjunct{C <: Tuple}
+    Disjunct
 
 A type for storing a mathematical disjunct object. Principally, it is comprised 
 of constraints and an indicator variable which is true when the disjunct is 
 satisfied. 
 
 **Fields**
-- `constraints::C`: A tuple of constraint collections where each collection is a 
-                    JuMP container and each constraint in the container is some 
-                    kind of `JuMP.AbstractConstraint`.
-- `indicator::LogicalVariableRef`: The logical/binary variable associated with the 
+- `constraints::Vector{DisjunctConstraintRef}`: The constraints of the disjunct 
+    where these have been preivously added using the `DisjunctConstraint` tag. 
+    This can also accept Disjunctions which have been additionally stored as 
+    disjunct constraints.
+- `indicator::LogicalVariableRef`: The logical variable associated with the 
                                    disjunct.
 """
-struct Disjunct{C <: Tuple}
-    constraints::C # TODO maybe make vector of constraints instead
+struct Disjunct
+    constraints::Vector{DisjunctConstraintRef}
     indicator::LogicalVariableRef
 end
 
@@ -229,27 +252,12 @@ struct Disjunction <: JuMP.AbstractConstraint
 end
 
 """
-    DisjunctionData
-
-A type for storing [`Disjunction`](@ref)s and any meta-data they 
-possess.
-
-**Fields**
-- `constraint::Disjunction`: The disjunctive constraint object.
-- `name::String`: The name of the constraint.
-"""
-mutable struct DisjunctionData
-    constraint::Disjunction
-    name::String
-end
-
-"""
     DisjunctionRef
 
 A type for looking up disjunctive constraints.
 """
 struct DisjunctionRef
-    model::JuMP.Model
+    model::JuMP.Model # TODO: generalize for AbstractModels
     index::DisjunctionIndex
 end
 
@@ -310,7 +318,7 @@ abstract type AbstractReformulationMethod <: AbstractSolutionMethod end
 A type for using the big-M reformulation approach for disjunctive constraints.
 
 **Fields**
-- `value::Float64`: Big-M value.
+- `value::Float64`: Big-M value (default = `1e9`).
 - `tight::Bool`: Attempt to tighten the Big-M value (default = `true`)?
 """
 struct BigM <: AbstractReformulationMethod
@@ -328,7 +336,7 @@ A type for using the convex hull reformulation approach for disjunctive
 constraints.
 
 **Fields**
-- `value::Float64`: epsilon value for nonlinear hull reformulations.
+- `value::Float64`: epsilon value for nonlinear hull reformulations (default = `1e-6`).
 """
 struct Hull <: AbstractReformulationMethod # TODO add fields if needed
     value::Float64
@@ -347,7 +355,6 @@ struct Indicator <: AbstractReformulationMethod end
 ################################################################################
 #                              GDP Data
 ################################################################################
-
 """
     GDPData
 
@@ -356,10 +363,13 @@ The core type for storing information in a [`GDPModel`](@ref).
 mutable struct GDPData
     # Objects
     logical_variables::_MOIUC.CleverDict{LogicalVariableIndex, LogicalVariableData}
-    logical_constraints::_MOIUC.CleverDict{LogicalConstraintIndex, LogicalConstraintData}
-    disjunct_constraints::_MOIUC.CleverDict{DisjunctConstraintIndex, DisjunctConstraintData}
-    disjunct_constraint_map::Dict{DisjunctConstraintIndex, LogicalVariableIndex}
-    disjunctions::_MOIUC.CleverDict{DisjunctionIndex, DisjunctionData}
+    logical_constraints::_MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData}
+    disjunct_constraints::_MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}
+    disjunctions::_MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}
+
+    # Indicator variable mappings
+    constraint_to_indicator::Dict{DisjunctConstraintIndex, LogicalVariableIndex}
+    indicator_to_constraints::Dict{LogicalVariableIndex, Vector{DisjunctConstraintIndex}}
     
     # Solution data
     solution_method::Union{Nothing, AbstractSolutionMethod}
@@ -368,17 +378,18 @@ mutable struct GDPData
     # Map of disaggregated variables 
     disaggregated_variables::Dict{Symbol, JuMP.VariableRef}
     indicator_variables::Dict{LogicalVariableRef, JuMP.VariableRef}
-    variable_bounds::Dict{JuMP.VariableRef, Tuple{Float64, Float64}}
+    variable_bounds::Dict{JuMP.VariableRef, Tuple{Float64, Float64}} # TODO allow for other precision
 
     # TODO track meta-data of any constraints/variables we add to the model
 
     # Default constructor
     function GDPData()
         new(_MOIUC.CleverDict{LogicalVariableIndex, LogicalVariableData}(),
-            _MOIUC.CleverDict{LogicalConstraintIndex, LogicalConstraintData}(),
-            _MOIUC.CleverDict{DisjunctConstraintIndex, DisjunctConstraintData}(),
+            _MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData}(),
+            _MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}(),
+            _MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}(), 
             Dict{DisjunctConstraintIndex, LogicalVariableIndex}(),
-            _MOIUC.CleverDict{DisjunctionIndex, DisjunctionData}(), 
+            Dict{LogicalVariableIndex, Vector{DisjunctConstraintindex}}(),
             nothing,
             false,
             Dict{Symbol, JuMP.VariableRef}(),
