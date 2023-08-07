@@ -1,16 +1,32 @@
 """
 
 """
-function _copy(disjunct_constraints::_MOIUC.CleverDict{DisjunctConstraintIndex, DisjunctConstraintData}, new_model::JuMP.Model)
-    # TODO: add code here
-    new_disjunct_cons = _MOIUC.CleverDict{DisjunctConstraintIndex, DisjunctConstraintData}()
-    for (_, DCD) in disjunct_constraints
-        new_disjunct_con = DisjunctConstraint(
-            _copy(DCD.constraint.func, new_model),
-            DCD.constraint.set,
-            _copy(DCD.constraint.indicator, new_model)
+function _copy(logical_constraints::_MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData, T1, T2}, new_model::JuMP.Model) where {T1, T2}
+    new_logical_cons = _MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData}()
+    for (_, LCD) in logical_constraints
+        new_lcon = JuMP.build_constraint(error,
+            _copy(LCD.constraint.func, new_model),
+            _copy(LCD.constraint.set, new_model)
         )
-        new_DCD = DisjunctConstraintData(new_disjunct_con, DCD.name)
+        new_LCD = ConstraintData(new_lcon, LCD.name)
+        _MOIUC.add_item(new_logical_cons, new_LCD)
+    end
+
+    return new_logical_cons
+end
+
+"""
+
+"""
+function _copy(disjunct_constraints::_MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData, T1, T2}, new_model::JuMP.Model) where {T1, T2}
+    # TODO: add code here
+    new_disjunct_cons = _MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}()
+    for (_, DCD) in disjunct_constraints
+        new_disjunct_con = JuMP.build_constraint(error,
+            _copy(DCD.constraint.func, new_model),
+            DCD.constraint.set
+        )
+        new_DCD = ConstraintData(new_disjunct_con, DCD.name)
         _MOIUC.add_item(new_disjunct_cons, new_DCD)
     end
     
@@ -21,25 +37,20 @@ _copy(::Nothing, new_model::JuMP.Model) = nothing
 """
 
 """
-function _copy(disjunctions::_MOIUC.CleverDict{DisjunctionIndex, DisjunctionData}, new_model::JuMP.Model)
-    new_disjunctions = _MOIUC.CleverDict{DisjunctionIndex, DisjunctionData}()
+function _copy(disjunctions::_MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}, T1, T2}, new_model::JuMP.Model) where {T1, T2}
+    new_disjunctions = _MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}()
     for (_, DCD) in disjunctions
-        new_disjunction = similar(DCD.constraint.disjuncts)
+        new_disjuncts = similar(DCD.constraint.disjuncts)
         for (ix, disj) in enumerate(DCD.constraint.disjuncts)
-            new_disj_con = JuMP.AbstractConstraint[]
-            for con in disj.constraints
-                new_con = JuMP.build_constraint(error,
-                    _copy(con.func, new_model),
-                    con.set,
-                    isnothing(con.indicator) ? DisjunctConstraint : con.indicator
-                )
-                push!(new_disj_con, new_con)
-            end
-            new_disj = Disjunct(tuple(new_disj_con...), _copy(disj.indicator, new_model))
-            new_disjunction[ix] = new_disj
+            new_disj_con_refs = [
+                DisjunctConstraintRef(new_model, con.index)
+                for con in disj.constraints
+            ]
+            new_disj = Disjunct(new_disj_con_refs, _copy(disj.indicator, new_model))
+            new_disjuncts[ix] = new_disj
         end
-        new_DCD = DisjunctionData(
-            JuMP.build_constraint(error, new_disjunction), 
+        new_DCD = ConstraintData(
+            Disjunction(new_disjuncts), 
             DCD.name
         )
         _MOIUC.add_item(new_disjunctions, new_DCD)
@@ -51,48 +62,28 @@ end
 """
 
 """
-function _copy(logical_constraints::_MOIUC.CleverDict{LogicalConstraintIndex, LogicalConstraintData}, new_model::JuMP.Model)
-    new_logical_cons = _MOIUC.CleverDict{LogicalConstraintIndex, LogicalConstraintData}()
-    for (_, LCD) in logical_constraints
-        new_lcon = LogicalConstraint(
-            _copy(LCD.constraint.func, new_model),
-            LCD.constraint.set
-        )
-        new_LCD = LogicalConstraintData(new_lcon, LCD.name)
-        _MOIUC.add_item(new_logical_cons, new_LCD)
-    end
-
-    return new_logical_cons
+function _copy(set::S, new_mode::JuMP.Model) where {S<:Union{_MOI.EqualTo, MOIAtLeast, MOIAtMost, MOIExactly}}
+    set
 end
-
-"""
-
-"""
-function _copy(disaggregated_variables::Dict{Symbol, JuMP.VariableRef}, new_model::JuMP.Model)
-    return Dict(
-        k => _copy(v, new_model)
-        for (k, v) in disaggregated_variables
+function _copy(set::MOIAtLeast{T}, new_model::JuMP.Model) where {T<:LogicalVariableRef}
+    MOIAtLeast{T}(
+        LogicalVariableRef(new_model, JuMP.index(set.value)), 
+        set.dimension
+    )
+end
+function _copy(set::MOIAtMost{T}, new_model::JuMP.Model) where {T<:LogicalVariableRef}
+    MOIAtMost{T}(
+        LogicalVariableRef(new_model, JuMP.index(set.value)), 
+        set.dimension
+    )
+end
+function _copy(set::MOIExactly{T}, new_model::JuMP.Model) where {T<:LogicalVariableRef}
+    MOIExactly{T}(
+        LogicalVariableRef(new_model, JuMP.index(set.value)), 
+        set.dimension
     )
 end
 
-function _copy(indicator_variables::Dict{LogicalVariableRef, JuMP.VariableRef}, new_model::JuMP.Model)
-    return Dict(
-        _copy(k, new_model) => _copy(v, new_model)
-        for (k, v) in indicator_variables
-    )
-end
-
-function _copy(variable_bounds::Dict{JuMP.VariableRef, Tuple{Float64, Float64}}, new_model::JuMP.Model)
-    return Dict(
-        _copy(k, new_model) => v
-        for (k, v) in variable_bounds
-    )
-end
-
-"""
-
-"""
-# Constant
 function _copy(c::Number, new_model::JuMP.Model)
     return c
 end
@@ -140,7 +131,7 @@ end
 """
 function _copy(nlp::JuMP.NonlinearExpr, new_model::JuMP.Model)
     #TODO: use stack to avoid recursion stackoverflow error for deeply nested expression
-    new_args = Vector{Any}()
+    new_args = Vector{Any}(undef, length(nlp.args))
     for arg in nlp.args
         push!(new_args, _copy(arg, new_model))
     end

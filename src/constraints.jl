@@ -181,7 +181,7 @@ function JuMP.add_constraint(
 end
 
 # Helper function to access the logical variable index
-function _logical_variable_index(cref::DisjunctConstraintRef)
+function _indicator_index(cref::DisjunctConstraintRef)
     dict = _constraint_to_indicator(JuMP.owner_model(cref))
     return get(dict, JuMP.index(cref), nothing)
 end
@@ -198,12 +198,12 @@ function _process_structure(
     name
     )
     # check that all crefs belong to model and consistently (don't) use indicators
-    has_indicator = !isnothing(_logical_variable_index(first(first(s))))
+    has_indicator = !isnothing(_indicator_index(first(first(s))))
     for crefs in s
         for cref in crefs
             if !JuMP.is_valid(model, cref)
                 _error("`$cref` is not a valid constraint reference for this model.")
-            elseif has_indicator != !isnothing(_logical_variable_index(cref))
+            elseif has_indicator != !isnothing(_indicator_index(cref))
                 _error("Cannot create a disjunction where logical variable " *
                        "indicators have only been added to a subset of constraints.") 
             end
@@ -214,8 +214,8 @@ function _process_structure(
     indicators = Vector{LogicalVariableRef}(undef, length(s))
     if has_indicator
         for (i, crefs) in enumerate(s)
-            ind_idx = _logical_variable_index(first(crefs))
-            if any(_logical_variable_index(c) != ind_idx for c in crefs)
+            ind_idx = _indicator_index(first(crefs))
+            if any(_indicator_index(c) != ind_idx for c in crefs)
                 _error("Constraints in same disjunct cannot use different logical variables.")
             end
             indicators[i] = LogicalVariableRef(model, ind_idx)
@@ -291,7 +291,8 @@ function _disjunction(
     disjuncts = Vector{Disjunct}(undef, length(indicators))
     for (i, lvref) in enumerate(indicators)
         ind_idx = JuMP.index(lvref)
-        crefs = [DisjunctConstraintRef(model, idx) for idx in _indicator_to_constraints(model)[ind_idx]]
+        c_idxs = _indicator_to_constraints(model)[ind_idx]
+        crefs = DisjunctConstraintRef.(model, c_idxs)
         disjuncts[i] = Disjunct(crefs, lvref)
     end
     disjunction = Disjunction(disjuncts)
@@ -299,6 +300,14 @@ function _disjunction(
     # add it to the model
     disjunction_data = ConstraintData(disjunction, name)
     idx = _MOIUC.add_item(_disjunctions(model), disjunction_data)
+
+    # add mappings
+    _disjunction_to_indicators(model)[idx] = JuMP.index.(indicators)
+    for lvref in indicators
+        ind_idx = JuMP.index(lvref)
+        _indicator_to_disjunction(model)[ind_idx] = idx
+    end
+
     _set_ready_to_optimize(model, false)
     return DisjunctionRef(model, idx)
 end
@@ -406,7 +415,7 @@ function JuMP.build_constraint(
     set::_MOI.EqualTo{Bool}
     )
     set.value && return JuMP.ScalarConstraint(func, set)
-    new_set = MOI.EqualTo(true)
+    new_set = _MOI.EqualTo(true)
     if func.head == :- && func.args[2] == true
         return JuMP.ScalarConstraint(func.args[1], new_set)
     elseif func.head == :-

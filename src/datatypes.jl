@@ -68,29 +68,38 @@ end
 
 MOI level set for AtLeast constraints, see [`AtLeast`](@ref) for recommended syntax.
 """
-struct MOIAtLeast <: _MOI.AbstractVectorSet
-    value::Int
+struct MOIAtLeast{T} <: _MOI.AbstractVectorSet
+    value::T # Int or LogicalVariableRef
     dimension::Int
 end
+function MOIAtLeast(value::T, dimension::Int) where {T}
+    MOIAtLeast{T}(value, dimension)
+end
+
 """
     _MOIAtMost <: MOI.AbstractVectorSet
 
 MOI level set for AtMost constraints, see [`AtMost`](@ref) for recommended syntax.
 """
-struct MOIAtMost <: _MOI.AbstractVectorSet
-    value::Int
+struct MOIAtMost{T} <: _MOI.AbstractVectorSet
+    value::T # Int or LogicalVariableRef
     dimension::Int
 end
-
+function MOIAtMost(value::T, dimension::Int) where {T}
+    MOIAtMost{T}(value, dimension)
+end
 
 """
     _MOIExactly <: _MOI.AbstractVectorSet
 
 MOI level set for Exactly constraints, see [`Exactly`](@ref) for recommended syntax.
 """
-struct MOIExactly <: _MOI.AbstractVectorSet
-    value::Int
+struct MOIExactly{T} <: _MOI.AbstractVectorSet
+    value::T # Int or LogicalVariableRef
     dimension::Int
+end
+function MOIExactly(value::T, dimension::Int) where {T}
+    MOIExactly{T}(value, dimension)
 end
 
 # Create our own JuMP level sets to infer the dimension using the expression
@@ -99,8 +108,8 @@ end
 
 Convenient alias for using [`MOIAtLeast`](@ref).
 """
-struct AtLeast <: JuMP.AbstractVectorSet
-    value::Int
+struct AtLeast{T} <: JuMP.AbstractVectorSet
+    value::T # Int or LogicalVariableRef
 end
 
 """
@@ -108,8 +117,8 @@ end
 
 Convenient alias for using [`MOIAtMost`](@ref).
 """
-struct AtMost <: JuMP.AbstractVectorSet
-    value::Int
+struct AtMost{T} <: JuMP.AbstractVectorSet
+    value::T # Int or LogicalVariableRef
 end
 
 """
@@ -117,8 +126,8 @@ end
 
 Convenient alias for using [`MOIExactly`](@ref).
 """
-struct Exactly <: JuMP.AbstractVectorSet
-    value::Int
+struct Exactly{T} <: JuMP.AbstractVectorSet
+    value::T # Int or LogicalVariableRef
 end
 
 # Extend JuMP.moi_set as needed
@@ -368,17 +377,22 @@ mutable struct GDPData
     disjunctions::_MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}
 
     # Indicator variable mappings
-    constraint_to_indicator::Dict{DisjunctConstraintIndex, LogicalVariableIndex}
+    disjunction_to_indicators::Dict{DisjunctionIndex, Vector{LogicalVariableIndex}}
+    indicator_to_disjunction::Dict{LogicalVariableIndex, DisjunctionIndex}
+    indicator_to_binary::Dict{LogicalVariableIndex, _MOI.VariableIndex}
     indicator_to_constraints::Dict{LogicalVariableIndex, Vector{DisjunctConstraintIndex}}
+    constraint_to_indicator::Dict{DisjunctConstraintIndex, LogicalVariableIndex}
     
+    # Map of disaggregated variables 
+    global_to_disjunct_variable::Dict{Tuple{_MOI.VariableIndex,_MOI.VariableIndex}, _MOI.VariableIndex}
+    global_to_disjunction_variables::Dict{Tuple{_MOI.VariableIndex,DisjunctionIndex}, Vector{_MOI.VariableIndex}}
+
+    # Map of variable bounds
+    variable_bounds::Dict{_MOI.VariableIndex, Tuple{Float64, Float64}} # TODO allow for other precision
+
     # Solution data
     solution_method::Union{Nothing, AbstractSolutionMethod}
     ready_to_optimize::Bool
-
-    # Map of disaggregated variables 
-    disaggregated_variables::Dict{Symbol, JuMP.VariableRef}
-    indicator_variables::Dict{LogicalVariableRef, JuMP.VariableRef}
-    variable_bounds::Dict{JuMP.VariableRef, Tuple{Float64, Float64}} # TODO allow for other precision
 
     # TODO track meta-data of any constraints/variables we add to the model
 
@@ -388,13 +402,16 @@ mutable struct GDPData
             _MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData}(),
             _MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}(),
             _MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}(), 
-            Dict{DisjunctConstraintIndex, LogicalVariableIndex}(),
+            Dict{DisjunctionIndex, Vector{LogicalVariableIndex}}(),
+            Dict{LogicalVariableIndex, DisjunctionIndex}(),
+            Dict{LogicalVariableIndex, _MOI.VariableIndex}(),
             Dict{LogicalVariableIndex, Vector{DisjunctConstraintIndex}}(),
+            Dict{DisjunctConstraintIndex, LogicalVariableIndex}(),
+            Dict{Tuple{_MOI.VariableIndex,_MOI.VariableIndex}, _MOI.VariableIndex}(),
+            Dict{Tuple{_MOI.VariableIndex,DisjunctionIndex}, Vector{_MOI.VariableIndex}}(),
+            Dict{_MOI.VariableIndex, Tuple{Float64, Float64}}(),
             nothing,
             false,
-            Dict{Symbol, JuMP.VariableRef}(),
-            Dict{LogicalVariableRef, JuMP.VariableRef}(),
-            Dict{JuMP.VariableRef, Tuple{Float64, Float64}}()
             )
     end
     function GDPData(args...)

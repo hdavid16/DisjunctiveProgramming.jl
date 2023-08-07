@@ -60,11 +60,19 @@ end
 """
 function disjunction_indicators(disjunction::DisjunctionRef) 
     model, idx = disjunction.model, disjunction.index
-    disjuncts = _disjunctions(model)[idx].constraint.disjuncts
-    return LogicalVariableRef[disj.indicator for disj in disjuncts] # TODO account for nested disjunctions
+    ind_idxs = _disjunction_to_indicators(model)[idx]
+    return LogicalVariableRef.(model, ind_idxs) # TODO account for nested disjunctions
 end
 
 # Create accessors for GDP data fields
+function _logical_variables(model::JuMP.Model)
+    return model.ext[:GDP].logical_variables
+end
+
+function _logical_constraints(model::JuMP.Model)
+    return model.ext[:GDP].logical_constraints
+end
+
 function _disjunct_constraints(model::JuMP.Model)
     return model.ext[:GDP].disjunct_constraints
 end
@@ -73,25 +81,45 @@ function _disjunctions(model::JuMP.Model)
     return model.ext[:GDP].disjunctions
 end
 
-function _logical_constraints(model::JuMP.Model)
-    return model.ext[:GDP].logical_constraints
+function _disjunction_to_indicators(model::JuMP.Model)
+    return model.ext[:GDP].disjunction_to_indicators
 end
 
-function _logical_variables(model::JuMP.Model)
-    return model.ext[:GDP].logical_variables
-end
-
-function _constraint_to_indicator(model::JuMP.Model)
-    return model.ext[:GDP].constraint_to_indicator
+function _indicator_to_disjunction(model::JuMP.Model)
+    return model.ext[:GDP].indicator_to_disjunction
 end
 
 function _indicator_to_constraints(model::JuMP.Model)
     return model.ext[:GDP].indicator_to_constraints
 end
 
+function _constraint_to_indicator(model::JuMP.Model)
+    return model.ext[:GDP].constraint_to_indicator
+end
+
+function _indicator_to_binary(model::JuMP.Model)
+    return model.ext[:GDP].indicator_to_binary
+end
+
+function _global_to_disjunct_variable(model::JuMP.Model)
+    return model.ext[:GDP].global_to_disjunct_variable
+end
+
+function _global_to_disjunction_variables(model::JuMP.Model)
+    return model.ext[:GDP].global_to_disjunction_variables
+end
+
+function _variable_bounds(model::JuMP.Model)
+    return model.ext[:GDP].variable_bounds
+end
+
 """
 
 """
+function _indicator_to_binary_ref(lvref::LogicalVariableRef)
+    model, idx = lvref.model, lvref.index
+    return JuMP.VariableRef(model, _indicator_to_binary(model)[idx])
+end
 
 ################################################################################
 #                              COPY EXT
@@ -102,13 +130,17 @@ function JuMP.copy_extension_data(data::GDPData, new_model::JuMP.AbstractModel, 
         data.logical_variables, 
         _copy(data.logical_constraints, new_model), 
         _copy(data.disjunct_constraints, new_model),
-        data.disjunct_constraint_map,
         _copy(data.disjunctions, new_model), 
+        data.disjunction_to_indicators,
+        data.indicator_to_disjunction,
+        data.indicator_to_binary,
+        data.indicator_to_constraints,
+        data.constraint_to_indicator,
+        data.global_to_disjunct_variable,
+        data.global_to_disjunction_variables,
+        data.variable_bounds,
         data.solution_method, 
         data.ready_to_optimize,
-        _copy(data.disaggregated_variables, new_model), 
-        _copy(data.indicator_variables, new_model), 
-        _copy(data.variable_bounds, new_model)
     )
 end
 

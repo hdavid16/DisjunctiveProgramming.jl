@@ -6,14 +6,10 @@
 Create binary (indicator) variables for logic variables.
 """
 function _reformulate_logical_variables(model::JuMP.Model)
-    ind_var_dict = gdp_data(model).indicator_variables
-    for (idx, _) in _logical_variables(model)
-        lvar = LogicalVariableRef(model, idx)
-        bvar = JuMP.add_variable(model,
-            JuMP.build_variable(error, _variable_info(binary=true)),
-            string(lvar)
-        )
-        ind_var_dict[lvar] = bvar
+    for (lv_idx, lv_data) in _logical_variables(model)
+        var = JuMP.ScalarVariable(_variable_info(binary=true))
+        bvref = JuMP.add_variable(model, var, lv_data.name)
+        _indicator_to_binary(model)[lv_idx] = JuMP.index(bvref)
     end
 end
 
@@ -23,261 +19,231 @@ end
 """
 
 """
-function _reformulate_disjunctive_constraints(model::JuMP.Model, method::AbstractReformulationMethod)
-    for (_, disj) in _disjunctions(model)
-        _reformulate_disjunctive_constraints(model, method, disj)
+function _reformulate_disjunctions(model::JuMP.Model, method::AbstractReformulationMethod)
+    for (disj_idx, disj) in _disjunctions(model)
+        _reformulate_disjuncts(model, disj_idx, disj, method)
     end
 end
 
-function _reformulate_disjunctive_constraints(model::JuMP.Model, method::Union{BigM,Indicator}, disj::DisjunctionData)
-    ind_var_dict = gdp_data(model).indicator_variables
+function _reformulate_disjuncts(model::JuMP.Model, disj_idx::DisjunctionIndex, disj::ConstraintData{T}, method::Union{BigM,Indicator}) where {T<:Disjunction}
     for d in disj.constraint.disjuncts
-        bvar = ind_var_dict[d.indicator]
-        _reformulate_disjunctive_constraints(model, method, d, bvar)
+        _reformulate_disjunct(model, d, method)
     end
 end
 
-function _reformulate_disjunctive_constraints(model::JuMP.Model, method::Hull, disj::DisjunctionData)
-    ind_var_dict = gdp_data(model).indicator_variables
-    var_bounds_dict = gdp_data(model).variable_bounds
-    disj_vars = _get_disjunction_variables(disj)
-    sum_disag_vars = Dict(var => JuMP.AffExpr() for var in disj_vars) #initialize sum constraint for disaggregated variables
-    _update_variable_bounds!(var_bounds_dict, disj_vars) #update variable bounds dict
-    #reformulate each disjunct
-    for d in disj.constraint.disjuncts
-        bvar = ind_var_dict[d.indicator]
-        #create disaggregated variables for that disjunct
-        for var in disj_vars
-            JuMP.is_binary(var) && continue #skip binary variables
-            #create disaggregated var
-            disag_var = _disaggregate_variable(model, d, var, bvar)
-            #update aggregation constraint
-            JuMP.add_to_expression!(sum_disag_vars[var], 1, disag_var)
-        end
-        #reformulate disjunct
-        _reformulate_disjunctive_constraints(model, method, d, bvar)
+function _reformulate_disjuncts(model::JuMP.Model, disj_idx::DisjunctionIndex, disj::ConstraintData{T}, method::Hull) where {T<:Disjunction}
+    disj_vrefs = _get_disjunction_variables(disj)
+    _update_variable_bounds.(disj_vrefs) 
+    for d in disj.constraint.disjuncts #reformulate each disjunct
+        _disaggregate_variables(model, d, disj_vrefs) #disaggregate variables for that disjunct
+        _reformulate_disjunct(model, d, method)
     end
-    #create sum constraint for disaggregated variables
-    for var in disj_vars
-        JuMP.is_binary(var) && continue #skip binary variables
-        JuMP.add_constraint(model, #var == sum_disag_vars[var]
-            JuMP.build_constraint(error, sum_disag_vars[var] - var, _MOI.EqualTo(0)),
-            "$var aggregation"
-        )
+    for vref in disj_vrefs #create sum constraint for disaggregated variables
+        _aggregate_variable(model, vref, disj_idx)
     end
 end
 
 """
 
 """
-function _reformulate_disjunctive_constraints(model::JuMP.Model, method::AbstractReformulationMethod, d::Disjunct, bvar::JuMP.VariableRef)
+function _reformulate_disjunct(model::JuMP.Model, d::Disjunct, method::AbstractReformulationMethod)
     #reformulate each constraint and add to the model
+    ind_idx = JuMP.index(d.indicator) #logical indicator
+    bv_idx = _indicator_to_binary(model)[ind_idx]
+    bvref = JuMP.VariableRef(model, bv_idx)
     for con in d.constraints
-        _reformulate_disjunctive_constraints(model, method, con, bvar)
+        cdata = _disjunct_constraints(model)[JuMP.index(con)]
+        _reformulate_disjunctive_constraint(model, cdata.constraint, bvref, method)
     end
 end
 
 """
 
 """
-function _reformulate_disjunctive_constraints(model::JuMP.Model, method::AbstractReformulationMethod, con::JuMP.AbstractArray{T}, args...) where {T <: JuMP.AbstractConstraint}
-    for c in con
-        _reformulate_disjunctive_constraints(model, method, c, args...)
-    end
-end
-
-"""
-
-"""
-function _reformulate_disjunctive_constraints(
-    model::JuMP.Model, 
-    method::BigM,
-    con::DisjunctConstraint{T, S}, 
-    bvar::JuMP.VariableRef
+function _reformulate_disjunctive_constraint(
+    model::JuMP.Model,
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::BigM
 ) where {T, S <: _MOI.LessThan}
     #TODO: need to pass _error to build_constraint
-    M = method.tighten ? _calculate_tight_M(con) : method.value
-    if isinf(M)
-        M = method.value
-    end
+    M = method.tighten ? _get_tight_M(method, con) : _get_M(method, con)
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, con.func - M*(1-bvar), con.set)
+        JuMP.build_constraint(error, con.func - M*(1-bvref), con.set)
     )
 end
-function _reformulate_disjunctive_constraints(
+function _reformulate_disjunctive_constraint(
     model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
     method::BigM,
-    con::DisjunctConstraint{T, S}, 
-    bvar::JuMP.VariableRef
 ) where {T, S <: _MOI.GreaterThan}
     #TODO: need to pass _error to build_constraint
-    M = method.tighten ? _calculate_tight_M(con) : method.value
-    if isinf(M)
-        M = method.value
-    end
+    M = method.tighten ? _get_tight_M(method, con) : _get_M(method, con)
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, con.func + M*(1-bvar), con.set)
+        JuMP.build_constraint(error, con.func + M*(1-bvref), con.set)
     )
 end
-function _reformulate_disjunctive_constraints(
+function _reformulate_disjunctive_constraint(
     model::JuMP.Model, 
-    method::BigM,
-    con::DisjunctConstraint{T, S}, 
-    bvar::JuMP.VariableRef
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::BigM
 ) where {T, S <: _MOI.Interval}
     #TODO: need to pass _error to build_constraint
-    M = method.tighten ? _calculate_tight_M(con) : (method.value, method.value)
-    if isinf(first(M))
-        M[1] = method.value
-    end
-    if isinf(last(M))
-        M[2] = method.value
-    end
+    M = method.tighten ? _get_tight_M(method, con) : _get_M(method, con)
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, con.func + first(M)*(1-bvar), _MOI.GreaterThan(con.set.lower))
+        JuMP.build_constraint(error, con.func + M[1]*(1-bvref), _MOI.GreaterThan(con.set.lower))
     )
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, con.func - last(M)*(1-bvar), _MOI.LessThan(con.set.upper))
+        JuMP.build_constraint(error, con.func - M[2]*(1-bvref), _MOI.LessThan(con.set.upper))
     )
 end
-function _reformulate_disjunctive_constraints(
+function _reformulate_disjunctive_constraint(
     model::JuMP.Model, 
-    method::BigM,
-    con::DisjunctConstraint{T, S}, 
-    bvar::JuMP.VariableRef
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::BigM
 ) where {T, S <: _MOI.EqualTo}
     #TODO: need to pass _error to build_constraint
-    M = method.tighten ? _calculate_tight_M(con) : (method.value, method.value)
-    if isinf(first(M))
-        M[1] = method.value
-    end
-    if isinf(last(M))
-        M[2] = method.value
-    end
+    M = method.tighten ? _get_tight_M(method, con) : _get_M(method, con)
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, con.func + first(M)*(1-bvar), _MOI.GreaterThan(con.set.value))
+        JuMP.build_constraint(error, con.func + M[1]*(1-bvref), _MOI.GreaterThan(con.set.value))
     )
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, con.func - last(M)*(1-bvar), _MOI.LessThan(con.set.value))
+        JuMP.build_constraint(error, con.func - M[2]*(1-bvref), _MOI.LessThan(con.set.value))
     )
 end
 
 """
 
 """
-function _reformulate_disjunctive_constraints(
+function _reformulate_disjunctive_constraint(
     model::JuMP.Model, 
-    method::Hull,
-    con::DisjunctConstraint{T, S}, 
-    bvar::JuMP.VariableRef
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::Hull
 ) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: _MOI.LessThan}
     #TODO: need to pass _error to build_constraint
-    con_func = _disaggregate_expression(model, con.func, bvar, method)
-    con_func -= con.set.upper * bvar
+    con_func = _disaggregate_expression(model, con.func, bvref, method)
+    con_func -= con.set.upper * bvref
     JuMP.add_constraint(model,
         JuMP.build_constraint(error, con_func, _MOI.LessThan(0))
     )
 end
-function _reformulate_disjunctive_constraints(
+function _reformulate_disjunctive_constraint(
     model::JuMP.Model, 
-    method::Hull,
-    con::DisjunctConstraint{T, S}, 
-    bvar::JuMP.VariableRef
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::Hull
 ) where {T <: JuMP.NonlinearExpr, S <: _MOI.LessThan}
     #TODO: need to pass _error to build_constraint
-    con_func, con_func0 = _disaggregate_nl_expression(model, con.func, bvar, method)
     ϵ = method.value
-    con_func = ((1-ϵ)*bvar+ϵ)*con_func - ϵ*(1-bvar)*con_func0 - con.set.upper*bvar
+    con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
+    con_func0 = value(v -> 0.0, con.func)
+    if isinf(con_func0)
+        error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
+    end
+    con_func = ((1-ϵ)*bvref+ϵ)*con_func - ϵ*(1-bvref)*con_func0 - con.set.upper*bvref
     JuMP.add_constraint(model,
         JuMP.build_constraint(error, con_func, _MOI.LessThan(0))
     )
 end
-function _reformulate_disjunctive_constraints(
+function _reformulate_disjunctive_constraint(
     model::JuMP.Model, 
-    method::Hull,
-    con::DisjunctConstraint{T, S}, 
-    bvar::JuMP.VariableRef
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::Hull
 ) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: _MOI.GreaterThan}
     #TODO: need to pass _error to build_constraint
-    con_func = _disaggregate_expression(model, con.func, bvar, method)
-    con_func -= con.set.lower * bvar
+    con_func = _disaggregate_expression(model, con.func, bvref, method)
+    con_func -= con.set.lower * bvref
     
     JuMP.add_constraint(model,
         JuMP.build_constraint(error, con_func, _MOI.GreaterThan(0))
     )
 end
-function _reformulate_disjunctive_constraints(
+function _reformulate_disjunctive_constraint(
     model::JuMP.Model, 
-    method::Hull,
-    con::DisjunctConstraint{T, S}, 
-    bvar::JuMP.VariableRef
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::Hull
 ) where {T <: JuMP.NonlinearExpr, S <: _MOI.GreaterThan}
     #TODO: need to pass _error to build_constraint
-    con_func, con_func0 = _disaggregate_nl_expression(model, con.func, bvar, method)
     ϵ = method.value
-    @show -ϵ*(1-bvar)*con_func0
-    con_func = ((1-ϵ)*bvar+ϵ)*con_func - ϵ*(1-bvar)*con_func0 - con.set.lower*bvar
+    con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
+    con_func0 = value(v -> 0.0, con.func)
+    if isinf(con_func0)
+        error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
+    end
+    con_func = ((1-ϵ)*bvref+ϵ)*con_func - ϵ*(1-bvref)*con_func0 - con.set.lower*bvref
     JuMP.add_constraint(model,
         JuMP.build_constraint(error, con_func, _MOI.GreaterThan(0))
     )
 end
-function _reformulate_disjunctive_constraints(
+function _reformulate_disjunctive_constraint(
     model::JuMP.Model, 
-    method::Hull,
-    con::DisjunctConstraint{T, S}, 
-    bvar::JuMP.VariableRef
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::Hull
 ) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: _MOI.Interval}
     #TODO: need to pass _error to build_constraint
-    con_func = _disaggregate_expression(model, con.func, bvar, method)
+    con_func = _disaggregate_expression(model, con.func, bvref, method)
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, con_func - con.set.lower*bvar, _MOI.GreaterThan(0))
+        JuMP.build_constraint(error, con_func - con.set.lower*bvref, _MOI.GreaterThan(0))
     )
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, con_func - con.set.upper*bvar, _MOI.LessThan(0))
+        JuMP.build_constraint(error, con_func - con.set.upper*bvref, _MOI.LessThan(0))
     )
 end
-function _reformulate_disjunctive_constraints(
+function _reformulate_disjunctive_constraint(
     model::JuMP.Model, 
-    method::Hull,
-    con::DisjunctConstraint{T, S}, 
-    bvar::JuMP.VariableRef
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::Hull
 ) where {T <: JuMP.NonlinearExpr, S <: _MOI.Interval}
     #TODO: need to pass _error to build_constraint
     ϵ = method.value
-    # reformulate LessThan Part
-    con_func, con_func0 = _disaggregate_nl_expression(model, con.func, bvar, method)
-    con_func = ((1-ϵ)*bvar+ϵ) * con_func - ϵ*(1-bvar)*con_func0
+    con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
+    con_func0 = value(v -> 0.0, con.func)
+    if isinf(con_func0)
+        error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
+    end
+    con_func = ((1-ϵ)*bvref+ϵ) * con_func - ϵ*(1-bvref)*con_func0
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, con_func - con.set.upper*bvar, _MOI.LessThan(0))
+        JuMP.build_constraint(error, con_func - con.set.upper*bvref, _MOI.LessThan(0))
     )
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, con_func - con.set.lower*bvar, _MOI.GreaterThan(0))
+        JuMP.build_constraint(error, con_func - con.set.lower*bvref, _MOI.GreaterThan(0))
     )
 end
-function _reformulate_disjunctive_constraints(
+function _reformulate_disjunctive_constraint(
     model::JuMP.Model, 
-    method::Hull,
-    con::DisjunctConstraint{T, S}, 
-    bvar::JuMP.VariableRef
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::Hull
     ) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: _MOI.EqualTo}
     #TODO: need to pass _error to build_constraint
-    con_func = _disaggregate_expression(model, con.func, bvar, method)
-    con_func -= con.set.value * bvar
-
+    con_func = _disaggregate_expression(model, con.func, bvref, method)
+    con_func -= con.set.value * bvref
     JuMP.add_constraint(model,
         JuMP.build_constraint(error, con_func, _MOI.EqualTo(0))
     )
 end
-function _reformulate_disjunctive_constraints(
+function _reformulate_disjunctive_constraint(
     model::JuMP.Model, 
-    method::Hull,
-    con::DisjunctConstraint{T, S}, 
-    bvar::JuMP.VariableRef
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::Hull
     ) where {T <: JuMP.NonlinearExpr, S <: _MOI.EqualTo}
     #TODO: need to pass _error to build_constraint
-    con_func, con_func0 = _disaggregate_nl_expression(model, con.func, bvar, method)
     ϵ = method.value
-    con_func = ((1-ϵ)*bvar+ϵ)*con_func - ϵ*(1-bvar)*con_func0 - con.set.value*bvar
+    con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
+    con_func0 = value(v -> 0.0, con.func)
+    if isinf(con_func0)
+        error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
+    end
+    con_func = ((1-ϵ)*bvref+ϵ)*con_func - ϵ*(1-bvref)*con_func0 - con.set.value*bvref
     JuMP.add_constraint(model,
         JuMP.build_constraint(error, con_func, _MOI.EqualTo(0))
     )
@@ -286,23 +252,23 @@ end
 """
 
 """
-function _reformulate_disjunctive_constraints(
+function _reformulate_disjunctive_constraint(
     model::JuMP.Model,
-    ::Indicator,
-    con::DisjunctConstraint{JuMP.AffExpr, S},
-    bvar::JuMP.VariableRef
+    con::JuMP.ScalarConstraint{JuMP.AffExpr, S},
+    bvref::JuMP.VariableRef,
+    ::Indicator
 ) where {S}
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, [1*bvar, con.func], _MOI.Indicator{_MOI.ACTIVATE_ON_ONE}(con.set))
+        JuMP.build_constraint(error, [1*bvref, con.func], _MOI.Indicator{_MOI.ACTIVATE_ON_ONE}(con.set))
     )
 end
 
 # define fallbacks for other constraint types
-function _reformulate_disjunctive_constraints(
-    ::JuMP.Model, 
-    method::AbstractReformulationMethod, 
+function _reformulate_disjunctive_constraint(
+    ::JuMP.Model,  
     con::JuMP.AbstractConstraint, 
-    ::JuMP.VariableRef
+    ::JuMP.VariableRef,
+    method::AbstractReformulationMethod
 )
     error("$method reformulation for constraint $con is not supported yet.")
 end
@@ -316,61 +282,55 @@ end
 """
 function _reformulate_logical_constraints(model::JuMP.Model)
     for (_, lcon) in _logical_constraints(model)
-        _reformulate_logical_constraints(model, lcon.constraint.func, lcon.constraint.set)
+        _reformulate_logical_constraint(model, lcon.constraint.func, lcon.constraint.set)
     end
 end
 
-function _reformulate_logical_constraints(model::JuMP.Model, lvec::Vector{LogicalVariableRef}, set::MOIFirstOrderSet)
+function _reformulate_logical_constraint(model::JuMP.Model, lvec::Vector{LogicalVariableRef}, set::Union{MOIAtMost, MOIAtLeast, MOIExactly})
     return _reformulate_selector(model, set, set.value, lvec)
 end
 
-function _reformulate_logical_constraints(model::JuMP.Model, lexpr::_LogicalExpr, ::MOIIsTrue)
+function _reformulate_logical_constraint(model::JuMP.Model, lexpr::_LogicalExpr, ::_MOI.EqualTo{Bool})
     return _reformulate_proposition(model, lexpr)
 end
 
-function _reformulate_selector(model::JuMP.Model, kind::MOIAtLeast, val::Number, lvars::Vector{LogicalVariableRef})
-    ind_var_dict = gdp_data(model).indicator_variables
-    vars = Any[ind_var_dict[var] for var in lvars]
+function _reformulate_selector(model::JuMP.Model, ::MOIAtLeast, val::Number, lvrefs::Vector{LogicalVariableRef})
+    bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
     return JuMP.add_constraint(model,
-        JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, vars), _MOI.GreaterThan(val))
+        JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, bvrefs), _MOI.GreaterThan(val))
     )
 end
-function _reformulate_selector(model::JuMP.Model, kind::MOIAtMost, val::Number, lvars::Vector{LogicalVariableRef})
-    ind_var_dict = gdp_data(model).indicator_variables
-    vars = Any[ind_var_dict[var] for var in lvars]
+function _reformulate_selector(model::JuMP.Model, ::MOIAtMost, val::Number, lvrefs::Vector{LogicalVariableRef})
+    bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
     return JuMP.add_constraint(model,
-        JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, vars), _MOI.LessThan(val))
+        JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, bvrefs), _MOI.LessThan(val))
     )
 end
-function _reformulate_selector(model::JuMP.Model, kind::MOIExactly, val::Number, lvars::Vector{LogicalVariableRef})
-    ind_var_dict = gdp_data(model).indicator_variables
-    vars = Any[ind_var_dict[var] for var in lvars]
+function _reformulate_selector(model::JuMP.Model, ::MOIExactly, val::Number, lvrefs::Vector{LogicalVariableRef})
+    bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
     return JuMP.add_constraint(model,
-        JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, vars), _MOI.EqualTo(val))
+        JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, bvrefs), _MOI.EqualTo(val))
     )
 end
-function _reformulate_selector(model::JuMP.Model, kind::MOIAtLeast, lvar::LogicalVariableRef, lvars::Vector{LogicalVariableRef})
-    ind_var_dict = gdp_data(model).indicator_variables
-    var0 = ind_var_dict[lvar]
-    vars = Any[ind_var_dict[v] for v in lvars]
+function _reformulate_selector(model::JuMP.Model, ::MOIAtLeast, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
+    bvref = _indicator_to_binary_ref(lvref)
+    bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
     return JuMP.add_constraint(model,
-        build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, vars), var0]), _MOI.GreaterThan(0))
+        build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, bvrefs), bvref]), _MOI.GreaterThan(0))
     )
 end
-function _reformulate_selector(model::JuMP.Model, kind::MOIAtMost, lvar::LogicalVariableRef, lvars::Vector{LogicalVariableRef})
-    ind_var_dict = gdp_data(model).indicator_variables
-    var0 = ind_var_dict[lvar]
-    vars = Any[ind_var_dict[v] for v in lvars]
+function _reformulate_selector(model::JuMP.Model, ::MOIAtMost, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
+    bvref = _indicator_to_binary_ref(lvref)
+    bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
     return JuMP.add_constraint(model,
-        build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, vars), var0]), _MOI.LessThan(0))
+        build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, bvrefs), bvref]), _MOI.LessThan(0))
     )
 end
-function _reformulate_selector(model::JuMP.Model, kind::MOIExactly, lvar::LogicalVariableRef, lvars::Vector{LogicalVariableRef})
-    ind_var_dict = gdp_data(model).indicator_variables
-    var0 = ind_var_dict[lvar]
-    vars = Any[ind_var_dict[v] for v in lvars]
+function _reformulate_selector(model::JuMP.Model, ::MOIExactly, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
+    bvref = _indicator_to_binary_ref(lvref)
+    bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
     return JuMP.add_constraint(model,
-        build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, vars), var0]), _MOI.EqualTo(0))
+        build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, bvrefs), bvref]), _MOI.EqualTo(0))
     )
 end
 
@@ -384,28 +344,28 @@ function _reformulate_proposition(model::JuMP.Model, lexpr::_LogicalExpr)
                 JuMP.build_constraint(error, func, _MOI.GreaterThan(1))
             )
         end
+    else
+        error("Expression was not converted to proper Conjunctive Normal Form:\n$expr")
     end
 end
 
-function _reformulate_clause(model::JuMP.Model, lvar::LogicalVariableRef)
-    ind_var_dict = gdp_data(model).indicator_variables
-    func = 1*ind_var_dict[lvar]
+function _reformulate_clause(model::JuMP.Model, lvref::LogicalVariableRef)
+    func = 1 * _indicator_to_binary_ref(lvref)
     return func
 end
 
 function _reformulate_clause(model::JuMP.Model, lexpr::_LogicalExpr)
-    ind_var_dict = gdp_data(model).indicator_variables
     if lexpr.head != :∨
-        error("Expression was not converted to proper Conjunctive Normal Form:\n$(expr.args)")
+        error("Expression was not converted to proper Conjunctive Normal Form:\n$lexpr")
     end
     func = JuMP.AffExpr() #initialize func expression
     for literal in lexpr.args
         if literal isa LogicalVariableRef
-            func += ind_var_dict[literal]
-        elseif literal.head == :¬ && literal.args[1] isa LogicalVariableRef
-            func += (1 - ind_var_dict[literal.args[1]])
+            func += _indicator_to_binary_ref(literal)
+        elseif literal.head == :¬ && length(literal.args) == 1 && literal.args[1] isa LogicalVariableRef
+            func += (1 - _indicator_to_binary_ref(literal.args[1]))
         else
-            error("Expression was not converted to proper Conjunctive Normal Form:\n$(expr.args)")
+            error("Expression was not converted to proper Conjunctive Normal Form:\n$literal")
         end
     end
 

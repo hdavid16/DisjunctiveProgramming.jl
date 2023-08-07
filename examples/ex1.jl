@@ -52,7 +52,7 @@ print(m)
 
 ## BigM reformulation
 m_bigm = copy(m)
-DisjunctiveProgramming._reformulate_disjunctive_constraints(m_bigm, BigM())
+DisjunctiveProgramming._reformulate_disjunctions(m_bigm, BigM())
 print(m_bigm)
 # Feasibility
 # Subject to
@@ -68,7 +68,7 @@ print(m_bigm)
 
 ## Hull reformulation
 m_hull = copy(m)
-DisjunctiveProgramming._reformulate_disjunctive_constraints(m_hull, Hull())
+DisjunctiveProgramming._reformulate_disjunctions(m_hull, Hull())
 print(m_hull)
 # Feasibility
 # Subject to
@@ -93,7 +93,7 @@ print(m_hull)
 
 ## Indicator Constraints reformulation
 m_ind = copy(m)
-DisjunctiveProgramming._reformulate_disjunctive_constraints(m_ind, Indicator())
+DisjunctiveProgramming._reformulate_disjunctions(m_ind, Indicator())
 print(m_ind)
 # Feasibility
 # Subject to
