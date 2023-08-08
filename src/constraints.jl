@@ -69,9 +69,14 @@ for (RefType, loc) in ((:DisjunctConstraintRef, :disjunct_constraints),
 
         # Extend copy
         Base.copy(cref::$RefType) = cref
-        #NOTE: copying a GDPmodel gives an error for any named DisjunctConstraints since 
-        #   it doesn't know how to copy these.
-        #   However, they are copied in the GDPData ext Dict.
+        @doc """
+            Base.getindex(map::JuMP.GenericReferenceMap, cref::$($RefType))
+
+        ...
+        """
+        function Base.getindex(map::JuMP.ReferenceMap, cref::$RefType)
+            $RefType(map.model, JuMP.index(cref))
+        end
     end
 end
 
@@ -426,23 +431,6 @@ end
 #     end
 # end
 """
-
-"""
-ops = (:⇒, :⇔, :(<-->))
-for op in ops
-    """
-        function JuMP.parse_constraint_call(
-            _error::Function, 
-            is_vectorized::Bool, 
-            ::Val{op}, 
-            lhs, 
-            rhs
-        )
-
-    Extend `JuMP.parse_constraint_call` to avoid order of precedence when 
-    using the logical operators ⇔, ⇒, or <--> when building a 
-    logical proposition constraint.
-    """
     function JuMP.parse_constraint_call(
         _error::Function, 
         is_vectorized::Bool, 
@@ -450,53 +438,69 @@ for op in ops
         lhs, 
         rhs
     )
-        if rhs.args[1] in (:in, :(==))
-            rhs0 = rhs.args[2]
-            set = rhs.args[3] isa Bool ? _MOI.EqualTo(rhs.args[3]) : rhs.args[3]
-        else
-            error(
-                "The set in the logical constraint $lhs $op $rhs was not identified. " *
-                "The set `MOI.EqualTo{Bool}(value)` should be preceded by `==` or `in`."
-            )
-        end
-        func = :($op($lhs, $rhs0))
-        parse_code = :()
-        build_code = :(JuMP.build_constraint($(_error), $(esc(func)), $set))
-        return parse_code, build_code
-    end
-end
 
+Extend `JuMP.parse_constraint_call` to avoid order of precedence when 
+using the logical operators ⇔, ⇒, or <--> when building a 
+logical proposition constraint.
 """
-    function JuMP.parse_constraint_head(
-        _error::Function,
-        ::Val{:(-->)},
-        lhs,
-        rhs
-    )
-
-Extend `JuMP.parse_constraint_head` parse logical proposition constraints that
-use the operator -->.
-"""
-function JuMP.parse_constraint_head(
-    _error::Function,
-    ::Val{:(-->)},
-    lhs,
+function JuMP.parse_constraint_call(
+    _error::Function, 
+    is_vectorized::Bool, 
+    val_op::Union{Val{:⇒},Val{:⇔},Val{:(<-->)}}, 
+    lhs, 
     rhs
 )
+    op = val_op == Val{:⇒} ? :⇒ :
+            val_op == Val{:⇔} ? :⇔ : :(<-->)
+    error_msg = 
+        "The MOI set in the logical constraint $lhs $op $rhs was not identified. " *
+        "The set `MOI.EqualTo{Bool}(value)` should be preceded by `==` or `in`."
     if rhs.args[1] in (:in, :(==))
         rhs0 = rhs.args[2]
-        set = rhs.args[3] isa Bool ? _MOI.EqualTo(rhs.args[3]) : rhs.args[3]
+        set = rhs.args[3] isa Bool ? _MOI.EqualTo(rhs.args[3]) : 
+                rhs.args[3] isa _MOI.EqualTo ? rhs.args[3] : error(error_msg)
     else
-        error(
-            "The set in the logical constraint $lhs --> $rhs was not identified. " *
-            "The set `MOI.EqualTo{Bool}(value)` should be preceded by `==` or `in`."
-        )
+        error(error_msg)
     end
-    func = :(-->($lhs, $rhs0))
+    func = :($op($lhs, $rhs0))
     parse_code = :()
     build_code = :(JuMP.build_constraint($(_error), $(esc(func)), $set))
-    return false, parse_code, build_code
+    return parse_code, build_code
 end
+
+# --> cannot be used because it clashes with indicator constraint parsing in JuMP.
+# """
+#     function JuMP.parse_constraint_head(
+#         _error::Function,
+#         ::Val{:(-->)},
+#         lhs,
+#         rhs
+#     )
+
+# Extend `JuMP.parse_constraint_head` parse logical proposition constraints that
+# use the implication operator `-->`.
+# """
+# function JuMP.parse_constraint_head(
+#     _error::Function,
+#     ::Val{:(-->)},
+#     lhs,
+#     rhs
+# )
+#     error_msg = 
+#         "The MOI set in the logical constraint $lhs --> $rhs was not identified. " *
+#         "The set `MOI.EqualTo{Bool}(value)` should be preceded by `==` or `in`."
+#     if rhs.args[1] in (:in, :(==))
+#         rhs0 = rhs.args[2]
+#         set = rhs.args[3] isa Bool ? _MOI.EqualTo(rhs.args[3]) : 
+#                 rhs.args[3] isa _MOI.EqualTo ? rhs.args[3] : error(error_msg)
+#     else
+#         error(error_msg)
+#     end
+#     func = :(-->($lhs, $rhs0))
+#     parse_code = :()
+#     build_code = :(JuMP.build_constraint($(_error), $(esc(func)), $set))
+#     return false, parse_code, build_code
+# end
 
 """
     JuMP.build_constraint(
