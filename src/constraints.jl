@@ -563,6 +563,9 @@ function JuMP.build_constraint(
         return JuMP.ScalarConstraint(new_func, new_set)
     end 
 end
+function JuMP.build_constraint(_error::Function, func::_LogicalExpr, set::_MOI.EqualTo{Float64})
+    JuMP.build_constraint(_error, func, _MOI.EqualTo(isone(set.value)))
+end
 
 # EqualTo{Bool} w/ LogicalVariableRef
 function JuMP.build_constraint(
@@ -573,6 +576,9 @@ function JuMP.build_constraint(
     set.value && return JuMP.ScalarConstraint(lvref, set)
     new_set = MOI.EqualTo(true)
     return JuMP.ScalarConstraint(JuMP.NonlinearExpr(:¬, Any[lvref]), new_set)
+end
+function JuMP.build_constraint(_error::Function, lvref::LogicalVariableRef, set::_MOI.EqualTo{Float64})
+    JuMP.build_constraint(_error, lvref, _MOI.EqualTo(isone(set.value)))
 end
 
 # EqualTo{Bool} w/ affine LogicalVariableRef expr (caused by offset)
@@ -594,6 +600,9 @@ function JuMP.build_constraint(
         _error("Cannot add or subtract constants to logical variables")
     end
 end
+function JuMP.build_constraint(_error::Function, aff::JuMP.GenericAffExpr{C, LogicalVariableRef}, set::_MOI.EqualTo{Float64})
+    JuMP.build_constraint(_error, aff, _MOI.EqualTo(isone(set.value)))
+end
 
 # Fallback for Affine/Quad expressions (TODO: we can remove this restriction if needed)
 function JuMP.build_constraint(
@@ -614,7 +623,23 @@ function JuMP.build_constraint(
 end
 
 """
+    function JuMP.add_constraint(
+        model::JuMP.Model,
+        c::JuMP.ScalarConstraint{<:F, S},
+        name::String = ""
+    ) where {F <: Union{LogicalVariableRef, _LogicalExpr}, S}
 
+Extend `JuMP.add_constraint` to allow creating logical proposition constraints 
+for a [`GDPModel`](@ref) with the `@constraint` macro.
+
+    function JuMP.add_constraint(
+        model::JuMP.Model,
+        c::JuMP.VectorConstraint{<:F, S, Shape},
+        name::String = ""
+    ) where {F <: Union{Number, LogicalVariableRef, _LogicalExpr}, S, Shape}
+
+Extend `JuMP.add_constraint` to allow creating logical cardinality constraints
+for a [`GDPModel`](@ref) with the `@constraint` macro.
 """
 function JuMP.add_constraint(
     model::JuMP.Model,
