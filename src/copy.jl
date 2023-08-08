@@ -132,9 +132,8 @@ end
 function _copy(nlp::JuMP.NonlinearExpr, new_model::JuMP.Model)
     #TODO: use stack to avoid recursion stackoverflow error for deeply nested expression
     new_args = Vector{Any}(undef, length(nlp.args))
-    for arg in nlp.args
-        push!(new_args, _copy(arg, new_model))
+    for (i,arg) in enumerate(nlp.args)
+        new_args[i] = _copy(arg, new_model)
     end
-
     return JuMP.NonlinearExpr(nlp.head, new_args)
 end

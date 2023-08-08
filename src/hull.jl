@@ -238,9 +238,8 @@ end
 
 function _disaggregate_nl_expression(model::JuMP.Model, nlp::JuMP.NonlinearExpr, bvref::JuMP.VariableRef, method::Hull)
     new_args = Vector{Any}(undef, length(nlp.args))
-    for arg in nlp.args
-        new_arg = _disaggregate_nl_expression(model, arg, bvref, method)
-        push!(new_args, new_arg)
+    for (i,arg) in enumerate(nlp.args)
+        new_args[i] = _disaggregate_nl_expression(model, arg, bvref, method)
     end
     new_expr = JuMP.NonlinearExpr(nlp.head, new_args)
 

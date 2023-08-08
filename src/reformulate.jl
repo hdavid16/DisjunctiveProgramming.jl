@@ -140,7 +140,7 @@ function _reformulate_disjunctive_constraint(
     #TODO: need to pass _error to build_constraint
     ϵ = method.value
     con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
-    con_func0 = value(v -> 0.0, con.func)
+    con_func0 = JuMP.value(v -> 0.0, con.func)
     if isinf(con_func0)
         error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
     end
@@ -172,7 +172,7 @@ function _reformulate_disjunctive_constraint(
     #TODO: need to pass _error to build_constraint
     ϵ = method.value
     con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
-    con_func0 = value(v -> 0.0, con.func)
+    con_func0 = JuMP.value(v -> 0.0, con.func)
     if isinf(con_func0)
         error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
     end
@@ -205,7 +205,7 @@ function _reformulate_disjunctive_constraint(
     #TODO: need to pass _error to build_constraint
     ϵ = method.value
     con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
-    con_func0 = value(v -> 0.0, con.func)
+    con_func0 = JuMP.value(v -> 0.0, con.func)
     if isinf(con_func0)
         error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
     end
@@ -239,7 +239,7 @@ function _reformulate_disjunctive_constraint(
     #TODO: need to pass _error to build_constraint
     ϵ = method.value
     con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
-    con_func0 = value(v -> 0.0, con.func)
+    con_func0 = JuMP.value(v -> 0.0, con.func)
     if isinf(con_func0)
         error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
     end
@@ -337,16 +337,25 @@ end
 function _reformulate_proposition(model::JuMP.Model, lexpr::_LogicalExpr)
     expr = _to_cnf(lexpr)
     if expr.head == :∧
-        func = JuMP.AffExpr()
         for arg in expr.args
-            func = _reformulate_clause(model, arg)
-            JuMP.add_constraint(model,
-                JuMP.build_constraint(error, func, _MOI.GreaterThan(1))
-            )
+            _add_proposition(model, arg)
         end
+    elseif expr.head == :∨ && all(_is_literal.(expr.args))
+        _add_proposition(model, expr)
     else
         error("Expression was not converted to proper Conjunctive Normal Form:\n$expr")
     end
+end
+
+_is_literal(v::LogicalVariableRef) = true
+_is_literal(v::_LogicalExpr) = (v.head == :¬) && (length(v.args) == 1) && _is_literal(v.args[1])
+_is_literal(v) = false
+
+function _add_proposition(model::JuMP.Model, arg::_LogicalExpr)
+    func = _reformulate_clause(model, arg)
+    con = JuMP.build_constraint(error, func, _MOI.GreaterThan(1))
+    JuMP.add_constraint(model, con)
+    return
 end
 
 function _reformulate_clause(model::JuMP.Model, lvref::LogicalVariableRef)
@@ -362,7 +371,7 @@ function _reformulate_clause(model::JuMP.Model, lexpr::_LogicalExpr)
     for literal in lexpr.args
         if literal isa LogicalVariableRef
             func += _indicator_to_binary_ref(literal)
-        elseif literal.head == :¬ && length(literal.args) == 1 && literal.args[1] isa LogicalVariableRef
+        elseif _is_literal(literal)
             func += (1 - _indicator_to_binary_ref(literal.args[1]))
         else
             error("Expression was not converted to proper Conjunctive Normal Form:\n$literal")

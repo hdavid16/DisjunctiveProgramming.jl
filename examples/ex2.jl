@@ -5,9 +5,9 @@ using DisjunctiveProgramming
 m = GDPModel()
 @variable(m, -5 ≤ x[1:2] ≤ 10)
 @variable(m, Y[1:2], LogicalVariable)
-@constraint(m, disjunct_1_con[i = 1:2], Y[1] => {0 ≤ x[i] ≤ [3,4][i]})
-@constraint(m, disjunct_2_con[i = 1:2], Y[2] => {[5,4][i] ≤ x[i] ≤ [9,6][i]})
-disjunction = add_disjunction(m, Y)
+@constraint(m, [i = 1:2], 0 ≤ x[i] ≤ [3,4][i], DisjunctConstraint(Y[1]))
+@constraint(m, [i = 1:2], [5,4][i] ≤ x[i] ≤ [9,6][i], DisjunctConstraint(Y[2]))
+@disjunction(m, Y)
 DisjunctiveProgramming._reformulate_logical_variables(m)
 print(m)
 # Feasibility
@@ -19,7 +19,7 @@ print(m)
 
 ##
 m_bigm = copy(m)
-DisjunctiveProgramming._reformulate_disjunctive_constraints(m_bigm, BigM())
+DisjunctiveProgramming._reformulate_disjunctions(m_bigm, BigM())
 print(m_bigm)
 # Feasibility
 # Subject to
@@ -40,7 +40,7 @@ print(m_bigm)
 
 ##
 m_hull = copy(m)
-DisjunctiveProgramming._reformulate_disjunctive_constraints(m_hull, Hull())
+DisjunctiveProgramming._reformulate_disjunctions(m_hull, Hull())
 print(m_hull)
 # Feasibility
 # Subject to

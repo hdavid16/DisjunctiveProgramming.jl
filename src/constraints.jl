@@ -81,7 +81,7 @@ end
 #     @assert JuMP.is_valid(model, cref) "Disjunctive constraint does not belong to model."
 #     constr_data = gdp_data(JuMP.owner_model(cref))
 #     dict = constr_data.disjunctions[JuMP.index(cref)]
-#     # TODO check if used by a disjunction and/or a proposition
+#     # TODO check if used by a disjunction and/or a proposition (i.e., its indicator variables are used in a logic constraint)
 #     delete!(dict, index(cref))
 #     return 
 # end
@@ -106,7 +106,20 @@ end
 
 
 """
+    JuMP.build_constraint(
+        _error::Function, 
+        func, 
+        set::_MOI.AbstractSet,
+        tag::Union{Type{DisjunctConstraint}, DisjunctConstraint}
+    )::_DisjunctConstraint
 
+Extend `JuMP.build_constraint` to add constraints to disjuncts. This in 
+combination with `JuMP.add_constraint` enables the use of 
+`@constraint(model, [name], constr_expr, tag)`, where tag can either be
+`DisjunctConstraint` or `DisjunctConstraint(::Type{LogicalVariableRef})`.
+In the former, an arbitrary [`LogicalVariable`](@ref) is created. In the latter,
+the user can specify the `LogicalVariable` to use as the indicator for the 
+`_DisjunctConstraint` being created.
 """
 function JuMP.build_constraint(
     _error::Function, 
@@ -166,7 +179,14 @@ function _add_indicator_var(
 end
 
 """
+    JuMP.add_constraint(
+        model::JuMP.Model,
+        con::_DisjunctConstraint,
+        name::String = ""
+    )::DisjunctConstraintRef
 
+Extend `JuMP.add_constraint` to add a [`_DisjunctConstraint`](@ref) to a [`GDPModel`](@ref). 
+The constraint is added to the `GDPData` in the `.ext` dictionary of the `GDPModel`.
 """
 function JuMP.add_constraint(
     model::JuMP.Model,
@@ -362,7 +382,16 @@ function _disjunction(
 end
 
 """
+    disjunction(
+        model::JuMP.Model, 
+        structure, 
+        name::String = ""; 
+        nested::Bool = false,
+        indicator::Union{LogicalVariableRef, Nothing} = nothing
+    )
 
+Function to add a [`Disjunction`](@ref) to a [`GDPModel`](@ref). 
+If no indicator is passed, an anonymous [`LogicalVariable`](@ref) is created.
 """
 function disjunction(
     model::JuMP.Model, 
@@ -396,9 +425,112 @@ end
 #         end
 #     end
 # end
-
 """
 
+"""
+ops = (:⇒, :⇔, :(<-->))
+for op in ops
+    """
+        function JuMP.parse_constraint_call(
+            _error::Function, 
+            is_vectorized::Bool, 
+            ::Val{op}, 
+            lhs, 
+            rhs
+        )
+
+    Extend `JuMP.parse_constraint_call` to avoid order of precedence when 
+    using the logical operators ⇔, ⇒, or <--> when building a 
+    logical proposition constraint.
+    """
+    function JuMP.parse_constraint_call(
+        _error::Function, 
+        is_vectorized::Bool, 
+        ::Val{op}, 
+        lhs, 
+        rhs
+    )
+        if rhs.args[1] in (:in, :(==))
+            rhs0 = rhs.args[2]
+            set = rhs.args[3] isa Bool ? _MOI.EqualTo(rhs.args[3]) : rhs.args[3]
+        else
+            error(
+                "The set in the logical constraint $lhs $op $rhs was not identified. " *
+                "The set `MOI.EqualTo{Bool}(value)` should be preceded by `==` or `in`."
+            )
+        end
+        func = :($op($lhs, $rhs0))
+        parse_code = :()
+        build_code = :(JuMP.build_constraint($(_error), $(esc(func)), $set))
+        return parse_code, build_code
+    end
+end
+
+"""
+    function JuMP.parse_constraint_head(
+        _error::Function,
+        ::Val{:(-->)},
+        lhs,
+        rhs
+    )
+
+Extend `JuMP.parse_constraint_head` parse logical proposition constraints that
+use the operator -->.
+"""
+function JuMP.parse_constraint_head(
+    _error::Function,
+    ::Val{:(-->)},
+    lhs,
+    rhs
+)
+    if rhs.args[1] in (:in, :(==))
+        rhs0 = rhs.args[2]
+        set = rhs.args[3] isa Bool ? _MOI.EqualTo(rhs.args[3]) : rhs.args[3]
+    else
+        error(
+            "The set in the logical constraint $lhs --> $rhs was not identified. " *
+            "The set `MOI.EqualTo{Bool}(value)` should be preceded by `==` or `in`."
+        )
+    end
+    func = :(-->($lhs, $rhs0))
+    parse_code = :()
+    build_code = :(JuMP.build_constraint($(_error), $(esc(func)), $set))
+    return false, parse_code, build_code
+end
+
+"""
+    JuMP.build_constraint(
+        _error::Function, 
+        func::AbstractVector{<:Union{Number, LogicalVariableRef, _LogicalExpr}}, # allow any vector-like JuMP container
+        set::_MOI.AbstractVectorSet # Keep general to allow CP sets from MOI
+    )
+
+Extend `JuMP.build_constraint` to add logical cardinality constraints to a [`GDPModel`](@ref). 
+This in combination with `JuMP.add_constraint` enables the use of 
+`@constraint(model, [name], logical_expr in set)`, where set can be either of the following
+cardinality sets: `AtLeast(n)`, `AtMost(n)`, or `Exactly(n)`.
+
+## Example
+
+To select exactly 1 logical variable `Y` to be `true`, do 
+(the same can be done with `AtLeast(n)` and `AtMost(n)`):
+
+```jldoctest
+julia> model = GDPModel();
+julia> @variable(model, Y[i = 1:2], LogicalVariable);
+julia> @constraint(model, [Y[1], Y[2]] in Exactly(1));
+```
+
+    JuMP.build_constraint(
+        _error::Function, 
+        func::_LogicalExpr,
+        set::_MOI.EqualTo{Bool}
+    )
+
+Extend `JuMP.build_constraint` to add logical propositional constraints to a [`GDPModel`](@ref). 
+This in combination with `JuMP.add_constraint` enables the use of 
+`@constraint(model, [name], logical_expr == true/false)` to define a Boolean expression that must
+either be true or false.
 """
 function JuMP.build_constraint(
     _error::Function, 
@@ -414,15 +546,16 @@ function JuMP.build_constraint(
     func::_LogicalExpr,
     set::_MOI.EqualTo{Bool}
     )
-    set.value && return JuMP.ScalarConstraint(func, set)
     new_set = _MOI.EqualTo(true)
-    if func.head == :- && func.args[2] == true
+    if set.value #set = EqualTo(true)
+        return JuMP.ScalarConstraint(func, set)
+    elseif func.head == :- && isone(func.args[2]) # func.args[2] is 1.0 (true)
         return JuMP.ScalarConstraint(func.args[1], new_set)
-    elseif func.head == :-
-        new_func = JuMP.NonlinearExpr{LogicalVariableRef}(:¬, Any[func.args[1]])
+    elseif func.head == :- #func.args[2] is 0.0 (false)
+        new_func = _LogicalExpr(:¬, Any[func.args[1]])
         return JuMP.ScalarConstraint(new_func, new_set)
-    else
-        new_func = JuMP.NonlinearExpr{LogicalVariableRef}(:¬, Any[func])
+    else #set = EqualTo(false)
+        new_func = _LogicalExpr(:¬, Any[func])
         return JuMP.ScalarConstraint(new_func, new_set)
     end 
 end
@@ -481,7 +614,20 @@ end
 """
 function JuMP.add_constraint(
     model::JuMP.Model,
-    c::Union{JuMP.ScalarConstraint{<:F, S}, JuMP.VectorConstraint{<:F, S, Shape}},
+    c::JuMP.ScalarConstraint{<:F, S},
+    name::String = ""
+) where {F <: Union{LogicalVariableRef, _LogicalExpr}, S}
+    is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")
+    # TODO maybe check the variables in the constraints belong to the model
+    c = JuMP.ScalarConstraint(c.func, _MOI.EqualTo(isone(c.set.value))) #intercept set and covert to Bool
+    constr_data = ConstraintData(c, name)
+    idx = _MOIUC.add_item(_logical_constraints(model), constr_data)
+    _set_ready_to_optimize(model, false)
+    return LogicalConstraintRef(model, idx)
+end
+function JuMP.add_constraint(
+    model::JuMP.Model,
+    c::JuMP.VectorConstraint{<:F, S, Shape},
     name::String = ""
 ) where {F <: Union{Number, LogicalVariableRef, _LogicalExpr}, S, Shape}
     is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")

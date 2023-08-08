@@ -64,61 +64,52 @@ end
 
 # abstract type MOIFirstOrderSet <: _MOI.AbstractVectorSet end # This is probably not needed
 """
-    _MOIAtLeast <: MOI.AbstractVectorSet
+    _MOIAtLeast{T<:Union{Int,LogicalVariableRef}} <: MOI.AbstractVectorSet
 
 MOI level set for AtLeast constraints, see [`AtLeast`](@ref) for recommended syntax.
 """
-struct MOIAtLeast{T} <: _MOI.AbstractVectorSet
-    value::T # Int or LogicalVariableRef
+struct MOIAtLeast{T<:Union{Int,LogicalVariableRef}} <: _MOI.AbstractVectorSet
+    value::T
     dimension::Int
-end
-function MOIAtLeast(value::T, dimension::Int) where {T}
-    MOIAtLeast{T}(value, dimension)
 end
 
 """
-    _MOIAtMost <: MOI.AbstractVectorSet
+    _MOIAtMost{T<:Union{Int,LogicalVariableRef}} <: MOI.AbstractVectorSet
 
 MOI level set for AtMost constraints, see [`AtMost`](@ref) for recommended syntax.
 """
-struct MOIAtMost{T} <: _MOI.AbstractVectorSet
-    value::T # Int or LogicalVariableRef
+struct MOIAtMost{T<:Union{Int,LogicalVariableRef}} <: _MOI.AbstractVectorSet
+    value::T 
     dimension::Int
-end
-function MOIAtMost(value::T, dimension::Int) where {T}
-    MOIAtMost{T}(value, dimension)
 end
 
 """
-    _MOIExactly <: _MOI.AbstractVectorSet
+    _MOIExactly{T<:Union{Int,LogicalVariableRef}} <: _MOI.AbstractVectorSet
 
 MOI level set for Exactly constraints, see [`Exactly`](@ref) for recommended syntax.
 """
-struct MOIExactly{T} <: _MOI.AbstractVectorSet
-    value::T # Int or LogicalVariableRef
+struct MOIExactly{T<:Union{Int,LogicalVariableRef}} <: _MOI.AbstractVectorSet
+    value::T 
     dimension::Int
-end
-function MOIExactly(value::T, dimension::Int) where {T}
-    MOIExactly{T}(value, dimension)
 end
 
 # Create our own JuMP level sets to infer the dimension using the expression
 """
-    AtLeast <: JuMP.AbstractVectorSet
+    AtLeast{T<:Union{Int,LogicalVariableRef}} <: JuMP.AbstractVectorSet
 
 Convenient alias for using [`MOIAtLeast`](@ref).
 """
-struct AtLeast{T} <: JuMP.AbstractVectorSet
-    value::T # Int or LogicalVariableRef
+struct AtLeast{T<:Union{Int,LogicalVariableRef}} <: JuMP.AbstractVectorSet
+    value::T
 end
 
 """
-    AtMost <: JuMP.AbstractVectorSet
+    AtMost{T<:Union{Int,LogicalVariableRef}} <: JuMP.AbstractVectorSet
 
 Convenient alias for using [`MOIAtMost`](@ref).
 """
-struct AtMost{T} <: JuMP.AbstractVectorSet
-    value::T # Int or LogicalVariableRef
+struct AtMost{T<:Union{Int,LogicalVariableRef}} <: JuMP.AbstractVectorSet
+    value::T
 end
 
 """
@@ -126,8 +117,8 @@ end
 
 Convenient alias for using [`MOIExactly`](@ref).
 """
-struct Exactly{T} <: JuMP.AbstractVectorSet
-    value::T # Int or LogicalVariableRef
+struct Exactly{T<:Union{Int,LogicalVariableRef}} <: JuMP.AbstractVectorSet
+    value::T 
 end
 
 # Extend JuMP.moi_set as needed
@@ -135,9 +126,7 @@ JuMP.moi_set(set::AtLeast, dim::Int) = MOIAtLeast(set.value, dim)
 JuMP.moi_set(set::AtMost, dim::Int) = MOIAtMost(set.value, dim)
 JuMP.moi_set(set::Exactly, dim::Int) = MOIExactly(set.value, dim)
 
-
-const _LogicalExpr = JuMP.NonlinearExpr{LogicalVariableRef}
-
+const _LogicalExpr = JuMP.GenericNonlinearExpr{LogicalVariableRef}
 
 """
     ConstraintData{C <: JuMP.AbstractConstraint}
@@ -207,6 +196,7 @@ end
 """
 
 """
+# const DisjunctConstraintRef = JuMP.ConstraintRef{JuMP.Model, DisjunctConstraintIndex, JuMP.ScalarShape}
 struct DisjunctConstraintRef
     model::JuMP.Model # TODO: generalize for AbstractModels
     index::DisjunctConstraintIndex

@@ -4,11 +4,11 @@ using DisjunctiveProgramming
 m = GDPModel()
 @variable(m, -5 ≤ x ≤ 10)
 @variable(m, Y[1:2], LogicalVariable)
-@constraint(m, disj1_con_a, Y[1] => {exp(x) <= 2})
-@constraint(m, disj1_con_b, Y[1] => {x >= -3})
-@constraint(m, disj2_con_a, Y[2] => {exp(x) >= 3})
-@constraint(m, disj2_con_b, Y[2] => {x >= 5})
-disjunction = add_disjunction(m, Y, "Disjunction")
+disj1_con_a = @constraint(m, exp(x) <= 2, DisjunctConstraint(Y[1]))
+disj1_con_b = @constraint(m, x >= -3, DisjunctConstraint(Y[1]))
+disj2_con_a = @constraint(m, exp(x) >= 3, DisjunctConstraint(Y[2]))
+disj2_con_b = @constraint(m, x >= 5, DisjunctConstraint(Y[2]))
+disjunction = @disjunction(m, Y)
 DisjunctiveProgramming._reformulate_logical_variables(m)
 print(m)
 # Feasibility
@@ -18,7 +18,7 @@ print(m)
 
 ##
 m_bigm = copy(m)
-DisjunctiveProgramming._reformulate_disjunctive_constraints(m_bigm, BigM())
+DisjunctiveProgramming._reformulate_disjunctions(m_bigm, BigM())
 print(m_bigm)
 # Feasibility
 # Subject to
@@ -33,7 +33,7 @@ print(m_bigm)
 
 ##
 m_hull = copy(m)
-DisjunctiveProgramming._reformulate_disjunctive_constraints(m_hull, Hull())
+DisjunctiveProgramming._reformulate_disjunctions(m_hull, Hull())
 print(m_hull)
 
 # Feasibility
@@ -41,7 +41,6 @@ print(m_hull)
 #  x - x_Y[1] - x_Y[2] = 0
 #  3 Y[1] + x_Y[1] ≥ 0
 #  -5 Y[2] + x_Y[2] ≥ 0
-#  con : 2 x ≤ 9
 #  -5 Y[1] - x_Y[1] ≤ 0
 #  -10 Y[1] + x_Y[1] ≤ 0
 #  -5 Y[2] - x_Y[2] ≤ 0
