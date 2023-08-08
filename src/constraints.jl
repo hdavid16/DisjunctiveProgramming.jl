@@ -455,12 +455,12 @@ function JuMP.parse_constraint_call(
     error_msg = 
         "The MOI set in the logical constraint $lhs $op $rhs was not identified. " *
         "The set `MOI.EqualTo{Bool}(value)` should be preceded by `==` or `in`."
-    if rhs.args[1] in (:in, :(==))
+    if rhs.args[1] in (:in, :(==), :∈)
         rhs0 = rhs.args[2]
         set = rhs.args[3] isa Bool ? _MOI.EqualTo(rhs.args[3]) : 
                 rhs.args[3] isa _MOI.EqualTo ? rhs.args[3] : error(error_msg)
     else
-        error(error_msg)
+        _error(error_msg)
     end
     func = :($op($lhs, $rhs0))
     parse_code = :()
@@ -600,7 +600,7 @@ function JuMP.build_constraint(
         _error("Cannot add or subtract constants to logical variables")
     end
 end
-function JuMP.build_constraint(_error::Function, aff::JuMP.GenericAffExpr{C, LogicalVariableRef}, set::_MOI.EqualTo{Float64})
+function JuMP.build_constraint(_error::Function, aff::JuMP.GenericAffExpr{C, LogicalVariableRef}, set::_MOI.EqualTo{Float64}) where {C}
     JuMP.build_constraint(_error, aff, _MOI.EqualTo(isone(set.value)))
 end
 
