@@ -14,29 +14,17 @@ m = GDPModel()
 @constraint(m, x ≤ 9, DisjunctConstraint(Y[2]))
 @disjunction(m, [Y[1], Y[2]])
 
-# Disjunction Method 2: Same as Method 1, but using Indicator Constraint notation --> not currently supported
+# Disjunction Method 2: Create Logical Variables from Disjunctions
 # m = GDPModel()
 # @variable(m, -5 ≤ x ≤ 10)
-# @variable(m, Y[1:2], LogicalVariable)
-# @constraint(m, disjunct_1_con, Y[1] => {0 ≤ x ≤ 3})
-# @constraint(m, disjunct_2_con_a, Y[2] => {5 ≤ x})
-# @constraint(m, disjunct_2_con_b, Y[2] => {x ≤ 9})
-# disjunction = add_disjunction(m, Y, "Disjunction")
-
-# Disjunction Method 3: Create Logical Variables from Disjunctions
-m = GDPModel()
-@variable(m, -5 ≤ x ≤ 10)
-disjunct_1_con = @constraint(m, 0 ≤ x ≤ 3, DisjunctConstraint)
-disjunct_2_con_a = @constraint(m, 5 ≤ x, DisjunctConstraint)
-disjunct_2_con_b = @constraint(m, x ≤ 9, DisjunctConstraint)
-disjunction = @disjunction(m, [[disjunct_1_con], [disjunct_2_con_a, disjunct_2_con_b]])
-Y = disjunction_indicators(disjunction)
+# @constraint(m, disjunct_1_con, 0 ≤ x ≤ 3, DisjunctConstraint)
+# @constraint(m, disjunct_2_con_a, 5 ≤ x, DisjunctConstraint)
+# @constraint(m, disjunct_2_con_b, x ≤ 9, DisjunctConstraint)
+# @disjunction(m, disjunction, [[disjunct_1_con], [disjunct_2_con_a, disjunct_2_con_b]])
+# Y = disjunction_indicators(disjunction)
 
 # Logical Constraint Method 1: Use func in set notation
 @constraint(m, Y in Exactly(1))
-
-# Logical Constraint Method 2: Use NonlinearExpr that gets parsed to func in set notation --> not currently supported
-# @constraint(m, exclussive, exactly(1, Y))
 
 # Reformulate logical variables and logical constraints
 DisjunctiveProgramming._reformulate_logical_variables(m)

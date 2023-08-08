@@ -22,7 +22,7 @@ end
 # Define all the logic functions/operators that use 2 arguments
 for (name, func) in (
     (:⇔, :⇔), (:⇔, :(<-->)), (:⇔, :iff), (:⇔, :equals), # \Leftrightarrow + tab
-    (:⇒, :⇒), (:⇒, :(-->)), (:⇒, :implies), # \Rightarrow + tab
+    (:⇒, :⇒), (:⇒, :implies), # \Rightarrow + tab
     (:Ξ, :Ξ), (:Ξ, :exactly), # \Xi + tab
     (:Λ, :Λ), (:Λ, :atmost), # \Lambda + tab
     (:Γ, :Γ), (:Γ, :atleast) # \Gamma + tab

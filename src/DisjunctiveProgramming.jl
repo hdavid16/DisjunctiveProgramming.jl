@@ -22,7 +22,10 @@ include("hull.jl")
 include("optimize.jl")
 
 # export logic operators (NOTE: these don't get exported although defined in logic.jl)
-export ∨, ∧, ⇔, <-->, ⇒, -->, ¬ # TODO investigate why this is
+# TODO investigate why this is
+export ∨, ∧, ¬
+export ⇔, <-->
+export ⇒ # --> cannot be used because it clashes with indicator constraint parsing in JuMP.
 
 # Define additional stuff that should not be exported
 const _EXCLUDE_SYMBOLS = [Symbol(@__MODULE__), :eval, :include]
