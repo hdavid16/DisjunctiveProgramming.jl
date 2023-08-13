@@ -4,6 +4,7 @@
 
 # Define all the logic functions/operators that use 2+ arguments
 for (name, func) in (
+    (:⇔, :⇔), (:⇔, :(<-->)), (:⇔, :iff), (:⇔, :equals), # \Leftrightarrow + tab
     (:∨, :∨), (:∨, :lor), # \vee + tab
     (:∧, :∧), (:∧, :land), # \wedge + tab
 )
@@ -21,7 +22,6 @@ end
 
 # Define all the logic functions/operators that use 2 arguments
 for (name, func) in (
-    (:⇔, :⇔), (:⇔, :(<-->)), (:⇔, :iff), (:⇔, :equals), # \Leftrightarrow + tab
     (:⇒, :⇒), (:⇒, :implies), # \Rightarrow + tab
     (:Ξ, :Ξ), (:Ξ, :exactly), # \Xi + tab
     (:Λ, :Λ), (:Λ, :atmost), # \Lambda + tab
@@ -76,12 +76,18 @@ function _eliminate_equivalence(lvar::LogicalVariableRef)
     return lvar
 end
 function _eliminate_equivalence(lexpr::_LogicalExpr)
-    if lexpr.head == :⇔
-        if length(lexpr.args) != 2 
-            error("The equivalence operator must have two clauses.")
-        end
+    if lexpr.head in (:⇔, :(<-->), :iff, :equals)
         A = _eliminate_equivalence(lexpr.args[1])
-        B = _eliminate_equivalence(lexpr.args[2])
+        if length(lexpr.args) > 2 
+            nested = _LogicalExpr(:⇔, Vector{Any}(lexpr.args[2:end]))
+            B = _eliminate_equivalence(nested)
+        elseif length(lexpr.args) == 2
+            B = _eliminate_equivalence(lexpr.args[2])
+        else
+            error("The equivalence logic operator `⇔` must have at least two arguments.")
+        end
+        
+        
         new_lexpr = _LogicalExpr(:∧, Any[
             _LogicalExpr(:⇒, Any[A, B]),
             _LogicalExpr(:⇒, Any[B, A])
@@ -104,7 +110,7 @@ function _eliminate_implication(lvar::LogicalVariableRef)
     return lvar
 end
 function _eliminate_implication(lexpr::_LogicalExpr)
-    if lexpr.head == :⇒
+    if lexpr.head in (:⇒, :implies)
         if length(lexpr.args) != 2 
             error("The implication operator must have two clauses.")
         end
@@ -132,7 +138,7 @@ function _move_negations_inward(lvar::LogicalVariableRef)
     return lvar
 end
 function _move_negations_inward(lexpr::_LogicalExpr)
-    if lexpr.head == :¬
+    if lexpr.head in (:¬, :lneg)
         if length(lexpr.args) != 1
             error("The negation operator can only have 1 clause.")
         end
@@ -153,11 +159,11 @@ function _negate(lvar::LogicalVariableRef)
     return _LogicalExpr(:¬, Any[lvar])
 end
 function _negate(lexpr::_LogicalExpr)
-    if lexpr.head == :∨
+    if lexpr.head in (:∨, :lor)
         new_lexpr = _negate_or(lexpr)
-    elseif lexpr.head == :∧
+    elseif lexpr.head in (:∧, :land)
         new_lexpr = _negate_and(lexpr)
-    elseif lexpr.head == :¬
+    elseif lexpr.head in (:¬, :lneg)
         new_lexpr = _negate_negation(lexpr)
     else
         #TODO: maybe catch error here if other operator is present
@@ -217,65 +223,29 @@ Distribute AND over OR boolean operators.
 function _distribute_and_over_or(lvar::LogicalVariableRef)
     return lvar
 end
-function _distribute_and_over_or(lexpr::_LogicalExpr)
-    if lexpr.head == :∨
+function _distribute_and_over_or(lexpr0::_LogicalExpr)
+    lexpr = _flatten(lexpr0)
+    if lexpr.head in (:∨, :lor)
         if length(lexpr.args) < 2 
             error("The OR operator must have at least two clauses.")
         end
-        new_lexpr = _distribute_and_over_or_left(lexpr)
-        new_lexpr = _distribute_and_over_or_right(new_lexpr)
+        loc = findfirst(arg -> arg isa _LogicalExpr ? arg.head in (:∧, :land) : false, lexpr.args)
+        if !isnothing(loc)
+            new_lexpr = _LogicalExpr(:∧, Any[
+                _distribute_and_over_or(
+                    _LogicalExpr(:∨, Any[arg_i, lexpr.args[setdiff(1:end,loc)]...])
+                )
+                for arg_i in lexpr.args[loc].args
+            ])
+        else
+            new_lexpr = lexpr
+        end
     else
         new_lexpr = _LogicalExpr(lexpr.head, Any[
             _distribute_and_over_or(arg) for arg in lexpr.args
         ])
     end
 
-    return new_lexpr
-end
-function _distribute_and_over_or_left(lexpr::_LogicalExpr)
-    A = lexpr.args[1]
-    B = lexpr.args[2]
-    if A isa _LogicalExpr && A.head == :∧ #first clause has AND
-        if length(A.args) < 2 
-            error("The AND operator must have at least two clauses.")
-        end
-        C = A.args[1] #first subclause
-        D = A.args[2] #second subclause
-        new_lexpr0 = _LogicalExpr(:∧, Any[ #flip OR to AND in main expr
-            _distribute_and_over_or(_LogicalExpr(:∨, Any[C, B])),
-            _distribute_and_over_or(_LogicalExpr(:∨, Any[D, B]))
-        ])
-        if length(lexpr.args) == 2
-            new_lexpr = new_lexpr0
-        else    
-            new_lexpr = _LogicalExpr(:∨, Any[new_lexpr0, lexpr.arg[3:end]...])
-        end
-    else
-        new_lexpr = lexpr
-    end
-    return new_lexpr
-end
-function _distribute_and_over_or_right(lexpr::_LogicalExpr)
-    A = lexpr.args[1] #first clause
-    B = lexpr.args[2] #second clause
-    if B isa _LogicalExpr && lexpr.head == :∨ && B.head == :∧ #second clause has AND
-        if length(B.args) < 2 
-            error("The AND operator must have at least two clauses.")
-        end
-        C = B.args[1] #first subclause
-        D = B.args[2] #second subclause
-        new_lexpr0 = _LogicalExpr(:∧, Any[ #flip OR to AND in main expr
-            _distribute_and_over_or(_LogicalExpr(:∨, Any[A, C])),
-            _distribute_and_over_or(_LogicalExpr(:∨, Any[A, D]))
-        ])
-        if length(lexpr.args) == 2
-            new_lexpr = new_lexpr0
-        else    
-            new_lexpr = _LogicalExpr(:∨, Any[new_lexpr0, lexpr.arg[3:end]...])
-        end
-    else
-        new_lexpr = lexpr
-    end
     return new_lexpr
 end
 
@@ -289,12 +259,12 @@ function _flatten(lvar::LogicalVariableRef)
     return lvar
 end
 function _flatten(lexpr::_LogicalExpr)
-    if lexpr.head in (:∧, :∨)
+    if lexpr.head in (:∧, :land, :∨, :lor)
         nary_args = Set{Any}()
         for arg in lexpr.args
             if arg isa LogicalVariableRef
                 push!(nary_args, arg)
-            elseif arg.head == :¬ && arg.args[1] isa LogicalVariableRef
+            elseif _isa_literal(arg)
                 push!(nary_args, arg)
             elseif arg.head == lexpr.head
                 arg_flat = _flatten(arg)
@@ -302,7 +272,8 @@ function _flatten(lexpr::_LogicalExpr)
                     push!(nary_args, _flatten(a))
                 end
             else
-                return lexpr
+                arg_flat = _flatten(arg)
+                push!(nary_args, arg_flat)
             end
         end
         new_lexpr = _LogicalExpr(lexpr.head, collect(nary_args))

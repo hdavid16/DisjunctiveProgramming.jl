@@ -336,25 +336,27 @@ end
 
 function _reformulate_proposition(model::JuMP.Model, lexpr::_LogicalExpr)
     expr = _to_cnf(lexpr)
-    if expr.head == :∧
+    if expr.head in (:∧, :land)
         for arg in expr.args
             _add_proposition(model, arg)
         end
-    elseif expr.head == :∨ && all(_is_literal.(expr.args))
+    elseif expr.head in (:∨, :lor) && all(_isa_literal.(expr.args))
         _add_proposition(model, expr)
     else
         error("Expression was not converted to proper Conjunctive Normal Form:\n$expr")
     end
 end
 
-_is_literal(v::LogicalVariableRef) = true
-_is_literal(v::_LogicalExpr) = (v.head == :¬) && (length(v.args) == 1) && _is_literal(v.args[1])
-_is_literal(v) = false
+_isa_literal(v::LogicalVariableRef) = true
+_isa_literal(v::_LogicalExpr) = (v.head in (:¬, :lneg)) && (length(v.args) == 1) && _isa_literal(v.args[1])
+_isa_literal(v) = false
 
-function _add_proposition(model::JuMP.Model, arg::_LogicalExpr)
+function _add_proposition(model::JuMP.Model, arg::Union{LogicalVariableRef,_LogicalExpr})
     func = _reformulate_clause(model, arg)
-    con = JuMP.build_constraint(error, func, _MOI.GreaterThan(1))
-    JuMP.add_constraint(model, con)
+    if !isempty(func.terms) && !all(iszero.(values(func.terms)))
+        con = JuMP.build_constraint(error, func, _MOI.GreaterThan(1))
+        JuMP.add_constraint(model, con)
+    end
     return
 end
 
@@ -364,19 +366,22 @@ function _reformulate_clause(model::JuMP.Model, lvref::LogicalVariableRef)
 end
 
 function _reformulate_clause(model::JuMP.Model, lexpr::_LogicalExpr)
-    if lexpr.head != :∨
-        error("Expression was not converted to proper Conjunctive Normal Form:\n$lexpr")
-    end
     func = JuMP.AffExpr() #initialize func expression
-    for literal in lexpr.args
-        if literal isa LogicalVariableRef
-            func += _indicator_to_binary_ref(literal)
-        elseif _is_literal(literal)
-            func += (1 - _indicator_to_binary_ref(literal.args[1]))
-        else
-            error("Expression was not converted to proper Conjunctive Normal Form:\n$literal")
+    if _isa_literal(lexpr)
+        func += (1 - _reformulate_clause(model, lexpr.args[1]))
+    elseif lexpr.head in (:∨, :lor)
+        for literal in lexpr.args
+            if literal isa LogicalVariableRef
+                func += _reformulate_clause(model, literal)
+            elseif _isa_literal(literal)
+                func += (1 - _reformulate_clause(model, literal.args[1]))
+            else
+                error("Expression was not converted to proper Conjunctive Normal Form:\n$literal is not a literal.")
+            end
         end
+    else
+        error("Expression was not converted to proper Conjunctive Normal Form:\n$lexpr.")
     end
-
+    
     return func
 end
