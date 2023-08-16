@@ -1,8 +1,6 @@
 # TODO extend for VectorConstraints and possible other constraint types
 
-"""
-
-"""
+# Get the tightest Big-M value for a particular constraint
 function _get_tight_M(method::BigM, con::JuMP.ScalarConstraint{T, S}) where {T, S <: Union{_MOI.LessThan, _MOI.GreaterThan}}
     M = min(method.value, _calculate_tight_M(con))
     if isinf(M)
@@ -19,6 +17,8 @@ function _get_tight_M(method::BigM, con::JuMP.ScalarConstraint{T, S}) where {T, 
 
     return M
 end
+
+# Get user-specified Big-M value
 function _get_M(method::BigM, ::JuMP.ScalarConstraint{T, S}) where {T, S <: Union{_MOI.LessThan, _MOI.GreaterThan}}
     M = method.value
     if isinf(M)
@@ -36,11 +36,7 @@ function _get_M(method::BigM, ::JuMP.ScalarConstraint{T, S}) where {T, S <: Unio
     return (M, M)
 end
 
-"""
-    _calculate_tight_M
-
-Apply interval arithmetic on a linear constraint to infer the tightest Big-M value from the bounds on the constraint.
-"""
+# Apply interval arithmetic on a linear constraint to infer the tightest Big-M value from the bounds on the constraint.
 function _calculate_tight_M(con::JuMP.ScalarConstraint{JuMP.AffExpr, S}) where {S <: _MOI.LessThan}
     return _interval_arithmetic_LessThan(con, -con.set.upper)
 end

@@ -464,7 +464,7 @@ function JuMP.parse_constraint_call(
     else
         _error(error_msg)
     end
-    @show func = :($op($lhs, $rhs0))
+    func = :($op($lhs, $rhs0))
     parse_code = :()
     build_code = :(JuMP.build_constraint($(_error), $(esc(func)), $(esc(set))))
     return parse_code, build_code
@@ -521,20 +521,6 @@ function JuMP.parse_constraint_call(
     build_code = :(JuMP.build_constraint($(_error), $(esc(func)), $(esc(set))))
     return parse_code, build_code
 end
-JuMP.parse_constraint_call(
-    _error::Function, 
-    is_vectorized::Bool, 
-    ::Val{:(<-->)}, 
-    lhs, 
-    rhs
-) = JuMP.parse_constraint_call(
-    _error, 
-    is_vectorized, 
-    Val{:⇔}, 
-    lhs, 
-    rhs
-)
-# TODO add parsing for <-->
 
 # --> cannot be used because it clashes with indicator constraint parsing in JuMP.
 # """
