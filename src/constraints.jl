@@ -430,99 +430,99 @@ end
 #         end
 #     end
 # end
-"""
-    function JuMP.parse_constraint_call(
-        _error::Function, 
-        is_vectorized::Bool, 
-        ::Val{:⇒}, 
-        lhs, 
-        rhs
-    )
+# """
+#     function JuMP.parse_constraint_call(
+#         _error::Function, 
+#         is_vectorized::Bool, 
+#         ::Val{:⟹}, 
+#         lhs, 
+#         rhs
+#     )
 
-Extend `JuMP.parse_constraint_call` to avoid order of precedence when 
-using the logical operator ⇒ when building a 
-logical proposition constraint.
-"""
-function JuMP.parse_constraint_call(
-    _error::Function, 
-    is_vectorized::Bool, 
-    ::Val{:⇒}, 
-    lhs, 
-    rhs
-)
-    op = :⇒
-    error_msg = 
-        "The MOI set in the logical constraint $lhs $op $rhs was not identified. " *
-        "If using the `func in set` notation, the set `MOI.EqualTo{Bool}(value)` " *
-        "should be preceded by `in` or `∈`. Otherwise `func == Bool` should be used " *
-        "to define the constraint."
-    rhs0, set0 = rhs.args[2:3]
-    if rhs.args[1] in (:in, :∈) && set0.head == :call && set0.args[2] isa Bool    
-        set = set0
-    elseif rhs.args[1] == :(==) && set0 isa Bool
-        set = _MOI.EqualTo(set0)
-    else
-        _error(error_msg)
-    end
-    func = :($op($lhs, $rhs0))
-    parse_code = :()
-    build_code = :(JuMP.build_constraint($(_error), $(esc(func)), $(esc(set))))
-    return parse_code, build_code
-end
+# Extend `JuMP.parse_constraint_call` to avoid order of precedence when 
+# using the logical operator ⟹ when building a 
+# logical proposition constraint.
+# """
+# function JuMP.parse_constraint_call(
+#     _error::Function, 
+#     is_vectorized::Bool, 
+#     ::Val{:⟹}, 
+#     lhs, 
+#     rhs
+# )
+#     op = :⟹
+#     error_msg = 
+#         "The MOI set in the logical constraint $lhs $op $rhs was not identified. " *
+#         "If using the `func in set` notation, the set `MOI.EqualTo{Bool}(value)` " *
+#         "should be preceded by `in` or `∈`. Otherwise `func == Bool` should be used " *
+#         "to define the constraint."
+#     rhs0, set0 = rhs.args[2:3]
+#     if rhs.args[1] in (:in, :∈) && set0.head == :call && set0.args[2] isa Bool    
+#         set = set0
+#     elseif rhs.args[1] == :(==) && set0 isa Bool
+#         set = _MOI.EqualTo(set0)
+#     else
+#         _error(error_msg)
+#     end
+#     func = :($op($lhs, $rhs0))
+#     parse_code = :()
+#     build_code = :(JuMP.build_constraint($(_error), $(esc(func)), $(esc(set))))
+#     return parse_code, build_code
+# end
 
-"""
-    function JuMP.parse_constraint_call(
-        _error::Function, 
-        is_vectorized::Bool, 
-        ::Union{Val{:⇔}, Val{:(<-->)}}, 
-        lhs, 
-        rhs
-    )
+# """
+#     function JuMP.parse_constraint_call(
+#         _error::Function, 
+#         is_vectorized::Bool, 
+#         ::Union{Val{:⇔}, Val{:(<-->)}}, 
+#         lhs, 
+#         rhs
+#     )
 
-Extend `JuMP.parse_constraint_call` to avoid order of precedence when 
-using the logical operator `⇔` or `<-->` when building a 
-logical proposition constraint.
-"""
-function JuMP.parse_constraint_call(
-    _error::Function, 
-    is_vectorized::Bool, 
-    ::Union{Val{:⇔}, Val{:(<-->)}}, 
-    lhs, 
-    rhs
-)
-    op = :⇔
-    error_msg = 
-        "The MOI set in the logical constraint $lhs $op $rhs was not identified. " *
-        "If using the `func in set` notation, the set `MOI.EqualTo{Bool}(value)` " *
-        "should be preceded by `in` or `∈`. Otherwise `func == Bool` should be used " *
-        "to define the constraint."
-    op_args = [lhs] #initialize
-    tmp = rhs
-    set = _MOI.EqualTo(true) 
-    while true
-        set0 = tmp.args[3]
-        if tmp.args[1] in (:⇔, :(<-->))
-            push!(op_args, tmp.args[2])
-            tmp = set0
-        elseif tmp.args[1] in (:in, :∈) && set0.head == :call && set0.args[2] isa Bool
-            push!(op_args, tmp.args[2])
-            set = set0
-            break
-        elseif tmp.args[1] == :(==) && set0 isa Bool
-            push!(op_args, tmp.args[2])
-            set = _MOI.EqualTo(set0)
-            break
-        else
-            _error(error_msg)
-        end
-    end
-    func = :($op($(op_args...)))
-    parse_code = :()
-    build_code = :(JuMP.build_constraint($(_error), $(esc(func)), $(esc(set))))
-    return parse_code, build_code
-end
+# Extend `JuMP.parse_constraint_call` to avoid order of precedence when 
+# using the logical operator `⇔` or `<-->` when building a 
+# logical proposition constraint.
+# """
+# function JuMP.parse_constraint_call(
+#     _error::Function, 
+#     is_vectorized::Bool, 
+#     ::Union{Val{:⇔}, Val{:(<-->)}}, 
+#     lhs, 
+#     rhs
+# )
+#     op = :⇔
+#     error_msg = 
+#         "The MOI set in the logical constraint $lhs $op $rhs was not identified. " *
+#         "If using the `func in set` notation, the set `MOI.EqualTo{Bool}(value)` " *
+#         "should be preceded by `in` or `∈`. Otherwise `func == Bool` should be used " *
+#         "to define the constraint."
+#     op_args = [lhs] #initialize
+#     tmp = rhs
+#     set = _MOI.EqualTo(true) 
+#     while true
+#         set0 = tmp.args[3]
+#         if tmp.args[1] in (:⇔, :(<-->))
+#             push!(op_args, tmp.args[2])
+#             tmp = set0
+#         elseif tmp.args[1] in (:in, :∈) && set0.head == :call && set0.args[2] isa Bool
+#             push!(op_args, tmp.args[2])
+#             set = set0
+#             break
+#         elseif tmp.args[1] == :(==) && set0 isa Bool
+#             push!(op_args, tmp.args[2])
+#             set = _MOI.EqualTo(set0)
+#             break
+#         else
+#             _error(error_msg)
+#         end
+#     end
+#     func = :($op($(op_args...)))
+#     parse_code = :()
+#     build_code = :(JuMP.build_constraint($(_error), $(esc(func)), $(esc(set))))
+#     return parse_code, build_code
+# end
 
-# --> cannot be used because it clashes with indicator constraint parsing in JuMP.
+# --> and <--> cannot be used because it clashes with indicator constraint parsing in JuMP.
 # """
 #     function JuMP.parse_constraint_head(
 #         _error::Function,
@@ -555,6 +555,20 @@ end
 #     build_code = :(JuMP.build_constraint($(_error), $(esc(func)), $set))
 #     return false, parse_code, build_code
 # end
+
+JuMP.operator_to_set(::Function, ::Val{:⟹}) = error(
+    "Cannot use ⟹ in a MOI set (invalid right-hand side). If you are seeing this error, " *
+    "you likely added a logical constraint of the form A ⟹ B == true. " *
+    "Instead, you should enclose the constraint function in parenthesis: " *
+    "(A ⟹ B) == true."
+)
+⟹
+JuMP.operator_to_set(::Function, ::Val{:⇔}) = error(
+    "Cannot use ⇔ in a MOI set (invalid right-hand side). If you are seeing this error, " *
+    "you likely added a logical constraint of the form A ⇔ B == true. " *
+    "Instead, you should enclose the constraint function in parenthesis: " *
+    "(A ⇔ B) == true."
+)
 
 """
     JuMP.build_constraint(

@@ -7,7 +7,7 @@ using DisjunctiveProgramming
 
 m = GDPModel()
 @variable(m, Y[1:4], LogicalVariable)
-# @constraint(m, ¬((Y[1] ∧ ¬Y[2]) ⇒ (Y[3] ∨ Y[4])) ∈ MOI.EqualTo(true))
+# @constraint(m, ¬((Y[1] ∧ ¬Y[2]) ⟹ (Y[3] ∨ Y[4])) ∈ MOI.EqualTo(true))
 # @constraint(m, ¬((Y[1] ∧ ¬Y[2]) ⇔ (Y[3] ∨ Y[4])) ∈ MOI.EqualTo(true))
 # @constraint(m, (Y[1] ∧ ¬Y[2]) ⇔ (Y[3] ∨ Y[4]) == false)
 # @constraint(m, Y[1] ⇔ Y[2] ⇔ Y[3] ⇔ Y[4] in MOI.EqualTo(true))

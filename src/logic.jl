@@ -4,7 +4,7 @@
 
 # Define all the logic functions/operators that use 2+ arguments
 for (name, func) in (
-    (:⇔, :⇔), (:⇔, :(<-->)), (:⇔, :iff), (:⇔, :equals), # \Leftrightarrow + tab
+    (:⇔, :⇔), (:⇔, :iff), (:⇔, :equals), # \Leftrightarrow + tab
     (:∨, :∨), (:∨, :lor), # \vee + tab
     (:∧, :∧), (:∧, :land), # \wedge + tab
 )
@@ -22,7 +22,7 @@ end
 
 # Define all the logic functions/operators that use 2 arguments
 for (name, func) in (
-    (:⇒, :⇒), (:⇒, :implies), # \Rightarrow + tab
+    (:⟹, :⟹), (:⟹, :implies), # \Rightarrow + tab
     (:Ξ, :Ξ), (:Ξ, :exactly), # \Xi + tab
     (:Λ, :Λ), (:Λ, :atmost), # \Lambda + tab
     (:Γ, :Γ), (:Γ, :atleast) # \Gamma + tab
@@ -76,7 +76,7 @@ function _eliminate_equivalence(lvar::LogicalVariableRef)
     return lvar
 end
 function _eliminate_equivalence(lexpr::_LogicalExpr)
-    if lexpr.head in (:⇔, :(<-->), :iff, :equals)
+    if lexpr.head in (:⇔, :iff, :equals)
         A = _eliminate_equivalence(lexpr.args[1])
         if length(lexpr.args) > 2 
             nested = _LogicalExpr(:⇔, Vector{Any}(lexpr.args[2:end]))
@@ -89,8 +89,8 @@ function _eliminate_equivalence(lexpr::_LogicalExpr)
         
         
         new_lexpr = _LogicalExpr(:∧, Any[
-            _LogicalExpr(:⇒, Any[A, B]),
-            _LogicalExpr(:⇒, Any[B, A])
+            _LogicalExpr(:⟹, Any[A, B]),
+            _LogicalExpr(:⟹, Any[B, A])
         ])
     else
         new_lexpr = _LogicalExpr(lexpr.head, Any[
@@ -110,7 +110,7 @@ function _eliminate_implication(lvar::LogicalVariableRef)
     return lvar
 end
 function _eliminate_implication(lexpr::_LogicalExpr)
-    if lexpr.head in (:⇒, :implies)
+    if lexpr.head in (:⟹, :implies)
         if length(lexpr.args) != 2 
             error("The implication operator must have two clauses.")
         end

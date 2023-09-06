@@ -41,7 +41,7 @@ Boolean logic can be included in the model by using the `@proposition` macro. Th
 - `∨` (or, typed with `\vee + tab`)
 - `∧` (and, typed with `\wedge + tab`)
 - `¬` (negation, typed with `\neg + tab`)
-- `⇒` (implication, typed with `\Rightarrow + tab`)
+- `⟹` (implication, typed with `\Longrightarrow + tab`)
 - `⇔` (double implication or equivalence, typed with `\Leftrightarrow + tab`)
 The logical proposition is then internally reformulated to an algebraic constraint that is added to the model. This constrait can be accessed with `model[Symbol("<logical proposition expression>")]`.
 
