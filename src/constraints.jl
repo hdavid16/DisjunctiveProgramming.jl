@@ -556,14 +556,14 @@ end
 #     return false, parse_code, build_code
 # end
 
-JuMP.operator_to_set(::Function, ::Val{:⟹}) = error(
+JuMP.operator_to_set(_error::Function, ::Val{:⟹}) = _error(
     "Cannot use ⟹ in a MOI set (invalid right-hand side). If you are seeing this error, " *
     "you likely added a logical constraint of the form A ⟹ B == true. " *
     "Instead, you should enclose the constraint function in parenthesis: " *
     "(A ⟹ B) == true."
 )
 ⟹
-JuMP.operator_to_set(::Function, ::Val{:⇔}) = error(
+JuMP.operator_to_set(_error::Function, ::Val{:⇔}) = _error(
     "Cannot use ⇔ in a MOI set (invalid right-hand side). If you are seeing this error, " *
     "you likely added a logical constraint of the form A ⇔ B == true. " *
     "Instead, you should enclose the constraint function in parenthesis: " *
@@ -631,9 +631,6 @@ function JuMP.build_constraint(
         return JuMP.ScalarConstraint(new_func, new_set)
     end 
 end
-function JuMP.build_constraint(_error::Function, func::_LogicalExpr, set::_MOI.EqualTo{Float64})
-    JuMP.build_constraint(_error, func, _MOI.EqualTo(isone(set.value)))
-end
 
 # EqualTo{Bool} w/ LogicalVariableRef
 function JuMP.build_constraint(
@@ -643,10 +640,7 @@ function JuMP.build_constraint(
     )
     set.value && return JuMP.ScalarConstraint(lvref, set)
     new_set = MOI.EqualTo(true)
-    return JuMP.ScalarConstraint(JuMP.NonlinearExpr(:¬, Any[lvref]), new_set)
-end
-function JuMP.build_constraint(_error::Function, lvref::LogicalVariableRef, set::_MOI.EqualTo{Float64})
-    JuMP.build_constraint(_error, lvref, _MOI.EqualTo(isone(set.value)))
+    return JuMP.ScalarConstraint(_LogicalExpr(:¬, Any[lvref]), new_set)
 end
 
 # EqualTo{Bool} w/ affine LogicalVariableRef expr (caused by offset)
@@ -662,14 +656,24 @@ function JuMP.build_constraint(
     if aff.constant == -1
         return JuMP.ScalarConstraint(lvref, MOI.EqualTo(true))
     elseif iszero(aff.constant)
-        new_func = JuMP.NonlinearExpr(:¬, Any[lvref])
+        new_func = _LogicalExpr(:¬, Any[lvref])
         return JuMP.ScalarConstraint(new_func, MOI.EqualTo(true))
     else
         _error("Cannot add or subtract constants to logical variables")
     end
 end
-function JuMP.build_constraint(_error::Function, aff::JuMP.GenericAffExpr{C, LogicalVariableRef}, set::_MOI.EqualTo{Float64}) where {C}
-    JuMP.build_constraint(_error, aff, _MOI.EqualTo(isone(set.value)))
+
+# EqualTo sets where the boolean was converted to a number
+function JuMP.build_constraint(
+    _error::Function, 
+    expr::Union{LogicalVariableRef, JuMP.GenericAffExpr{C, LogicalVariableRef}, _LogicalExpr}, 
+    set::_MOI.EqualTo
+    ) where {C}
+    if !(isone(set.value) || iszero(set.value))
+        _error("Uncrecognized set `$set` for logical constraint. Should use " *
+               "syntax `logical_expr == true`.")
+    end
+    JuMP.build_constraint(_error, expr, _MOI.EqualTo(isone(set.value)))
 end
 
 # Fallback for Affine/Quad expressions (TODO: we can remove this restriction if needed)

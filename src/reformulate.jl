@@ -136,7 +136,7 @@ function _reformulate_disjunctive_constraint(
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef,
     method::Hull
-) where {T <: JuMP.NonlinearExpr, S <: _MOI.LessThan}
+) where {T <: JuMP.GenericNonlinearExpr, S <: _MOI.LessThan}
     #TODO: need to pass _error to build_constraint
     ϵ = method.value
     con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
@@ -168,7 +168,7 @@ function _reformulate_disjunctive_constraint(
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef,
     method::Hull
-) where {T <: JuMP.NonlinearExpr, S <: _MOI.GreaterThan}
+) where {T <: JuMP.GenericNonlinearExpr, S <: _MOI.GreaterThan}
     #TODO: need to pass _error to build_constraint
     ϵ = method.value
     con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
@@ -201,7 +201,7 @@ function _reformulate_disjunctive_constraint(
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef,
     method::Hull
-) where {T <: JuMP.NonlinearExpr, S <: _MOI.Interval}
+) where {T <: JuMP.GenericNonlinearExpr, S <: _MOI.Interval}
     #TODO: need to pass _error to build_constraint
     ϵ = method.value
     con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
@@ -235,7 +235,7 @@ function _reformulate_disjunctive_constraint(
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef,
     method::Hull
-    ) where {T <: JuMP.NonlinearExpr, S <: _MOI.EqualTo}
+    ) where {T <: JuMP.GenericNonlinearExpr, S <: _MOI.EqualTo}
     #TODO: need to pass _error to build_constraint
     ϵ = method.value
     con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
@@ -295,21 +295,21 @@ function _reformulate_logical_constraint(model::JuMP.Model, lexpr::_LogicalExpr,
 end
 
 function _reformulate_selector(model::JuMP.Model, ::MOIAtLeast, val::Number, lvrefs::Vector{LogicalVariableRef})
-    bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
+    bvrefs = _indicator_to_binary_ref.(lvrefs)
     return JuMP.add_constraint(model,
-        JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, bvrefs), _MOI.GreaterThan(val))
+        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.GreaterThan(val))
     )
 end
 function _reformulate_selector(model::JuMP.Model, ::MOIAtMost, val::Number, lvrefs::Vector{LogicalVariableRef})
-    bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
+    bvrefs = _indicator_to_binary_ref.(lvrefs)
     return JuMP.add_constraint(model,
-        JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, bvrefs), _MOI.LessThan(val))
+        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.LessThan(val))
     )
 end
 function _reformulate_selector(model::JuMP.Model, ::MOIExactly, val::Number, lvrefs::Vector{LogicalVariableRef})
-    bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
+    bvrefs = _indicator_to_binary_ref.(lvrefs)
     return JuMP.add_constraint(model,
-        JuMP.build_constraint(error, JuMP.NonlinearExpr(:+, bvrefs), _MOI.EqualTo(val))
+        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.EqualTo(val))
     )
 end
 function _reformulate_selector(model::JuMP.Model, ::MOIAtLeast, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
@@ -336,11 +336,11 @@ end
 
 function _reformulate_proposition(model::JuMP.Model, lexpr::_LogicalExpr)
     expr = _to_cnf(lexpr)
-    if expr.head in (:∧, :land)
+    if expr.head == :∧
         for arg in expr.args
             _add_proposition(model, arg)
         end
-    elseif expr.head in (:∨, :lor) && all(_isa_literal.(expr.args))
+    elseif expr.head == :∨ && all(_isa_literal.(expr.args))
         _add_proposition(model, expr)
     else
         error("Expression was not converted to proper Conjunctive Normal Form:\n$expr")
@@ -348,7 +348,7 @@ function _reformulate_proposition(model::JuMP.Model, lexpr::_LogicalExpr)
 end
 
 _isa_literal(v::LogicalVariableRef) = true
-_isa_literal(v::_LogicalExpr) = (v.head in (:¬, :lneg)) && (length(v.args) == 1) && _isa_literal(v.args[1])
+_isa_literal(v::_LogicalExpr) = (v.head == :¬) && (length(v.args) == 1) && _isa_literal(v.args[1])
 _isa_literal(v) = false
 
 function _add_proposition(model::JuMP.Model, arg::Union{LogicalVariableRef,_LogicalExpr})
@@ -369,7 +369,7 @@ function _reformulate_clause(model::JuMP.Model, lexpr::_LogicalExpr)
     func = JuMP.AffExpr() #initialize func expression
     if _isa_literal(lexpr)
         func += (1 - _reformulate_clause(model, lexpr.args[1]))
-    elseif lexpr.head in (:∨, :lor)
+    elseif lexpr.head == :∨
         for literal in lexpr.args
             if literal isa LogicalVariableRef
                 func += _reformulate_clause(model, literal)

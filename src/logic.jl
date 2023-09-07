@@ -1,57 +1,39 @@
 ################################################################################
 #                              LOGIC OPERATORS
 ################################################################################
-
-# Define all the logic functions/operators that use 2+ arguments
-for (name, func) in (
-    (:⇔, :⇔), (:⇔, :iff), (:⇔, :equals), # \Leftrightarrow + tab
-    (:∨, :∨), (:∨, :lor), # \vee + tab
-    (:∧, :∧), (:∧, :land), # \wedge + tab
-)
-    # make an expression constructor
-    @eval begin 
-        function $func(
-            v1::Union{LogicalVariableRef, _LogicalExpr}, 
-            v2::Union{LogicalVariableRef, _LogicalExpr},
-            v...
-            )
-            return _LogicalExpr(Symbol($name), Any[v1, v2, v...])
-        end
-    end
+function _op_fallback(name)
+    error("`$name` is only supported for logical expressions")
 end
 
-# Define all the logic functions/operators that use 2 arguments
-for (name, func) in (
-    (:⟹, :⟹), (:⟹, :implies), # \Rightarrow + tab
-    (:Ξ, :Ξ), (:Ξ, :exactly), # \Xi + tab
-    (:Λ, :Λ), (:Λ, :atmost), # \Lambda + tab
-    (:Γ, :Γ), (:Γ, :atleast) # \Gamma + tab
-)
-    # make an expression constructor
+# Define all the logical operators TODO rename the functions as desired
+for (name, alt) in (
+    (:⇔, :iff), # \Leftrightarrow + tab
+    (:⟹, :implies) # Longrightarrow + tab
+    )
+    # make operators
     @eval begin 
-        function $func(
-            v1::Union{LogicalVariableRef, _LogicalExpr}, 
-            v2::Union{LogicalVariableRef, _LogicalExpr}
-            )
-            return _LogicalExpr(Symbol($name), Any[v1, v2])
-        end
+        const $name = JuMP.NonlinearOperator($(Meta.quot(name)), (vs...) -> _op_fallback($(Meta.quot(name))))
+        const $alt = JuMP.NonlinearOperator($(Meta.quot(name)), (vs...) -> _op_fallback($(Meta.quot(alt))))
     end
 end
-
-# Define all the logic functions/operators that use 1 argument
-for (name, func) in ((:¬, :¬), (:¬, :lneg))
-    # make an expression constructor
+for (name, alt, func) in (
+    (:∨, :logical_or, :(|)), # \vee + tab
+    (:∧, :logical_and, :(&)), # \wedge + tab
+    (:¬, :logical_negation, :(!)), # \neg + tab
+    # (:Ξ, :exactly, :exactly), # \Xi + tab --> These should probably just be specified via constraint sets so there aren't 2 different ways
+    # (:Λ, :atmost, :atmost), # \Lambda + tab
+    # (:Γ, :atleast, :atleast) # \Gamma + tab
+    )
+    # make operators
     @eval begin 
-        function $func(v::Union{LogicalVariableRef, _LogicalExpr})
-            return _LogicalExpr(Symbol($name), Any[v])
-        end
+        const $name = JuMP.NonlinearOperator($(Meta.quot(name)), $func)
+        const $alt = JuMP.NonlinearOperator($(Meta.quot(name)), $func)
     end
 end
 
 ################################################################################
 #                            CONJUNCTIVE NORMAL FORM
 ################################################################################
-
 """
 
 """
@@ -76,7 +58,7 @@ function _eliminate_equivalence(lvar::LogicalVariableRef)
     return lvar
 end
 function _eliminate_equivalence(lexpr::_LogicalExpr)
-    if lexpr.head in (:⇔, :iff, :equals)
+    if lexpr.head == :⇔
         A = _eliminate_equivalence(lexpr.args[1])
         if length(lexpr.args) > 2 
             nested = _LogicalExpr(:⇔, Vector{Any}(lexpr.args[2:end]))
@@ -86,8 +68,6 @@ function _eliminate_equivalence(lexpr::_LogicalExpr)
         else
             error("The equivalence logic operator `⇔` must have at least two arguments.")
         end
-        
-        
         new_lexpr = _LogicalExpr(:∧, Any[
             _LogicalExpr(:⟹, Any[A, B]),
             _LogicalExpr(:⟹, Any[B, A])
@@ -110,7 +90,7 @@ function _eliminate_implication(lvar::LogicalVariableRef)
     return lvar
 end
 function _eliminate_implication(lexpr::_LogicalExpr)
-    if lexpr.head in (:⟹, :implies)
+    if lexpr.head == :⟹
         if length(lexpr.args) != 2 
             error("The implication operator must have two clauses.")
         end
@@ -138,7 +118,7 @@ function _move_negations_inward(lvar::LogicalVariableRef)
     return lvar
 end
 function _move_negations_inward(lexpr::_LogicalExpr)
-    if lexpr.head in (:¬, :lneg)
+    if lexpr.head == :¬
         if length(lexpr.args) != 1
             error("The negation operator can only have 1 clause.")
         end
@@ -159,17 +139,15 @@ function _negate(lvar::LogicalVariableRef)
     return _LogicalExpr(:¬, Any[lvar])
 end
 function _negate(lexpr::_LogicalExpr)
-    if lexpr.head in (:∨, :lor)
-        new_lexpr = _negate_or(lexpr)
-    elseif lexpr.head in (:∧, :land)
-        new_lexpr = _negate_and(lexpr)
-    elseif lexpr.head in (:¬, :lneg)
-        new_lexpr = _negate_negation(lexpr)
+    if lexpr.head == :∨
+        return _negate_or(lexpr)
+    elseif lexpr.head == :∧
+        return _negate_and(lexpr)
+    elseif lexpr.head == :¬
+        return _negate_negation(lexpr)
     else
-        #TODO: maybe catch error here if other operator is present
+        error("Unexpected operator `$(lexpr.head)`in logic expression.")
     end
-
-    return new_lexpr
 end
 
 """
@@ -225,11 +203,11 @@ function _distribute_and_over_or(lvar::LogicalVariableRef)
 end
 function _distribute_and_over_or(lexpr0::_LogicalExpr)
     lexpr = _flatten(lexpr0)
-    if lexpr.head in (:∨, :lor)
+    if lexpr.head == :∨
         if length(lexpr.args) < 2 
             error("The OR operator must have at least two clauses.")
         end
-        loc = findfirst(arg -> arg isa _LogicalExpr ? arg.head in (:∧, :land) : false, lexpr.args)
+        loc = findfirst(arg -> arg isa _LogicalExpr ? arg.head == :∧ : false, lexpr.args)
         if !isnothing(loc)
             new_lexpr = _LogicalExpr(:∧, Any[
                 _distribute_and_over_or(
@@ -259,7 +237,7 @@ function _flatten(lvar::LogicalVariableRef)
     return lvar
 end
 function _flatten(lexpr::_LogicalExpr)
-    if lexpr.head in (:∧, :land, :∨, :lor)
+    if lexpr.head in (:∧, :∨)
         nary_args = Set{Any}()
         for arg in lexpr.args
             if arg isa LogicalVariableRef
@@ -282,6 +260,5 @@ function _flatten(lexpr::_LogicalExpr)
             _flatten(arg) for arg in lexpr.args
         ])
     end
-
     return new_lexpr
 end

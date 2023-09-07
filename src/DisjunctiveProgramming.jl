@@ -21,12 +21,6 @@ include("bigm.jl")
 include("hull.jl")
 include("optimize.jl")
 
-# export logic operators (NOTE: these don't get exported although defined in logic.jl)
-# TODO investigate why this is
-export ∨, ∧, ¬
-export ⇔ # <--> cannot be used because it clashes with reified constraint parsing in JuMP.
-export ⟹ # --> cannot be used because it clashes with indicator constraint parsing in JuMP.
-
 # Define additional stuff that should not be exported
 const _EXCLUDE_SYMBOLS = [Symbol(@__MODULE__), :eval, :include]
 
@@ -41,5 +35,8 @@ for sym in names(@__MODULE__, all = true)
     end
     @eval export $sym
 end
+
+# export the single character operators (excluded above)
+export ∨, ∧, ¬, ⇔, ⟹
 
 end # end of the module
