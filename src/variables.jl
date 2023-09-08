@@ -6,9 +6,18 @@
 
 Wrapper to build `JuMP.VariableInfo` for 
 """
-function _variable_info(;binary::Bool=false, lower_bound::Float64=-Inf, upper_bound::Float64=Inf)
+function _variable_info(;
+    binary::Bool=false, 
+    lower_bound::Float64=-Inf, upper_bound::Float64=Inf, 
+    start_value::Union{Nothing, Bool}=nothing, 
+    fix_value::Union{Nothing, Bool}=nothing
+)
     JuMP.VariableInfo(
-        !isinf(lower_bound), lower_bound, !isinf(upper_bound), upper_bound, false, NaN, false, nothing, binary, false
+        !isinf(lower_bound), lower_bound, 
+        !isinf(upper_bound), upper_bound, 
+        !isnothing(fix_value), fix_value, #fix value
+        !isnothing(start_values), start_value, #start value
+        binary, false #integrality
     )
 end
 

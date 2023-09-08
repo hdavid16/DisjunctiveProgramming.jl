@@ -7,7 +7,8 @@ Create binary (indicator) variables for logic variables.
 """
 function _reformulate_logical_variables(model::JuMP.Model)
     for (lv_idx, lv_data) in _logical_variables(model)
-        var = JuMP.ScalarVariable(_variable_info(binary=true))
+        lv = lv_data.variable
+        var = JuMP.ScalarVariable(_variable_info(binary=true, start_value = lv.start_value, fix_value = lv.fix_value))
         bvref = JuMP.add_variable(model, var, lv_data.name)
         _indicator_to_binary(model)[lv_idx] = JuMP.index(bvref)
     end
