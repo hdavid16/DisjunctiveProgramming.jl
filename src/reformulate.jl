@@ -316,21 +316,21 @@ function _reformulate_selector(model::JuMP.Model, ::MOIAtLeast, lvref::LogicalVa
     bvref = _indicator_to_binary_ref(lvref)
     bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
     return JuMP.add_constraint(model,
-        build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, bvrefs), bvref]), _MOI.GreaterThan(0))
+        build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), _MOI.GreaterThan(0))
     )
 end
 function _reformulate_selector(model::JuMP.Model, ::MOIAtMost, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
     bvref = _indicator_to_binary_ref(lvref)
     bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
     return JuMP.add_constraint(model,
-        build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, bvrefs), bvref]), _MOI.LessThan(0))
+        build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), _MOI.LessThan(0))
     )
 end
 function _reformulate_selector(model::JuMP.Model, ::MOIExactly, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
     bvref = _indicator_to_binary_ref(lvref)
     bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
     return JuMP.add_constraint(model,
-        build_constraint(error, JuMP.NonlinearExpr(:-, Any[JuMP.NonlinearExpr(:+, bvrefs), bvref]), _MOI.EqualTo(0))
+        build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), _MOI.EqualTo(0))
     )
 end
 
