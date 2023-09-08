@@ -12,22 +12,19 @@ for (name, alt) in (
     )
     # make operators
     @eval begin 
-        const $name = JuMP.NonlinearOperator($(Meta.quot(name)), (vs...) -> _op_fallback($(Meta.quot(name))))
-        const $alt = JuMP.NonlinearOperator($(Meta.quot(name)), (vs...) -> _op_fallback($(Meta.quot(alt))))
+        const $name = JuMP.NonlinearOperator((vs...) -> _op_fallback($(Meta.quot(name))), $(Meta.quot(name)))
+        const $alt = JuMP.NonlinearOperator((vs...) -> _op_fallback($(Meta.quot(alt))), $(Meta.quot(name)))
     end
 end
 for (name, alt, func) in (
     (:∨, :logical_or, :(|)), # \vee + tab
     (:∧, :logical_and, :(&)), # \wedge + tab
-    (:¬, :logical_negation, :(!)), # \neg + tab
-    # (:Ξ, :exactly, :exactly), # \Xi + tab --> These should probably just be specified via constraint sets so there aren't 2 different ways
-    # (:Λ, :atmost, :atmost), # \Lambda + tab
-    # (:Γ, :atleast, :atleast) # \Gamma + tab
+    (:¬, :logical_negation, :(!)) # \neg + tab
     )
     # make operators
     @eval begin 
-        const $name = JuMP.NonlinearOperator($(Meta.quot(name)), $func)
-        const $alt = JuMP.NonlinearOperator($(Meta.quot(name)), $func)
+        const $name = JuMP.NonlinearOperator($func, $(Meta.quot(name)))
+        const $alt = JuMP.NonlinearOperator($func, $(Meta.quot(name)))
     end
 end
 
