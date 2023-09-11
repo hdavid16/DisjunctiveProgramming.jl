@@ -158,23 +158,89 @@ end
 ################################################################################
 #                              DISAGGREGATE CONSTRAINT
 ################################################################################
-
-"""
-
-"""
-function _disaggregate_expression(model::JuMP.Model, aff::JuMP.AffExpr, bvref::JuMP.VariableRef, ::Hull)
-    new_expr = JuMP.AffExpr()
-    for (vref, coeff) in aff.terms
-        JuMP.is_binary(vref) && continue #skip binary variables
-        v_idx, bv_idx = JuMP.index(vref), JuMP.index(bvref)
-        dv_idx = _global_to_disjunct_variable(model)[v_idx, bv_idx]
-        dvref = JuMP.VariableRef(model, dv_idx)
-        new_expr.terms[dvref] = coeff
-        new_expr.terms[bvref] = aff.constant
+_set_value(set::_MOI.LessThan) = set.upper
+_set_value(set::_MOI.GreaterThan) = set.lower
+_set_value(set::_MOI.EqualTo) = set.value
+function _disaggregate_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef, 
+    method::Hull
+) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
+    new_func = _disaggregate_expression(model, con.func, bvref, method)
+    set_value = _set_value(con.set)
+    JuMP.add_to_expression!(new_func, -set_value*bvref)
+    new_con = JuMP.build_constraint(error, new_func, S(0))
+    return new_con
+end
+function _disaggregate_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::Hull
+) where {T <: JuMP.GenericNonlinearExpr, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
+    con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
+    con_func0 = JuMP.value(v -> 0.0, con.func)
+    if isinf(con_func0)
+        error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
     end
-    return new_expr
+    ϵ = method.value
+    set_value = _set_value(con.set)
+    new_func = JuMP.@expression(model, ((1-ϵ)*bvref+ϵ)*con_func - ϵ*(1-bvref)*con_func0 - set_value*bvref)
+    new_con = JuMP.build_constraint(error, new_func, S(0))
+    return new_con
+end
+function _disaggregate_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::Hull
+) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: _MOI.Interval}
+    new_func = _disaggregate_expression(model, con.func, bvref, method)
+    new_func_gt = JuMP.add_to_expression!(new_func, -con.set.lower*bvref)
+    new_func_lt = JuMP.add_to_expression!(new_func, -con.set.upper*bvref)    
+    new_con_gt = JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(0))
+    new_con_lt = JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
+    return new_con_gt, new_con_lt
+end
+function _disaggregate_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::Hull
+) where {T <: JuMP.GenericNonlinearExpr, S <: _MOI.Interval}
+    con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
+    con_func0 = JuMP.value(v -> 0.0, con.func)
+    if isinf(con_func0)
+        error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
+    end
+    ϵ = method.value
+    new_func = JuMP.@expression(model, ((1-ϵ)*bvref+ϵ) * con_func - ϵ*(1-bvref)*con_func0)
+    new_func_lt = new_func - con.set.upper*bvref
+    new_func_gt = new_func - con.set.lower*bvref
+    new_con_gt = JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(0))
+    new_con_lt = JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
+    return new_con_gt, new_con_lt
 end
 
+# affine expression
+function _disaggregate_expression(model::JuMP.Model, aff::JuMP.AffExpr, bvref::JuMP.VariableRef, ::Hull)
+    new_expr = zero(JuMP.AffExpr)
+    for (vref, coeff) in aff.terms
+        if JuMP.is_binary(vref) #keep any binary terms unchanged
+            JuMP.add_to_expression!(new_expr, coeff*vref)
+        else #replace other vars with disaggregated form
+            v_idx, bv_idx = JuMP.index(vref), JuMP.index(bvref)
+            dv_idx = _global_to_disjunct_variable(model)[v_idx, bv_idx]
+            dvref = JuMP.VariableRef(model, dv_idx)
+            JuMP.add_to_expression!(new_expr, coeff*dvref)
+        end
+    end
+    JuMP.add_to_expression!(new_expr, aff.constant*bvref) #multiply constant by binary
+    return new_expr
+end
+# quadratic expression
+# TODO review what happens when there are bilinear terms with binary variables involved...
 function _disaggregate_expression(model::JuMP.Model, quad::JuMP.QuadExpr, bvref::JuMP.VariableRef, method::Hull)
     #get affine part
     new_expr = _disaggregate_expression(model, quad.aff, bvref, method)
@@ -186,39 +252,40 @@ function _disaggregate_expression(model::JuMP.Model, quad::JuMP.QuadExpr, bvref:
         db_idx = _disaggregated_variables(model)[b_idx, bv_idx]
         da_ref = JuMP.VariableRef(model, da_idx)
         db_ref = JuMP.VariableRef(model, db_idx)
-        new_expr += coeff * da_ref * db_ref / ((1-ϵ)*bvref+ϵ)
+        JuMP.add_to_expression!(new_expr, coeff * da_ref * db_ref / ((1-ϵ)*bvref+ϵ))
     end
 
     return new_expr
 end
-
+# constant in NonlinearExpr
 function _disaggregate_nl_expression(model::JuMP.Model, c::Number, ::JuMP.VariableRef, ::Hull)
     return c
 end
-
+# variable in NonlinearExpr
 function _disaggregate_nl_expression(model::JuMP.Model, vref::JuMP.VariableRef, bvref::JuMP.VariableRef, method::Hull)
     ϵ = method.value
     v_idx, bv_idx = JuMP.index(vref), JuMP.index(bvref)
     dv_idx = _global_to_disjunct_variable(model)[v_idx, bv_idx]
     dvref = JuMP.VariableRef(model, dv_idx)
     new_var = dvref / ((1-ϵ)*bvref+ϵ)
-
     return new_var
 end
-
+# affine expression in NonlinearExpr
 function _disaggregate_nl_expression(model::JuMP.Model, aff::JuMP.AffExpr, bvref::JuMP.VariableRef, ::Hull)
     new_expr = JuMP.AffExpr(aff.constant)
     for (vref, coeff) in aff.terms
-        JuMP.is_binary(vref) && continue #skip binary variables
-        v_idx, bv_idx = JuMP.index(vref), JuMP.index(bvref)
-        dv_idx = _global_to_disjunct_variable(model)[v_idx, bv_idx]
-        dvref = JuMP.VariableRef(model, dv_idx)
-        new_expr += coeff * dvref / ((1-ϵ)*bvref+ϵ)
+        if JuMP.is_binary(vref) #keep any binary variables undisaggregated
+            new_vref = vref
+        else #replace other vars with disaggregated form
+            v_idx, bv_idx = JuMP.index(vref), JuMP.index(bvref)
+            dv_idx = _global_to_disjunct_variable(model)[v_idx, bv_idx]
+            new_vref = JuMP.VariableRef(model, dv_idx)
+        end
+        JuMP.add_to_expression!(new_expr, coeff * new_vref / ((1-ϵ)*bvref+ϵ))
     end
-
     return new_expr
 end
-
+# quadratic expression in NonlinearExpr
 function _disaggregate_nl_expression(model::JuMP.Model, quad::JuMP.QuadExpr, bvref::JuMP.VariableRef, method::Hull)
     #get affine part
     new_expr = _disaggregate_nl_expression(model, quad.aff, bvref, method)
@@ -230,18 +297,16 @@ function _disaggregate_nl_expression(model::JuMP.Model, quad::JuMP.QuadExpr, bvr
         db_idx = _disaggregated_variables(model)[b_idx, bv_idx]
         da_ref = JuMP.VariableRef(model, da_idx)
         db_ref = JuMP.VariableRef(model, db_idx)
-        new_expr += coeff * da_ref * db_ref / ((1-ϵ)*bvref+ϵ)^2
+        JuMP.add_to_expression!(new_expr, coeff * da_ref * db_ref / ((1-ϵ)*bvref+ϵ)^2)
     end
-
     return new_expr
 end
-
+# nonlinear expression in NonlinearExpr
 function _disaggregate_nl_expression(model::JuMP.Model, nlp::JuMP.NonlinearExpr, bvref::JuMP.VariableRef, method::Hull)
     new_args = Vector{Any}(undef, length(nlp.args))
     for (i,arg) in enumerate(nlp.args)
         new_args[i] = _disaggregate_nl_expression(model, arg, bvref, method)
     end
     new_expr = JuMP.NonlinearExpr(nlp.head, new_args)
-
     return new_expr
 end

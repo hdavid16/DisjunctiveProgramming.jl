@@ -16,7 +16,7 @@ function _variable_info(;
         !isinf(lower_bound), lower_bound, 
         !isinf(upper_bound), upper_bound, 
         !isnothing(fix_value), fix_value, #fix value
-        !isnothing(start_values), start_value, #start value
+        !isnothing(start_value), start_value, #start value
         binary, false #integrality
     )
 end
