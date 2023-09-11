@@ -68,9 +68,21 @@ function _reformulate_disjunctive_constraint(
     method::BigM
 ) where {T, S <: _MOI.LessThan}
     #TODO: need to pass _error to build_constraint
-    M = method.tighten ? _get_tight_M(method, con) : _get_M(method, con)
+    M = _get_M_value(method, con.func, con.set)
     JuMP.add_constraint(model,
         JuMP.build_constraint(error, con.func - M*(1-bvref), con.set)
+    )
+end
+function _reformulate_disjunctive_constraint(
+    model::JuMP.Model,
+    con::JuMP.VectorConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::BigM
+) where {T, S <: _MOI.Nonpositives}
+    #TODO: need to pass _error to build_constraint
+    M = [_get_M_value(method, func, con.set) for func in con.func]
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error, [func - M[i]*(1-bvref) for (i,func) in enumerate(con.func)], con.set)
     )
 end
 function _reformulate_disjunctive_constraint(
@@ -80,9 +92,21 @@ function _reformulate_disjunctive_constraint(
     method::BigM,
 ) where {T, S <: _MOI.GreaterThan}
     #TODO: need to pass _error to build_constraint
-    M = method.tighten ? _get_tight_M(method, con) : _get_M(method, con)
+    M = _get_M_value(method, con.func, con.set)
     JuMP.add_constraint(model,
         JuMP.build_constraint(error, con.func + M*(1-bvref), con.set)
+    )
+end
+function _reformulate_disjunctive_constraint(
+    model::JuMP.Model, 
+    con::JuMP.VectorConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::BigM,
+) where {T, S <: _MOI.Nonnegatives}
+    #TODO: need to pass _error to build_constraint
+    M = [_get_M_value(method, func, con.set) for func in con.func]
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error, [func + M[i]*(1-bvref) for (i,func) in enumerate(con.func)], con.set)
     )
 end
 function _reformulate_disjunctive_constraint(
@@ -92,7 +116,7 @@ function _reformulate_disjunctive_constraint(
     method::BigM
 ) where {T, S <: _MOI.Interval}
     #TODO: need to pass _error to build_constraint
-    M = method.tighten ? _get_tight_M(method, con) : _get_M(method, con)
+    M = _get_M_value(method, con.func, con.set)
     JuMP.add_constraint(model,
         JuMP.build_constraint(error, con.func + M[1]*(1-bvref), _MOI.GreaterThan(con.set.lower))
     )
@@ -107,12 +131,27 @@ function _reformulate_disjunctive_constraint(
     method::BigM
 ) where {T, S <: _MOI.EqualTo}
     #TODO: need to pass _error to build_constraint
-    M = method.tighten ? _get_tight_M(method, con) : _get_M(method, con)
+    M = _get_M_value(method, con.func, con.set)
     JuMP.add_constraint(model,
         JuMP.build_constraint(error, con.func + M[1]*(1-bvref), _MOI.GreaterThan(con.set.value))
     )
     JuMP.add_constraint(model,
         JuMP.build_constraint(error, con.func - M[2]*(1-bvref), _MOI.LessThan(con.set.value))
+    )
+end
+function _reformulate_disjunctive_constraint(
+    model::JuMP.Model, 
+    con::JuMP.VectorConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::BigM
+) where {T, S <: _MOI.Zeros}
+    #TODO: need to pass _error to build_constraint
+    M = [_get_M_value(method, func, con.set) for func in con.func]
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error, [func + M[i][1]*(1-bvref) for (i,func) in enumerate(con.func)], _MOI.Nonnegatives(con.set.dimension))
+    )
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error, [func - M[i][2]*(1-bvref) for (i,func) in enumerate(con.func)], _MOI.Nonpositives(con.set.dimension))
     )
 end
 
