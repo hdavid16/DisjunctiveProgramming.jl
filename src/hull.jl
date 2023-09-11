@@ -81,10 +81,6 @@ end
 ################################################################################
 #                              VARIABLE DISAGGREGATION
 ################################################################################
-
-"""
-
-"""
 function _update_variable_bounds(vref::JuMP.VariableRef)
     model, idx = vref.model, vref.index
     if (vref in keys(_variable_bounds(model))) || JuMP.is_binary(vref) #skip if binary or if bounds already stored
@@ -97,10 +93,6 @@ function _update_variable_bounds(vref::JuMP.VariableRef)
         _variable_bounds(model)[idx] = (lb, ub)
     end
 end
-
-"""
-
-"""
 function _disaggregate_variables(model::JuMP.Model, d::Disjunct, vrefs::Set{JuMP.VariableRef})
     #create disaggregated variables for that disjunct
     for vref in vrefs
@@ -108,10 +100,6 @@ function _disaggregate_variables(model::JuMP.Model, d::Disjunct, vrefs::Set{JuMP
         _disaggregate_variable(model, d, vref) #create disaggregated var
     end
 end
-
-"""
-
-"""
 function _disaggregate_variable(model::JuMP.Model, d::Disjunct, vref::JuMP.VariableRef)
     #create disaggregated (disjunct) vref
     v_idx = JuMP.index(vref) #variable
@@ -158,71 +146,6 @@ end
 ################################################################################
 #                              DISAGGREGATE CONSTRAINT
 ################################################################################
-_set_value(set::_MOI.LessThan) = set.upper
-_set_value(set::_MOI.GreaterThan) = set.lower
-_set_value(set::_MOI.EqualTo) = set.value
-function _disaggregate_constraint(
-    model::JuMP.Model, 
-    con::JuMP.ScalarConstraint{T, S}, 
-    bvref::JuMP.VariableRef, 
-    method::Hull
-) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
-    new_func = _disaggregate_expression(model, con.func, bvref, method)
-    set_value = _set_value(con.set)
-    JuMP.add_to_expression!(new_func, -set_value*bvref)
-    new_con = JuMP.build_constraint(error, new_func, S(0))
-    return new_con
-end
-function _disaggregate_constraint(
-    model::JuMP.Model, 
-    con::JuMP.ScalarConstraint{T, S}, 
-    bvref::JuMP.VariableRef,
-    method::Hull
-) where {T <: JuMP.GenericNonlinearExpr, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
-    con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
-    con_func0 = JuMP.value(v -> 0.0, con.func)
-    if isinf(con_func0)
-        error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
-    end
-    ϵ = method.value
-    set_value = _set_value(con.set)
-    new_func = JuMP.@expression(model, ((1-ϵ)*bvref+ϵ)*con_func - ϵ*(1-bvref)*con_func0 - set_value*bvref)
-    new_con = JuMP.build_constraint(error, new_func, S(0))
-    return new_con
-end
-function _disaggregate_constraint(
-    model::JuMP.Model, 
-    con::JuMP.ScalarConstraint{T, S}, 
-    bvref::JuMP.VariableRef,
-    method::Hull
-) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: _MOI.Interval}
-    new_func = _disaggregate_expression(model, con.func, bvref, method)
-    new_func_gt = JuMP.add_to_expression!(new_func, -con.set.lower*bvref)
-    new_func_lt = JuMP.add_to_expression!(new_func, -con.set.upper*bvref)    
-    new_con_gt = JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(0))
-    new_con_lt = JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
-    return new_con_gt, new_con_lt
-end
-function _disaggregate_constraint(
-    model::JuMP.Model, 
-    con::JuMP.ScalarConstraint{T, S}, 
-    bvref::JuMP.VariableRef,
-    method::Hull
-) where {T <: JuMP.GenericNonlinearExpr, S <: _MOI.Interval}
-    con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
-    con_func0 = JuMP.value(v -> 0.0, con.func)
-    if isinf(con_func0)
-        error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
-    end
-    ϵ = method.value
-    new_func = JuMP.@expression(model, ((1-ϵ)*bvref+ϵ) * con_func - ϵ*(1-bvref)*con_func0)
-    new_func_lt = new_func - con.set.upper*bvref
-    new_func_gt = new_func - con.set.lower*bvref
-    new_con_gt = JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(0))
-    new_con_lt = JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
-    return new_con_gt, new_con_lt
-end
-
 # affine expression
 function _disaggregate_expression(model::JuMP.Model, aff::JuMP.AffExpr, bvref::JuMP.VariableRef, ::Hull)
     new_expr = zero(JuMP.AffExpr)

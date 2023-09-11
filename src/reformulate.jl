@@ -1,3 +1,8 @@
+_set_value(set::_MOI.LessThan) = set.upper
+_set_value(set::_MOI.GreaterThan) = set.lower
+_set_value(set::_MOI.EqualTo) = set.value
+_set_values(set::_MOI.Interval) = (set.lower, set.upper)
+
 ################################################################################
 #                              LOGICAL VARIABLES
 ################################################################################
@@ -23,13 +28,12 @@ function _reformulate_disjunctions(model::JuMP.Model, method::AbstractReformulat
         _reformulate_disjuncts(model, disj_idx, disj, method)
     end
 end
-
+# disjuncts
 function _reformulate_disjuncts(model::JuMP.Model, disj_idx::DisjunctionIndex, disj::ConstraintData{T}, method::Union{BigM,Indicator}) where {T<:Disjunction}
     for d in disj.constraint.disjuncts
         _reformulate_disjunct(model, d, method)
     end
 end
-
 function _reformulate_disjuncts(model::JuMP.Model, disj_idx::DisjunctionIndex, disj::ConstraintData{T}, method::Hull) where {T<:Disjunction}
     disj_vrefs = _get_disjunction_variables(disj)
     _update_variable_bounds.(disj_vrefs) 
@@ -70,10 +74,10 @@ function _reformulate_disjunct_constraint(
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model,
-    con::JuMP.VectorConstraint{T, S}, 
+    con::JuMP.VectorConstraint{T, S, R}, 
     bvref::JuMP.VariableRef,
     method::BigM
-) where {T, S <: _MOI.Nonpositives}
+) where {T, S <: _MOI.Nonpositives, R}
     #TODO: need to pass _error to build_constraint
     M = JuMP.@expression(model, [i=1:con.set.dimension],
         _get_M_value(method, con.func[i], con.set)
@@ -100,10 +104,10 @@ function _reformulate_disjunct_constraint(
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
-    con::JuMP.VectorConstraint{T, S}, 
+    con::JuMP.VectorConstraint{T, S, R}, 
     bvref::JuMP.VariableRef,
     method::BigM,
-) where {T, S <: _MOI.Nonnegatives}
+) where {T, S <: _MOI.Nonnegatives, R}
     #TODO: need to pass _error to build_constraint
     M = JuMP.@expression(model, [i=1:con.set.dimension],
         _get_M_value(method, con.func[i], con.set)
@@ -120,41 +124,25 @@ function _reformulate_disjunct_constraint(
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef,
     method::BigM
-) where {T, S <: _MOI.Interval}
+) where {T, S <: Union{_MOI.Interval, _MOI.EqualTo}}
     #TODO: need to pass _error to build_constraint
     M = _get_M_value(method, con.func, con.set)
     new_func_gt = JuMP.@expression(model, con.func + M[1]*(1-bvref))
     new_func_lt = JuMP.@expression(model, con.func - M[2]*(1-bvref))
+    set_values = _set_values(con.set)
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(con.set.lower))
+        JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(set_values[1]))
     )
     JuMP.add_constraint(model,
-        JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(con.set.upper))
-    )
-end
-function _reformulate_disjunct_constraint(
-    model::JuMP.Model, 
-    con::JuMP.ScalarConstraint{T, S}, 
-    bvref::JuMP.VariableRef,
-    method::BigM
-) where {T, S <: _MOI.EqualTo}
-    #TODO: need to pass _error to build_constraint
-    M = _get_M_value(method, con.func, con.set)
-    new_func_gt = JuMP.@expression(model, con.func + M[1]*(1-bvref))
-    new_func_lt = JuMP.@expression(model, con.func - M[2]*(1-bvref))
-    JuMP.add_constraint(model,
-        JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(con.set.value))
-    )
-    JuMP.add_constraint(model,
-        JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(con.set.value))
+        JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(set_values[2]))
     )
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
-    con::JuMP.VectorConstraint{T, S}, 
+    con::JuMP.VectorConstraint{T, S, R}, 
     bvref::JuMP.VariableRef,
     method::BigM
-) where {T, S <: _MOI.Zeros}
+) where {T, S <: _MOI.Zeros, R}
     #TODO: need to pass _error to build_constraint
     M = JuMP.@expression(model, [i=1:con.set.dimension],
         _get_M_value(method, con.func[i], con.set)
@@ -177,23 +165,105 @@ end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.ScalarConstraint{T, S}, 
-    bvref::JuMP.VariableRef,
+    bvref::JuMP.VariableRef, 
     method::Hull
-) where {T, S}
-    #TODO: need to pass _error to build_constraint
-    new_con = _disaggregate_constraint(model, con, bvref, method)
-    JuMP.add_constraint(model, new_con)
+) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
+    new_func = _disaggregate_expression(model, con.func, bvref, method)
+    set_value = _set_value(con.set)
+    JuMP.add_to_expression!(new_func, -set_value*bvref)
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func, S(0))
+    )ß
+end
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.VectorConstraint{T, S, R}, 
+    bvref::JuMP.VariableRef, 
+    method::Hull
+) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: Union{_MOI.Nonpositives, _MOI.Nonnegatives, _MOI.Zeros}, R}
+    new_func = JuMP.@expression(model, [i=1:con.set.dimension],
+        _disaggregate_expression(model, con.func[i], bvref, method)
+    )
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func, con.set)
+    )
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef,
     method::Hull
-) where {T, S <: _MOI.Interval}
-    #TODO: need to pass _error to build_constraint
-    new_con_gt, new_con_lt = _disaggregate_constraint(model, con, bvref, method)
-    JuMP.add_constraint(model, new_con_gt)
-    JuMP.add_constraint(model, new_con_lt)
+) where {T <: JuMP.GenericNonlinearExpr, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
+    con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
+    con_func0 = JuMP.value(v -> 0.0, con.func)
+    if isinf(con_func0)
+        error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
+    end
+    ϵ = method.value
+    set_value = _set_value(con.set)
+    new_func = JuMP.@expression(model, ((1-ϵ)*bvref+ϵ)*con_func - ϵ*(1-bvref)*con_func0 - set_value*bvref)
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func, S(0))
+    )
+end
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.VectorConstraint{T, S, R}, 
+    bvref::JuMP.VariableRef,
+    method::Hull
+) where {T <: JuMP.GenericNonlinearExpr, S <: Union{_MOI.Nonpositives, _MOI.Nonnegatives, _MOI.Zeros}, R}
+    con_func = JuMP.@expression(model, [i=1:con.set.dimension],
+        _disaggregate_nl_expression(model, con.func[i], bvref, method)
+    )
+    con_func0 = JuMP.value.(v -> 0.0, con.func)
+    if any(isinf.(con_func0))
+        error("At least of of the operators `$([func.head for func in con.func])` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
+    end
+    ϵ = method.value
+    new_func = JuMP.@expression(model, [i=1:con.set.dimension], 
+        ((1-ϵ)*bvref+ϵ)*con_func[i] - ϵ*(1-bvref)*con_func0[i]
+    )
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func, con.set)
+    )
+end
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::Hull
+) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: _MOI.Interval}
+    new_func = _disaggregate_expression(model, con.func, bvref, method)
+    new_func_gt = JuMP.add_to_expression!(new_func, -con.set.lower*bvref)
+    new_func_lt = JuMP.add_to_expression!(new_func, -con.set.upper*bvref)    
+    JuMP.add_constraint(model, 
+        JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(0))
+    )
+    JuMP.add_constraint(model, 
+        JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
+    )
+end
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::Hull
+) where {T <: JuMP.GenericNonlinearExpr, S <: _MOI.Interval}
+    con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
+    con_func0 = JuMP.value(v -> 0.0, con.func)
+    if isinf(con_func0)
+        error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
+    end
+    ϵ = method.value
+    new_func = JuMP.@expression(model, ((1-ϵ)*bvref+ϵ) * con_func - ϵ*(1-bvref)*con_func0)
+    new_func_lt = new_func - con.set.upper*bvref
+    new_func_gt = new_func - con.set.lower*bvref
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(0))
+    )
+    JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
+    )
 end
 
 # Indicator: individual disjunct constraints

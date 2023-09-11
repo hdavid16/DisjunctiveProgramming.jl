@@ -1,10 +1,11 @@
 # Get Big-M value for a particular constraint
 function _get_M_value(method::BigM, func::JuMP.AbstractJuMPScalar, set::_MOI.AbstractSet)
     if method.tighten
-        return _get_tight_M(method, func, set)
+        M = _get_tight_M(method, func, set)
     else
-        return _get_M(method, func, set)
+        M = _get_M(method, func, set)
     end
+    return M
 end
 
 # Get the tightest Big-M value for a particular constraint
