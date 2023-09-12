@@ -5,14 +5,12 @@ function _optimize_hook(
     method::AbstractSolutionMethod = BigM(1_000_000)
     ) # can add more kwargs if wanted
     if !_ready_to_optimize(model) && _solution_method(model) != method
-        _set_ready_to_optimize(model, false) # maybe not needed
-
-        # TODO do what is needed to solve the model (e.g., add reformulations)
-        # TODO check all variables must have bounds if using Hull reformulation
+        _set_ready_to_optimize(model, false)
+        #reformulate
         _reformulate_logical_variables(model)
-        _reformulate_disjunctive_constraints(model, method) #reformulate
+        _reformulate_disjunctive_constraints(model, method)
         _reformulate_logical_constraints(model)
-
+        #ready to optimize
         _set_ready_to_optimize(model, true)
         _set_solution_method(model, method)
     end

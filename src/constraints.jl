@@ -573,7 +573,7 @@ function JuMP.add_constraint(
     name::String = ""
 ) where {F <: Union{LogicalVariableRef, _LogicalExpr}, S}
     is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")
-    # TODO maybe check the variables in the constraints belong to the model
+    @assert all(JuMP.is_valid.(model, _get_constraint_variables(model, c))) "Constraint variables do not belong to model."
     c = JuMP.ScalarConstraint(c.func, _MOI.EqualTo(isone(c.set.value))) #intercept set and covert to Bool
     constr_data = ConstraintData(c, name)
     idx = _MOIUC.add_item(_logical_constraints(model), constr_data)
@@ -586,7 +586,7 @@ function JuMP.add_constraint(
     name::String = ""
 ) where {F <: Union{Number, LogicalVariableRef, _LogicalExpr}, S, Shape}
     is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")
-    # TODO maybe check the variables in the constraints belong to the model
+    @assert all(JuMP.is_valid.(model, _get_constraint_variables(model, c))) "Constraint variables do not belong to model."
     constr_data = ConstraintData(c, name)
     idx = _MOIUC.add_item(_logical_constraints(model), constr_data)
     _set_ready_to_optimize(model, false)

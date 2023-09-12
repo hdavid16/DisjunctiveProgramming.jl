@@ -13,7 +13,6 @@ function _copy(logical_constraints::_MOIUC.CleverDict{LogicalConstraintIndex, Co
 end
 
 function _copy(disjunct_constraints::_MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData, T1, T2}, new_model::JuMP.Model) where {T1, T2}
-    # TODO: add code here
     new_disjunct_cons = _MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}()
     for (_, DCD) in disjunct_constraints
         new_disjunct_con = JuMP.build_constraint(error,

@@ -380,8 +380,6 @@ mutable struct GDPData
     solution_method::Union{Nothing, AbstractSolutionMethod}
     ready_to_optimize::Bool
 
-    # TODO track meta-data of any constraints/variables we add to the model
-
     # Default constructor
     function GDPData()
         new(_MOIUC.CleverDict{LogicalVariableIndex, LogicalVariableData}(),

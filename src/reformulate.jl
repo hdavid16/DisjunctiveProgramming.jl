@@ -67,7 +67,6 @@ function _reformulate_disjunct_constraint(
     bvref::JuMP.VariableRef,
     method::BigM
 ) where {T, S <: _MOI.LessThan}
-    #TODO: need to pass _error to build_constraint
     M = _get_M_value(method, con.func, con.set)
     new_func = JuMP.@expression(model, con.func - M*(1-bvref))
     reform_con = JuMP.add_constraint(model,
@@ -81,7 +80,6 @@ function _reformulate_disjunct_constraint(
     bvref::JuMP.VariableRef,
     method::BigM
 ) where {T, S <: _MOI.Nonpositives, R}
-    #TODO: need to pass _error to build_constraint
     M = JuMP.@expression(model, [i=1:con.set.dimension],
         _get_M_value(method, con.func[i], con.set)
     )
@@ -99,7 +97,6 @@ function _reformulate_disjunct_constraint(
     bvref::JuMP.VariableRef,
     method::BigM,
 ) where {T, S <: _MOI.GreaterThan}
-    #TODO: need to pass _error to build_constraint
     M = _get_M_value(method, con.func, con.set)
     new_func = JuMP.@expression(model, con.func + M*(1-bvref))
     reform_con = JuMP.add_constraint(model,
@@ -113,7 +110,6 @@ function _reformulate_disjunct_constraint(
     bvref::JuMP.VariableRef,
     method::BigM,
 ) where {T, S <: _MOI.Nonnegatives, R}
-    #TODO: need to pass _error to build_constraint
     M = JuMP.@expression(model, [i=1:con.set.dimension],
         _get_M_value(method, con.func[i], con.set)
     )
@@ -131,7 +127,6 @@ function _reformulate_disjunct_constraint(
     bvref::JuMP.VariableRef,
     method::BigM
 ) where {T, S <: Union{_MOI.Interval, _MOI.EqualTo}}
-    #TODO: need to pass _error to build_constraint
     M = _get_M_value(method, con.func, con.set)
     new_func_gt = JuMP.@expression(model, con.func + M[1]*(1-bvref))
     new_func_lt = JuMP.@expression(model, con.func - M[2]*(1-bvref))
@@ -150,7 +145,6 @@ function _reformulate_disjunct_constraint(
     bvref::JuMP.VariableRef,
     method::BigM
 ) where {T, S <: _MOI.Zeros, R}
-    #TODO: need to pass _error to build_constraint
     M = JuMP.@expression(model, [i=1:con.set.dimension],
         _get_M_value(method, con.func[i], con.set)
     )

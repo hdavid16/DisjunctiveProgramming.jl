@@ -56,7 +56,9 @@ function is_gdp_model(model::JuMP.Model)
 end
 
 """
+    disjunction_indicators(disjunction::DisjunctionRef) 
 
+Return LogicalVariableRefs associated with a disjunction.
 """
 function disjunction_indicators(disjunction::DisjunctionRef) 
     model, idx = disjunction.model, disjunction.index

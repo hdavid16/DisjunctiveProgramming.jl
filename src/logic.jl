@@ -5,7 +5,7 @@ function _op_fallback(name)
     error("`$name` is only supported for logical expressions")
 end
 
-# Define all the logical operators TODO rename the functions as desired
+# Define all the logical operators
 for (name, alt) in (
     (:⇔, :iff), # \Leftrightarrow + tab
     (:⟹, :implies) # Longrightarrow + tab

@@ -188,7 +188,7 @@ function JuMP.delete(model::JuMP.Model, vref::LogicalVariableRef)
     end
     #delete any logical constraints involving the logical variables
     for (cidx, cdata) in _logical_constraints(model)
-        lvars = _get_logical_constraint_variables(model, cdata)
+        lvars = _get_constraint_variables(model, cdata.constraint)
         if vref in lvars
             JuMP.delete(model, LogicalConstraintRef(model, cidx))
         end
@@ -200,8 +200,94 @@ function JuMP.delete(model::JuMP.Model, vref::LogicalVariableRef)
     return 
 end
 
-function _get_logical_constraint_variables(model::JuMP.Model, lcdata::ConstraintData{C}) where {C <: Union{JuMP.ScalarConstraint, JuMP.VectorConstraint}}
+################################################################################
+#                              VARIABLE ITERATION
+################################################################################
+function _get_disjunction_variables(model::JuMP.Model, disj::ConstraintData{Disjunction})
+    vars = Set{JuMP.VariableRef}()
+    for ind_idx in disj.constraint.disjuncts
+        for cidx in _indicator_to_constraints(model)[ind_idx]
+            cdata = _disjunct_constraints(model)[cidx]
+            _interrogate_variables(v -> push!(vars, v), cdata.constraint)
+        end
+    end
+    return vars
+end
+
+function _get_constraint_variables(model::JuMP.Model, con::Union{JuMP.ScalarConstraint, JuMP.VectorConstraint})
     vars = Set{LogicalVariableRef}()
-    _interrogate_variables(v -> push!(vars, v), lcdata.constraint) 
+    _interrogate_variables(v -> push!(vars, v), con) 
     return vars   
+end
+
+# Constant
+function _interrogate_variables(interrogator::Function, c::Number)
+    return
+end
+
+# VariableRef
+function _interrogate_variables(interrogator::Function, var::JuMP.VariableRef)
+    interrogator(var)
+    return
+end
+
+# LogicalVariableRef
+function _interrogate_variables(interrogator::Function, var::LogicalVariableRef)
+    interrogator(var)
+    return
+end
+
+# AffExpr
+function _interrogate_variables(interrogator::Function, aff::JuMP.AffExpr)
+    for (var, _) in aff.terms
+        interrogator(var)
+    end
+    return
+end
+
+# QuadExpr
+function _interrogate_variables(interrogator::Function, quad::JuMP.QuadExpr)
+    for (pair, _) in quad.terms
+        interrogator(pair.a)
+        interrogator(pair.b)
+    end
+    _interrogate_variables(interrogator, quad.aff)
+    return
+end
+
+# NonlinearExpr
+function _interrogate_variables(interrogator::Function, nlp::JuMP.NonlinearExpr)
+    for arg in nlp.args
+        _interrogate_variables(interrogator, arg)
+    end
+    # TODO avoid recursion. See InfiniteOpt.jl for alternate method that avoids stackoverflow errors with deeply nested expressions:
+    # https://github.com/infiniteopt/InfiniteOpt.jl/blob/cb6dd6ae40fe0144b1dd75da0739ea6e305d5357/src/expressions.jl#L520-L534
+    return
+end
+function _interrogate_variables(interrogator::Function, nlp::_LogicalExpr)
+    for arg in nlp.args
+        _interrogate_variables(interrogator, arg)
+    end
+    return
+end
+
+# Constraint
+function _interrogate_variables(interrogator::Function, con::JuMP.ScalarConstraint)
+    _interrogate_variables(interrogator, con.func)
+end
+function _interrogate_variables(interrogator::Function, con::JuMP.VectorConstraint)
+    for func in con.func
+        _interrogate_variables(interrogator, func)
+    end
+end
+
+# AbstractArray
+function _interrogate_variables(interrogator::Function, arr::AbstractArray)
+    _interrogate_variables.(interrogator, arr)
+    return
+end
+
+# Fallback
+function _interrogate_variables(interrogator::Function, other)
+    error("Cannot extract variables from object of type $(typeof(other)) inside of a disjunctive constraint.")
 end
