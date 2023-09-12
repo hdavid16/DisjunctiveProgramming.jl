@@ -179,9 +179,29 @@ end
 """
 function JuMP.delete(model::JuMP.Model, vref::LogicalVariableRef)
     @assert JuMP.is_valid(model, vref) "Variable does not belong to model."
-    data = gdp_data(JuMP.owner_model(vref))
-    dict = data.logical_variables[JuMP.index(vref)]
-    # TODO check if used by a disjunction and/or a proposition
-    delete!(dict, index(vref))
+    vidx = JuMP.index(vref)
+    dict = _logical_variables(model)
+    #delete any disjunct constraints associated with the logical variables in the disjunction
+    dcidxs = _indicator_to_constraints(model)[vidx]
+    for cidx in dcidxs
+        JuMP.delete(model, DisjunctConstraintRef(model, cidx))
+    end
+    #delete any logical constraints involving the logical variables
+    for (cidx, cdata) in _logical_constraints(model)
+        lvars = _get_logical_constraint_variables(model, cdata)
+        if vref in lvars
+            JuMP.delete(model, LogicalConstraintRef(model, cidx))
+        end
+    end
+    #delete the logical variable
+    delete!(dict, vidx)
+    #not ready to optimize
+    _set_ready_to_optimize(model, false)
     return 
+end
+
+function _get_logical_constraint_variables(model::JuMP.Model, lcdata::ConstraintData{C}) where {C <: Union{JuMP.ScalarConstraint, JuMP.VectorConstraint}}
+    vars = Set{LogicalVariableRef}()
+    _interrogate_variables(v -> push!(vars, v), lcdata.constraint) 
+    return vars   
 end

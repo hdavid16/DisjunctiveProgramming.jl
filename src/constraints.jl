@@ -80,18 +80,40 @@ for (RefType, loc) in ((:DisjunctConstraintRef, :disjunct_constraints),
     end
 end
 
-# TODO: extend JuMP.delete for all the constraint types
-# DisjunctConstraintRef
-# DisjunctionRef
-# LogicalConstraintRef
-# function JuMP.delete(model::JuMP.Model, cref::DisjunctionRef)
-#     @assert JuMP.is_valid(model, cref) "Disjunctive constraint does not belong to model."
-#     constr_data = gdp_data(JuMP.owner_model(cref))
-#     dict = constr_data.disjunctions[JuMP.index(cref)]
-#     # TODO check if used by a disjunction and/or a proposition (i.e., its indicator variables are used in a logic constraint)
-#     delete!(dict, index(cref))
-#     return 
-# end
+function JuMP.delete(model::JuMP.Model, cref::DisjunctionRef)
+    @assert JuMP.is_valid(model, cref) "Disjunctive constraint does not belong to model."
+    cidx = JuMP.index(cref)
+    dict = _disjunctions(model)
+    #delete each logical variable
+    for lv_idx in dict[cidx].constraint.disjuncts
+        JuMP.delete(model, LogicalVariableRef(model, lv_idx))
+    end
+    #delete from gdp_data
+    delete!(dict, cidx)
+    #not ready to optimize
+    _set_ready_to_optimize(model, false)
+    return 
+end
+function JuMP.delete(model::JuMP.Model, cref::DisjunctConstraintRef)
+    @assert JuMP.is_valid(model, cref) "Disjunctive constraint does not belong to model."
+    cidx = JuMP.index(cref)
+    dict = _disjunct_constraints(model)
+    #delete from gdp_data
+    delete!(dict, cidx)
+    #not ready to optimize
+    _set_ready_to_optimize(model, false)
+    return 
+end
+function JuMP.delete(model::JuMP.Model, cref::LogicalConstraintRef)
+    @assert JuMP.is_valid(model, cref) "Logical constraint does not belong to model."
+    cidx = JuMP.index(cref)
+    dict = _logical_constraints(model)
+    #delete from gdp_data
+    delete!(dict, cidx)
+    #not ready to optimize
+    _set_ready_to_optimize(model, false)
+    return 
+end
 
 ################################################################################
 #                              Disjunct Constraints

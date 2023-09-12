@@ -373,8 +373,8 @@ mutable struct GDPData
     variable_bounds::Dict{_MOI.VariableIndex, Tuple{Float64, Float64}} # TODO allow for other precision
 
     # Reformulation variables and constraints
-    reformulation_variables::Set{_MOI.VariableIndex}
-    reformulation_constraints::Set{_MOI.ConstraintIndex}
+    reformulation_variables::Vector{_MOI.VariableIndex}
+    reformulation_constraints::Vector{_MOI.ConstraintIndex}
 
     # Solution data
     solution_method::Union{Nothing, AbstractSolutionMethod}
@@ -392,8 +392,8 @@ mutable struct GDPData
             Dict{LogicalVariableIndex, Vector{DisjunctConstraintIndex}}(),
             Dict{DisjunctConstraintIndex, LogicalVariableIndex}(),
             Dict{_MOI.VariableIndex, Tuple{Float64, Float64}}(),
-            Set{_MOI.VariableIndex}(),
-            Set{_MOI.ConstraintIndex}(),
+            Vector{_MOI.VariableIndex}(),
+            Vector{_MOI.ConstraintIndex}(),
             nothing,
             false,
             )

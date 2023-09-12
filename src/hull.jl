@@ -1,10 +1,6 @@
 ################################################################################
 #                              VARIABLE ITERATION
 ################################################################################
-
-"""
-
-"""
 function _get_disjunction_variables(model::JuMP.Model, disj::ConstraintData{Disjunction})
     vars = Set{JuMP.VariableRef}()
     for ind_idx in disj.constraint.disjuncts
@@ -23,6 +19,12 @@ end
 
 # VariableRef
 function _interrogate_variables(interrogator::Function, var::JuMP.VariableRef)
+    interrogator(var)
+    return
+end
+
+# LogicalVariableRef
+function _interrogate_variables(interrogator::Function, var::LogicalVariableRef)
     interrogator(var)
     return
 end
@@ -52,6 +54,12 @@ function _interrogate_variables(interrogator::Function, nlp::JuMP.NonlinearExpr)
     end
     # TODO avoid recursion. See InfiniteOpt.jl for alternate method that avoids stackoverflow errors with deeply nested expressions:
     # https://github.com/infiniteopt/InfiniteOpt.jl/blob/cb6dd6ae40fe0144b1dd75da0739ea6e305d5357/src/expressions.jl#L520-L534
+    return
+end
+function _interrogate_variables(interrogator::Function, nlp::_LogicalExpr)
+    for arg in nlp.args
+        _interrogate_variables(interrogator, arg)
+    end
     return
 end
 
