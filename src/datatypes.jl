@@ -5,8 +5,7 @@
 """
     LogicalVariable <: JuMP.AbstractVariable
 
-A variable type the logical variables associated with 
-[`Disjunct`](@ref)s.
+A variable type the logical variables associated with disjuncts in a [`Disjunction`](@ref).
 
 **Fields**
 - `fix_value::Union{Nothing, Bool}`: A fixed boolean value if there is one.
@@ -193,10 +192,17 @@ struct DisjunctConstraint
     indicator::LogicalVariableRef
 end
 
-"""
+# Create internal type for temporarily packaging constraints for disjuncts
+struct _DisjunctConstraint{C <: JuMP.AbstractConstraint, L <: Union{Nothing, LogicalVariableRef}}
+    constr::C
+    lvref::L
+end
 
 """
-# const DisjunctConstraintRef = JuMP.ConstraintRef{JuMP.Model, DisjunctConstraintIndex, JuMP.ScalarShape}
+    DisjunctConstraintRef
+
+A type for looking up disjunctive constraints.
+"""
 struct DisjunctConstraintRef
     model::JuMP.Model # TODO: generalize for AbstractModels
     index::DisjunctConstraintIndex
@@ -205,26 +211,6 @@ end
 ################################################################################
 #                              DISJUNCTIONS
 ################################################################################
-"""
-    Disjunct
-
-A type for storing a mathematical disjunct object. Principally, it is comprised 
-of constraints and an indicator variable which is true when the disjunct is 
-satisfied. 
-
-**Fields**
-- `constraints::Vector{DisjunctConstraintRef}`: The constraints of the disjunct 
-    where these have been preivously added using the `DisjunctConstraint` tag. 
-    This can also accept Disjunctions which have been additionally stored as 
-    disjunct constraints.
-- `indicator::LogicalVariableRef`: The logical variable associated with the 
-                                   disjunct.
-"""
-struct Disjunct
-    constraints::Vector{DisjunctConstraintRef}
-    indicator::LogicalVariableRef
-end
-
 """
     DisjunctionIndex
 
@@ -241,13 +227,13 @@ end
     Disjunction <: JuMP.AbstractConstraint
 
 A type for a disjunctive constraint that is comprised of a collection of 
-disjuncts of type [`Disjunct`](@ref).
+disjuncts of indicated by a unique [`LogicalVariableRef`](@ref).
 
 **Fields**
-- `disjuncts::Vector{Disjunct}`: The disjuncts that comprise the constraint.
+- `disjuncts::Vector{LogicalVariableIndex}`: The disjuncts that comprise the constraint.
 """
 struct Disjunction <: JuMP.AbstractConstraint
-    disjuncts::Vector{Disjunct}
+    disjuncts::Vector{LogicalVariableIndex}
 end
 
 """
@@ -344,6 +330,18 @@ struct Hull <: AbstractReformulationMethod # TODO add fields if needed
     end
 end
 
+# temp struct to store variable disaggregations (reset for each disjunction)
+mutable struct _Hull <: AbstractReformulationMethod
+    value::Float64
+    disjunction::Dict{JuMP.VariableRef, Vector{JuMP.VariableRef}}
+    disjunct::Dict{Tuple{JuMP.VariableRef,JuMP.VariableRef}, JuMP.VariableRef}
+    _Hull(value, vrefs::Set{JuMP.VariableRef}) = new(
+        value,
+        Dict{JuMP.VariableRef, Vector{JuMP.VariableRef}}(vref => Vector{JuMP.VariableRef}() for vref in vrefs), 
+        Dict{Tuple{JuMP.VariableRef,JuMP.VariableRef}, JuMP.VariableRef}()
+    )
+end
+
 """
     Indicator <: AbstractReformulationMethod
 
@@ -367,18 +365,16 @@ mutable struct GDPData
     disjunctions::_MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}
 
     # Indicator variable mappings
-    disjunction_to_indicators::Dict{DisjunctionIndex, Vector{LogicalVariableIndex}}
-    indicator_to_disjunction::Dict{LogicalVariableIndex, DisjunctionIndex}
     indicator_to_binary::Dict{LogicalVariableIndex, _MOI.VariableIndex}
     indicator_to_constraints::Dict{LogicalVariableIndex, Vector{DisjunctConstraintIndex}}
     constraint_to_indicator::Dict{DisjunctConstraintIndex, LogicalVariableIndex}
-    
-    # Map of disaggregated variables 
-    global_to_disjunct_variable::Dict{Tuple{_MOI.VariableIndex,_MOI.VariableIndex}, _MOI.VariableIndex}
-    global_to_disjunction_variables::Dict{Tuple{_MOI.VariableIndex,DisjunctionIndex}, Vector{_MOI.VariableIndex}}
 
     # Map of variable bounds
     variable_bounds::Dict{_MOI.VariableIndex, Tuple{Float64, Float64}} # TODO allow for other precision
+
+    # Reformulation variables and constraints
+    reformulation_variables::Set{_MOI.VariableIndex}
+    reformulation_constraints::Set{_MOI.ConstraintIndex}
 
     # Solution data
     solution_method::Union{Nothing, AbstractSolutionMethod}
@@ -392,14 +388,12 @@ mutable struct GDPData
             _MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData}(),
             _MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}(),
             _MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}(), 
-            Dict{DisjunctionIndex, Vector{LogicalVariableIndex}}(),
-            Dict{LogicalVariableIndex, DisjunctionIndex}(),
             Dict{LogicalVariableIndex, _MOI.VariableIndex}(),
             Dict{LogicalVariableIndex, Vector{DisjunctConstraintIndex}}(),
             Dict{DisjunctConstraintIndex, LogicalVariableIndex}(),
-            Dict{Tuple{_MOI.VariableIndex,_MOI.VariableIndex}, _MOI.VariableIndex}(),
-            Dict{Tuple{_MOI.VariableIndex,DisjunctionIndex}, Vector{_MOI.VariableIndex}}(),
             Dict{_MOI.VariableIndex, Tuple{Float64, Float64}}(),
+            Set{_MOI.VariableIndex}(),
+            Set{_MOI.ConstraintIndex}(),
             nothing,
             false,
             )

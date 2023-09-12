@@ -81,7 +81,9 @@ for (RefType, loc) in ((:DisjunctConstraintRef, :disjunct_constraints),
 end
 
 # TODO: extend JuMP.delete for all the constraint types
-
+# DisjunctConstraintRef
+# DisjunctionRef
+# LogicalConstraintRef
 # function JuMP.delete(model::JuMP.Model, cref::DisjunctionRef)
 #     @assert JuMP.is_valid(model, cref) "Disjunctive constraint does not belong to model."
 #     constr_data = gdp_data(JuMP.owner_model(cref))
@@ -94,22 +96,6 @@ end
 ################################################################################
 #                              Disjunct Constraints
 ################################################################################
-# function JuMP._build_indicator_constraint( # We are not allowed to touch internal functions
-#     _error::Function,
-#     lvar::LogicalVariableRef,
-#     con::JuMP.ScalarConstraint,
-#     ::Type{_MOI.Indicator{A}},
-# ) where {A}
-#     return DisjunctConstraint(con.func, con.set, lvar)
-# end
-
-# Create internal type for temporarily packaging constraints for disjuncts
-struct _DisjunctConstraint{C <: JuMP.AbstractConstraint, L <: Union{Nothing, LogicalVariableRef}}
-    constr::C
-    lvref::L
-end
-
-
 """
     JuMP.build_constraint(
         _error::Function, 
@@ -313,25 +299,11 @@ function _disjunction(
 
     # build the disjunction
     indicators = _process_structure(_error, structure, model, name)
-    disjuncts = Vector{Disjunct}(undef, length(indicators))
-    for (i, lvref) in enumerate(indicators)
-        ind_idx = JuMP.index(lvref)
-        c_idxs = _indicator_to_constraints(model)[ind_idx]
-        crefs = DisjunctConstraintRef.(model, c_idxs)
-        disjuncts[i] = Disjunct(crefs, lvref)
-    end
-    disjunction = Disjunction(disjuncts)
+    disjunction = Disjunction(JuMP.index.(indicators))
 
     # add it to the model
     disjunction_data = ConstraintData(disjunction, name)
     idx = _MOIUC.add_item(_disjunctions(model), disjunction_data)
-
-    # add mappings
-    _disjunction_to_indicators(model)[idx] = JuMP.index.(indicators)
-    for lvref in indicators
-        ind_idx = JuMP.index(lvref)
-        _indicator_to_disjunction(model)[ind_idx] = idx
-    end
 
     _set_ready_to_optimize(model, false)
     return DisjunctionRef(model, idx)

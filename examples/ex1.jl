@@ -1,8 +1,6 @@
 using JuMP
 using DisjunctiveProgramming
 
-#TODO: Add proposition for exactly 1 disjunct selected
-
 ## Example 1: 
 
 # Disjunction Method 1: Assign Logical Variables Explicitly
@@ -32,11 +30,11 @@ DisjunctiveProgramming._reformulate_logical_constraints(m)
 print(m)
 # Feasibility
 # Subject to
+#  Y[1] + Y[2] = 1
 #  x ≥ -5
 #  x ≤ 10
 #  Y[1] binary
 #  Y[2] binary
-#  (Y[1] + Y[2]) = 1
 
 ## BigM reformulation
 m_bigm = copy(m)
@@ -44,15 +42,15 @@ DisjunctiveProgramming._reformulate_disjunctions(m_bigm, BigM())
 print(m_bigm)
 # Feasibility
 # Subject to
+#  Y[1] + Y[2] = 1
 #  x - 5 Y[1] ≥ -5
-#  x - 10 Y[2] ≥ -5
 #  x + 7 Y[1] ≤ 10
+#  -x + 10 Y[2] ≤ 5
 #  x + Y[2] ≤ 10
 #  x ≥ -5
 #  x ≤ 10
 #  Y[1] binary
 #  Y[2] binary
-#  (Y[1] + Y[2]) = 1
 
 ## Hull reformulation
 m_hull = copy(m)
@@ -60,14 +58,15 @@ DisjunctiveProgramming._reformulate_disjunctions(m_hull, Hull())
 print(m_hull)
 # Feasibility
 # Subject to
-#  x - x_Y[1] - x_Y[2] = 0
+#  Y[1] + Y[2] = 1
+#  x aggregation : -x + x_Y[1] + x_Y[2] = 0
 #  x_Y[1] ≥ 0
-#  -5 Y[2] + x_Y[2] ≥ 0
-#  -5 Y[1] - x_Y[1] ≤ 0
-#  -10 Y[1] + x_Y[1] ≤ 0
+#  x_Y[1] lower bounding : -5 Y[1] - x_Y[1] ≤ 0
+#  x_Y[1] upper bounding : -10 Y[1] + x_Y[1] ≤ 0
 #  -3 Y[1] + x_Y[1] ≤ 0
-#  -5 Y[2] - x_Y[2] ≤ 0
-#  -10 Y[2] + x_Y[2] ≤ 0
+#  x_Y[2] lower bounding : -5 Y[2] - x_Y[2] ≤ 0
+#  x_Y[2] upper bounding : -10 Y[2] + x_Y[2] ≤ 0
+#  5 Y[2] - x_Y[2] ≤ 0
 #  -9 Y[2] + x_Y[2] ≤ 0
 #  x ≥ -5
 #  x_Y[1] ≥ -5
@@ -77,7 +76,6 @@ print(m_hull)
 #  x_Y[2] ≤ 10
 #  Y[1] binary
 #  Y[2] binary
-#  (Y[1] + Y[2]) = 1
 
 ## Indicator Constraints reformulation
 m_ind = copy(m)
@@ -85,11 +83,11 @@ DisjunctiveProgramming._reformulate_disjunctions(m_ind, Indicator())
 print(m_ind)
 # Feasibility
 # Subject to
+#  Y[1] + Y[2] = 1
+#  Y[2] => {-x ≤ -5}
 #  Y[2] => {x ≤ 9}
 #  x ≥ -5
 #  x ≤ 10
 #  Y[1] binary
 #  Y[2] binary
-#  (Y[1] + Y[2]) = 1
 #  Y[1] => {x ∈ [0, 3]}
-#  Y[2] => {x ≥ 5}
