@@ -1,4 +1,30 @@
 ################################################################################
+#                         HELPER SET MAPPING FUNCTIONS
+################################################################################
+# helper functions to get teh value of an MOI set
+_set_value(set::_MOI.LessThan) = set.upper
+_set_value(set::_MOI.GreaterThan) = set.lower
+_set_value(set::_MOI.EqualTo) = set.value
+_set_values(set::_MOI.Interval) = (set.lower, set.upper)
+# helper functions to check parsing of vector constraints for disjuncts
+function _scalar_to_vec_set(set::_MOI.LessThan{Bool}, dim::Int)
+    @assert _set_value(set) == false "Error parsing constraint set."
+    return _MOI.Nonpositives(dim)
+end
+function _scalar_to_vec_set(set::_MOI.GreaterThan{Bool}, dim::Int)
+    @assert _set_value(set) == false "Error parsing constraint set."
+    return _MOI.Nonnegatives(dim)
+end
+function _scalar_to_vec_set(set::_MOI.EqualTo{Bool}, dim::Int)
+    @assert _set_value(set) == false "Error parsing constraint set."
+    return _MOI.Zeros(dim)
+end
+# helper functions to reformulate vector constraints ot indicators
+_vec_to_scalar_set(set::_MOI.Nonpositives) = _MOI.LessThan(0)
+_vec_to_scalar_set(set::_MOI.Nonnegatives) = _MOI.GreaterThan(0)
+_vec_to_scalar_set(set::_MOI.Zeros) = _MOI.EqualTo(0)
+
+################################################################################
 #                         BOILERPLATE EXTENSION METHODS
 ################################################################################
 for (RefType, loc) in ((:DisjunctConstraintRef, :disjunct_constraints), 
@@ -118,19 +144,6 @@ end
 ################################################################################
 #                              Disjunct Constraints
 ################################################################################
-# helper function to check parsing of vector constraints for disjuncts
-function _map_set(set::_MOI.LessThan{Bool}, dim::Int)
-    @assert _set_value(set) == false "Error parsing constraint set."
-    return _MOI.Nonpositives(dim)
-end
-function _map_set(set::_MOI.GreaterThan{Bool}, dim::Int)
-    @assert _set_value(set) == false "Error parsing constraint set."
-    return _MOI.Nonnegatives(dim)
-end
-function _map_set(set::_MOI.EqualTo{Bool}, dim::Int)
-    @assert _set_value(set) == false "Error parsing constraint set."
-    return _MOI.Zeros(dim)
-end
 """
     JuMP.build_constraint(
         _error::Function, 
@@ -162,7 +175,7 @@ function JuMP.build_constraint(
     ::Type{DisjunctConstraint}
 ) where {T <: JuMP.AbstractJuMPScalar}
     dim = length(func)
-    mapped_set = _map_set(set,dim)
+    mapped_set = _scalar_to_vec_set(set,dim)
     return _DisjunctConstraint(JuMP.build_constraint(_error, func, mapped_set), nothing)
 end
 
@@ -183,7 +196,7 @@ function JuMP.build_constraint(
     tag::DisjunctConstraint
 ) where {T <: JuMP.AbstractJuMPScalar}
     dim = length(func)
-    mapped_set = _map_set(set,dim)
+    mapped_set = _scalar_to_vec_set(set,dim)
     constr = JuMP.build_constraint(_error, func, mapped_set)
     return _DisjunctConstraint(constr, tag.indicator)
 end

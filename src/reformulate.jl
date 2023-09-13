@@ -1,8 +1,3 @@
-_set_value(set::_MOI.LessThan) = set.upper
-_set_value(set::_MOI.GreaterThan) = set.lower
-_set_value(set::_MOI.EqualTo) = set.value
-_set_values(set::_MOI.Interval) = (set.lower, set.upper)
-
 ################################################################################
 #                              LOGICAL VARIABLES
 ################################################################################
@@ -291,14 +286,28 @@ end
 # Indicator: individual disjunct constraints
 function _reformulate_disjunct_constraint(
     model::JuMP.Model,
-    con::JuMP.ScalarConstraint{JuMP.AffExpr, S},
+    con::JuMP.ScalarConstraint{T, S},
     bvref::JuMP.VariableRef,
     ::Indicator
-) where {S}
+) where {T, S}
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, [1*bvref, con.func], _MOI.Indicator{_MOI.ACTIVATE_ON_ONE}(con.set))
     )
     push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
+end
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model,
+    con::JuMP.VectorConstraint{T, S},
+    bvref::JuMP.VariableRef,
+    ::Indicator
+) where {T, S}
+    set = _vec_to_scalar_set(con.set)
+    for func in con.func
+        reform_con = JuMP.add_constraint(model,
+            JuMP.build_constraint(error, [1*bvref, func], _MOI.Indicator{_MOI.ACTIVATE_ON_ONE}(set))
+        )
+        push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
+    end
 end
 
 # define fallbacks for other constraint types
