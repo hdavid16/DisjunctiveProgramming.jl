@@ -4,20 +4,27 @@ function _optimize_hook(
     model::JuMP.Model; 
     method::AbstractSolutionMethod
     ) # can add more kwargs if wanted
-    if !_ready_to_optimize(model) && _solution_method(model) != method
-        #clear all previous reformulations
-        for (cidx, cshape) in _reformulation_constraints(model)
-            JuMP.delete(model, JuMP.ConstraintRef(model, cidx, cshape))
-        end
-        for vidx in _reformulation_variables(model)
-            JuMP.delete(model, JuMP.VariableRef(model, vidx))
-        end
-        #reformulate
-        _reformulate_logical_variables(model)
-        _reformulate_disjunctions(model, method)
-        _reformulate_logical_constraints(model)
-        #ready to optimize
-        _set_solution_method(model, method)
+    if !_ready_to_optimize(model) || _solution_method(model) != method
+        reformulate_model(model, method)
     end
     return JuMP.optimize!(model; ignore_optimize_hook = true)
+end
+
+function reformulate_model(model::JuMP.Model, method::AbstractSolutionMethod)
+    #clear all previous reformulations
+    for (cidx, cshape) in _reformulation_constraints(model)
+        JuMP.delete(model, JuMP.ConstraintRef(model, cidx, cshape))
+    end
+    gdp_data(model).reformulation_constraints = Vector{Tuple{_MOI.ConstraintIndex, JuMP.AbstractShape}}()        
+    for vidx in _reformulation_variables(model)
+        JuMP.delete(model, JuMP.VariableRef(model, vidx))
+    end
+    gdp_data(model).reformulation_variables = Vector{_MOI.VariableIndex}()
+    #reformulate
+    _reformulate_logical_variables(model)
+    _reformulate_disjunctions(model, method)
+    _reformulate_logical_constraints(model)
+    #set solution method
+    _set_solution_method(model, method)
+    _set_ready_to_optimize(model, true)
 end
