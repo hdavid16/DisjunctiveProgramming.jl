@@ -100,3 +100,7 @@ function _copy(nlp::JuMP.NonlinearExpr, new_model::JuMP.Model)
     end
     return JuMP.NonlinearExpr(nlp.head, new_args)
 end
+
+function _copy(expr::Vector{T}, new_model::JuMP.Model) where {T <: JuMP.AbstractJuMPScalar}
+    return _copy.(expr, new_model)
+end
