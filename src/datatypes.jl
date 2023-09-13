@@ -374,7 +374,7 @@ mutable struct GDPData
 
     # Reformulation variables and constraints
     reformulation_variables::Vector{_MOI.VariableIndex}
-    reformulation_constraints::Vector{_MOI.ConstraintIndex}
+    reformulation_constraints::Vector{Tuple{_MOI.ConstraintIndex, JuMP.AbstractShape}}
 
     # Solution data
     solution_method::Union{Nothing, AbstractSolutionMethod}
@@ -391,7 +391,7 @@ mutable struct GDPData
             Dict{DisjunctConstraintIndex, LogicalVariableIndex}(),
             Dict{_MOI.VariableIndex, Tuple{Float64, Float64}}(),
             Vector{_MOI.VariableIndex}(),
-            Vector{_MOI.ConstraintIndex}(),
+            Vector{Tuple{_MOI.ConstraintIndex, JuMP.AbstractShape}}(),
             nothing,
             false,
             )

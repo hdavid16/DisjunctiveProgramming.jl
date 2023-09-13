@@ -69,10 +69,12 @@ function _reformulate_disjunct_constraint(
 ) where {T, S <: _MOI.LessThan}
     M = _get_M_value(method, con.func, con.set)
     new_func = JuMP.@expression(model, con.func - M*(1-bvref))
-    reform_con = JuMP.add_constraint(model,
+    reform_con = JuMP.add_constraint(model, 
         JuMP.build_constraint(error, new_func, con.set)
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con))
+    push!(_reformulation_constraints(model), 
+        (JuMP.index(reform_con), JuMP.ScalarShape())
+    )
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model,
@@ -89,7 +91,7 @@ function _reformulate_disjunct_constraint(
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, new_func, con.set)
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con))
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
@@ -102,7 +104,7 @@ function _reformulate_disjunct_constraint(
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, new_func, con.set)
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con))
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
@@ -119,7 +121,7 @@ function _reformulate_disjunct_constraint(
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, new_func, con.set)
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con))
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
@@ -137,7 +139,10 @@ function _reformulate_disjunct_constraint(
     reform_con_lt = JuMP.add_constraint(model,
         JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(set_values[2]))
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con_gt), JuMP.index(reform_con_lt))
+    push!(_reformulation_constraints(model), 
+        (JuMP.index(reform_con_gt), JuMP.ScalarShape()), 
+        (JuMP.index(reform_con_lt), JuMP.ScalarShape())
+    )
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
@@ -160,7 +165,10 @@ function _reformulate_disjunct_constraint(
     reforn_con_np = JuMP.add_constraint(model,
         JuMP.build_constraint(error, new_func_np, _MOI.Nonpositives(con.set.dimension))
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con_nn), JuMP.index(reforn_con_np))
+    push!(_reformulation_constraints(model), 
+        (JuMP.index(reform_con_nn), JuMP.VectorShape()), 
+        (JuMP.index(reform_con_np), JuMP.VectorShape())
+    )
 end
 
 # Hull: individual disjunct constraints
@@ -176,7 +184,7 @@ function _reformulate_disjunct_constraint(
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, new_func, S(0))
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con))
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
@@ -190,7 +198,7 @@ function _reformulate_disjunct_constraint(
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, new_func, con.set)
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con))
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
@@ -209,7 +217,7 @@ function _reformulate_disjunct_constraint(
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, new_func, S(0))
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con))
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
@@ -231,7 +239,7 @@ function _reformulate_disjunct_constraint(
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, new_func, con.set)
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con))
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
@@ -248,7 +256,10 @@ function _reformulate_disjunct_constraint(
     reform_con_lt = JuMP.add_constraint(model, 
         JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con_gt), JuMP.index(reform_con_lt))
+    push!(_reformulation_constraints(model), 
+        (JuMP.index(reform_con_gt), JuMP.ScalarShape()), 
+        (JuMP.index(reform_con_lt), JuMP.ScalarShape())
+    )
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
@@ -271,7 +282,10 @@ function _reformulate_disjunct_constraint(
     reform_con_lt = JuMP.add_constraint(model,
         JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con_gt), JuMP.index(reform_con_lt))
+    push!(_reformulation_constraints(model), 
+        (JuMP.index(reform_con_gt), JuMP.ScalarShape()), 
+        (JuMP.index(reform_con_lt), JuMP.ScalarShape())
+    )
 end
 
 # Indicator: individual disjunct constraints
@@ -284,7 +298,7 @@ function _reformulate_disjunct_constraint(
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, [1*bvref, con.func], _MOI.Indicator{_MOI.ACTIVATE_ON_ONE}(con.set))
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con))
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
 end
 
 # define fallbacks for other constraint types
@@ -323,21 +337,21 @@ function _reformulate_selector(model::JuMP.Model, ::MOIAtLeast, val::Number, lvr
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.GreaterThan(val))
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con))
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
 function _reformulate_selector(model::JuMP.Model, ::MOIAtMost, val::Number, lvrefs::Vector{LogicalVariableRef})
     bvrefs = _indicator_to_binary_ref.(lvrefs)
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.LessThan(val))
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con))
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
 function _reformulate_selector(model::JuMP.Model, ::MOIExactly, val::Number, lvrefs::Vector{LogicalVariableRef})
     bvrefs = _indicator_to_binary_ref.(lvrefs)
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.EqualTo(val))
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con))
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
 function _reformulate_selector(model::JuMP.Model, ::MOIAtLeast, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
     bvref = _indicator_to_binary_ref(lvref)
@@ -345,7 +359,7 @@ function _reformulate_selector(model::JuMP.Model, ::MOIAtLeast, lvref::LogicalVa
     reform_con = JuMP.add_constraint(model,
         build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), _MOI.GreaterThan(0))
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con))
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
 function _reformulate_selector(model::JuMP.Model, ::MOIAtMost, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
     bvref = _indicator_to_binary_ref(lvref)
@@ -353,7 +367,7 @@ function _reformulate_selector(model::JuMP.Model, ::MOIAtMost, lvref::LogicalVar
     reform_con = JuMP.add_constraint(model,
         build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), _MOI.LessThan(0))
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con))
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
 function _reformulate_selector(model::JuMP.Model, ::MOIExactly, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
     bvref = _indicator_to_binary_ref(lvref)
@@ -361,7 +375,7 @@ function _reformulate_selector(model::JuMP.Model, ::MOIExactly, lvref::LogicalVa
     reform_con = JuMP.add_constraint(model,
         build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), _MOI.EqualTo(0))
     )
-    push!(_reformulation_constraints(model), JuMP.index(reform_con))
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
 
 function _reformulate_proposition(model::JuMP.Model, lexpr::_LogicalExpr)
@@ -386,7 +400,7 @@ function _add_proposition(model::JuMP.Model, arg::Union{LogicalVariableRef,_Logi
     if !isempty(func.terms) && !all(iszero.(values(func.terms)))
         con = JuMP.build_constraint(error, func, _MOI.GreaterThan(1))
         reform_con = JuMP.add_constraint(model, con)
-        push!(_reformulation_constraints(model), JuMP.index(reform_con))
+        push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
     end
     return
 end

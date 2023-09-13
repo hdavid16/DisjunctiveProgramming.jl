@@ -37,15 +37,18 @@ function _disaggregate_variable(model::JuMP.Model, ind_idx::LogicalVariableIndex
     disag_vars.disjunct[vref, bvref] = dvref
     #create bounding constraints
     dvname = JuMP.name(dvref)
-    new_con_lb = JuMP.add_constraint(model,
+    new_con_lb_ref = JuMP.add_constraint(model,
         JuMP.build_constraint(error, lb*bvref - dvref, _MOI.LessThan(0)),
         "$dvname lower bounding"
     )
-    new_con_ub = JuMP.add_constraint(model,
+    new_con_ub_ref = JuMP.add_constraint(model,
         JuMP.build_constraint(error, dvref - ub*bvref, _MOI.LessThan(0)),
         "$dvname upper bounding"
     )
-    push!(_reformulation_constraints(model), JuMP.index(new_con_lb), JuMP.index(new_con_ub))
+    push!(_reformulation_constraints(model), 
+        (JuMP.index(new_con_lb_ref), JuMP.ScalarShape()), 
+        (JuMP.index(new_con_ub_ref), JuMP.ScalarShape())
+    )
 
     return dvref
 end
@@ -55,7 +58,9 @@ function _aggregate_variable(model::JuMP.Model, vref::JuMP.VariableRef, disag_va
     con_expr = JuMP.@expression(model, -vref + sum(disag_vars.disjunction[vref]))
     con = JuMP.build_constraint(error, con_expr, _MOI.EqualTo(0))
     con_ref = JuMP.add_constraint(model, con, "$vref aggregation")
-    push!(_reformulation_constraints(model), JuMP.index(con_ref))
+    push!(_reformulation_constraints(model), 
+        (JuMP.index(con_ref), JuMP.ScalarShape())
+    )
 
     return con_ref
 end
