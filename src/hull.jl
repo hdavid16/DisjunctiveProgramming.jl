@@ -86,13 +86,16 @@ end
 # TODO review what happens when there are bilinear terms with binary variables involved...
 function _disaggregate_expression(model::JuMP.Model, quad::JuMP.QuadExpr, bvref::JuMP.VariableRef, method::_Hull)
     #get affine part
-    new_expr = _disaggregate_expression(model, quad.aff, bvref, method)
+    new_expr = zero(JuMP.NonlinearExpr)
+     # TODO update when JuMP supports add_to_expression! for NonlinearExpr
+    new_expr += _disaggregate_expression(model, quad.aff, bvref, method)
     #get nonlinear part
     ϵ = method.value
     for (pair, coeff) in quad.terms
-        da_ref = disag_vars.disjunct[pair.a, bvref]
-        db_ref = disag_vars.disjunct[pair.b, bvref]
-        JuMP.add_to_expression!(new_expr, coeff * da_ref * db_ref / ((1-ϵ)*bvref+ϵ))
+        da_ref = method.disjunct[pair.a, bvref]
+        db_ref = method.disjunct[pair.b, bvref]
+         # TODO update when JuMP supports add_to_expression! for NonlinearExpr
+        new_expr += coeff * da_ref * db_ref / ((1-ϵ)*bvref+ϵ)
     end
 
     return new_expr
@@ -110,14 +113,18 @@ function _disaggregate_nl_expression(model::JuMP.Model, vref::JuMP.VariableRef, 
 end
 # affine expression in NonlinearExpr
 function _disaggregate_nl_expression(model::JuMP.Model, aff::JuMP.AffExpr, bvref::JuMP.VariableRef, method::_Hull)
-    new_expr = JuMP.AffExpr(aff.constant)
+    new_expr = zero(JuMP.NonlinearExpr)
+     # TODO update when JuMP supports add_to_expression! for NonlinearExpr
+    new_expr += JuMP.AffExpr(aff.constant)
+    ϵ = method.value
     for (vref, coeff) in aff.terms
         if JuMP.is_binary(vref) #keep any binary variables undisaggregated
             dvref = vref
         else #replace other vars with disaggregated form
             dvref = method.disjunct[vref, bvref]
         end
-        JuMP.add_to_expression!(new_expr, coeff * dvref / ((1-ϵ)*bvref+ϵ))
+         # TODO update when JuMP supports add_to_expression! for NonlinearExpr
+        new_expr += coeff * dvref / ((1-ϵ)*bvref+ϵ)
     end
     return new_expr
 end
@@ -130,7 +137,8 @@ function _disaggregate_nl_expression(model::JuMP.Model, quad::JuMP.QuadExpr, bvr
     for (pair, coeff) in quad.terms
         da_ref = method.disjunct[pair.a, bvref]
         db_ref = method.disjunct[pair.b, bvref]
-        JuMP.add_to_expression!(new_expr, coeff * da_ref * db_ref / ((1-ϵ)*bvref+ϵ)^2)
+         # TODO update when JuMP supports add_to_expression! for NonlinearExpr
+        new_expr += coeff * da_ref * db_ref / ((1-ϵ)*bvref+ϵ)^2
     end
     return new_expr
 end

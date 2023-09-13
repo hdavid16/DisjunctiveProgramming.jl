@@ -31,9 +31,6 @@ end
 ################################################################################
 #                            CONJUNCTIVE NORMAL FORM
 ################################################################################
-"""
-
-"""
 function _to_cnf(lexpr::_LogicalExpr)
     #NOTE: some redundant constraints may be created in the process.
     #   For example A ∨ ¬B ∨ B is always true and is reformulated 
@@ -46,11 +43,6 @@ function _to_cnf(lexpr::_LogicalExpr)
         _flatten
 end
 
-"""
-    _eliminate_equivalence!(expr)
-
-Eliminate equivalence logical operator.
-"""
 function _eliminate_equivalence(lvar::LogicalVariableRef)
     return lvar
 end
@@ -78,11 +70,6 @@ function _eliminate_equivalence(lexpr::_LogicalExpr)
     return new_lexpr
 end
 
-"""
-    eliminate_implication!(expr)
-
-Eliminate implication logical operator.
-"""
 function _eliminate_implication(lvar::LogicalVariableRef)
     return lvar
 end
@@ -106,11 +93,6 @@ function _eliminate_implication(lexpr::_LogicalExpr)
     return new_lexpr
 end
 
-"""
-    _move_negations_inwards(expr)
-
-Move negation inwards in logical proposition expression.
-"""
 function _move_negations_inward(lvar::LogicalVariableRef)
     return lvar
 end
@@ -129,9 +111,6 @@ function _move_negations_inward(lexpr::_LogicalExpr)
     return new_lexpr
 end
 
-"""
-
-"""
 function _negate(lvar::LogicalVariableRef)
     return _LogicalExpr(:¬, Any[lvar])
 end
@@ -147,11 +126,6 @@ function _negate(lexpr::_LogicalExpr)
     end
 end
 
-"""
-    _negate_or(expr)
-
-Negate OR boolean operator.
-"""
 function _negate_or(lexpr::_LogicalExpr)
     if length(lexpr.args) < 2 
         error("The OR operator must have at least two clauses.")
@@ -162,11 +136,6 @@ function _negate_or(lexpr::_LogicalExpr)
     ])
 end
 
-"""
-    _negate_and(expr)
-
-Negate AND boolean operator.
-"""
 function _negate_and(lexpr::_LogicalExpr)
     if length(lexpr.args) < 2 
         error("The AND operator must have at least two clauses.")
@@ -177,11 +146,6 @@ function _negate_and(lexpr::_LogicalExpr)
     ])
 end
 
-"""
-    _negate_negation(expr)
-
-Negate negation boolean operator.
-"""
 function _negate_negation(lexpr::_LogicalExpr)
     if length(lexpr.args) != 1
         error("The negation operator can only have 1 clause.")
@@ -189,12 +153,6 @@ function _negate_negation(lexpr::_LogicalExpr)
     return _move_negations_inward(lexpr.args[1])
 end
 
-
-"""
-    _distribute_and_over_or(expr)
-
-Distribute AND over OR boolean operators.
-"""
 function _distribute_and_over_or(lvar::LogicalVariableRef)
     return lvar
 end
@@ -224,12 +182,8 @@ function _distribute_and_over_or(lexpr0::_LogicalExpr)
     return new_lexpr
 end
 
-"""
-    _flatten(lexpr::LogicalRef)
-
-Flatten netsed OR / AND operators and replace them with their n-ary form.
-For example, ∨(∨(A, B), C) is replaced with ∨(A, B, C).
-"""
+# Flatten netsed OR / AND operators and replace them with their n-ary form.
+#   For example, ∨(∨(A, B), C) is replaced with ∨(A, B, C).
 function _flatten(lvar::LogicalVariableRef)
     return lvar
 end

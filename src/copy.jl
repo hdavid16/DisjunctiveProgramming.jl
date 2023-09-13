@@ -73,20 +73,19 @@ function _copy(aff::JuMP.AffExpr, new_model::JuMP.Model)
     new_expr = JuMP.AffExpr(aff.constant)
     for (var, coeff) in aff.terms
         new_var = _copy(var, new_model)
-        new_expr.terms[new_var] = coeff
+        JuMP.add_to_expression!(new_expr, coeff*new_var)
     end
 
     return new_expr
 end
 
 function _copy(quad::JuMP.QuadExpr, new_model::JuMP.Model)
-    new_expr = JuMP.QuadExpr()
-    new_expr.aff = _copy(quad.aff, new_model)
+    new_expr = zero(JuMP.QuadExpr)
+    JuMP.add_to_expression!(new_expr, _copy(quad.aff, new_model))
     for (pair, coeff) in quad.terms
-        vara = JuMP.VariableRef(new_model, JuMP.index(pair.a))
-        varb = JuMP.VariableRef(new_model, JuMP.index(pair.b))
-        new_term = JuMP.UnorderedPair{JuMP.VariableRef}(vara, varb)
-        new_expr.terms[new_term] = coeff
+        vara = _copy(pair.a, new_model)
+        varb = _copy(pair.b, new_model)
+        JuMP.add_to_expression!(new_expr, coeff*vara*varb)
     end
 
     return new_expr

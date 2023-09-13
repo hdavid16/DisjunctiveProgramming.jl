@@ -216,7 +216,7 @@ macro disjunction(model, args...)
         _add_kwargs(creation_code, extra_kwargs)
     else
         # we have a container of parameters
-        idxvars, inds = JuMPC.build_ref_sets(_error, c)
+        idxvars, inds = JuMP.Containers.build_ref_sets(_error, c)
         if model in idxvars
             _error("Index $(model) is the same symbol as the model. Use a ",
                    "different name for the index.")

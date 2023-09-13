@@ -5,6 +5,7 @@
 _set_value(set::_MOI.LessThan) = set.upper
 _set_value(set::_MOI.GreaterThan) = set.lower
 _set_value(set::_MOI.EqualTo) = set.value
+_set_values(set::_MOI.EqualTo) = (set.value, set.value)
 _set_values(set::_MOI.Interval) = (set.lower, set.upper)
 # helper functions to check parsing of vector constraints for disjuncts
 function _scalar_to_vec_set(set::_MOI.LessThan{Bool}, dim::Int)
@@ -300,7 +301,7 @@ function _process_structure(
             end
             indicators[i] = LogicalVariableRef(model, ind_idx)
         end
-        return _parse_structure(_error, indicators, model)
+        return _process_structure(_error, indicators, model, name)
     else 
         for (i, crefs) in enumerate(s)
             var = LogicalVariable(nothing, nothing)
@@ -472,11 +473,11 @@ JuMP.operator_to_set(_error::Function, ::Val{:⇔}) = _error(
 )
 
 """
-    JuMP.build_constraint(
+    function JuMP.build_constraint(
         _error::Function, 
-        func::AbstractVector{<:Union{Number, LogicalVariableRef, _LogicalExpr}}, # allow any vector-like JuMP container
-        set::_MOI.AbstractVectorSet # Keep general to allow CP sets from MOI
-    )
+        func::AbstractVector{T},
+        set::MOICardinality
+    ) where {T <: Union{LogicalVariableRef, _LogicalExpr}}
 
 Extend `JuMP.build_constraint` to add logical cardinality constraints to a [`GDPModel`](@ref). 
 This in combination with `JuMP.add_constraint` enables the use of 
@@ -505,11 +506,12 @@ This in combination with `JuMP.add_constraint` enables the use of
 `@constraint(model, [name], logical_expr == true/false)` to define a Boolean expression that must
 either be true or false.
 """
+const MOICardinality = Union{MOIAtLeast, MOIAtMost, MOIExactly}
 function JuMP.build_constraint(
     _error::Function, 
-    func::AbstractVector{<:Union{Number, LogicalVariableRef, _LogicalExpr}}, # allow any vector-like JuMP container
-    set::_MOI.AbstractVectorSet # Keep general to allow CP sets from MOI
-    )
+    func::AbstractVector{T}, # allow any vector-like JuMP container
+    set::MOICardinality # TODO: generalize to allow CP sets from MOI
+) where {T <: Union{LogicalVariableRef, _LogicalExpr}}
     return JuMP.VectorConstraint(func, set)
 end
 
@@ -540,7 +542,7 @@ function JuMP.build_constraint(
     set::_MOI.EqualTo{Bool}
     )
     set.value && return JuMP.ScalarConstraint(lvref, set)
-    new_set = MOI.EqualTo(true)
+    new_set = _MOI.EqualTo(true)
     return JuMP.ScalarConstraint(_LogicalExpr(:¬, Any[lvref]), new_set)
 end
 
@@ -555,10 +557,10 @@ function JuMP.build_constraint(
     end
     lvref = first(keys(aff.terms))
     if aff.constant == -1
-        return JuMP.ScalarConstraint(lvref, MOI.EqualTo(true))
+        return JuMP.ScalarConstraint(lvref, _MOI.EqualTo(true))
     elseif iszero(aff.constant)
         new_func = _LogicalExpr(:¬, Any[lvref])
-        return JuMP.ScalarConstraint(new_func, MOI.EqualTo(true))
+        return JuMP.ScalarConstraint(new_func, _MOI.EqualTo(true))
     else
         _error("Cannot add or subtract constants to logical variables")
     end
@@ -567,9 +569,9 @@ end
 # EqualTo sets where the boolean was converted to a number
 function JuMP.build_constraint(
     _error::Function, 
-    expr::Union{LogicalVariableRef, JuMP.GenericAffExpr{C, LogicalVariableRef}, _LogicalExpr}, 
+    expr::Union{LogicalVariableRef, _LogicalExpr}, 
     set::_MOI.EqualTo
-    ) where {C}
+)
     if !(isone(set.value) || iszero(set.value))
         _error("Uncrecognized set `$set` for logical constraint. Should use " *
                "syntax `logical_expr == true`.")
