@@ -118,6 +118,19 @@ end
 ################################################################################
 #                              Disjunct Constraints
 ################################################################################
+# helper function to check parsing of vector constraints for disjuncts
+function _map_set(set::_MOI.LessThan{Bool}, dim::Int)
+    @assert _set_value(set) == false "Error parsing constraint set."
+    return _MOI.Nonpositives(dim)
+end
+function _map_set(set::_MOI.GreaterThan{Bool}, dim::Int)
+    @assert _set_value(set) == false "Error parsing constraint set."
+    return _MOI.Nonnegatives(dim)
+end
+function _map_set(set::_MOI.EqualTo{Bool}, dim::Int)
+    @assert _set_value(set) == false "Error parsing constraint set."
+    return _MOI.Zeros(dim)
+end
 """
     JuMP.build_constraint(
         _error::Function, 
@@ -142,6 +155,16 @@ function JuMP.build_constraint(
 )
     return _DisjunctConstraint(JuMP.build_constraint(_error, func, set), nothing)
 end
+function JuMP.build_constraint(
+    _error::Function,
+    func::Vector{T},
+    set::Union{_MOI.LessThan{Bool}, _MOI.GreaterThan{Bool}, _MOI.EqualTo{Bool}},
+    ::Type{DisjunctConstraint}
+) where {T <: JuMP.AbstractJuMPScalar}
+    dim = length(func)
+    mapped_set = _map_set(set,dim)
+    return _DisjunctConstraint(JuMP.build_constraint(_error, func, mapped_set), nothing)
+end
 
 # DisjunctConstraint with indicator variable
 function JuMP.build_constraint(
@@ -153,6 +176,17 @@ function JuMP.build_constraint(
     constr = JuMP.build_constraint(_error, func, set)
     return _DisjunctConstraint(constr, tag.indicator)
 end
+function JuMP.build_constraint(
+    _error::Function, 
+    func::Vector{T}, 
+    set::Union{_MOI.LessThan{Bool}, _MOI.GreaterThan{Bool}, _MOI.EqualTo{Bool}},
+    tag::DisjunctConstraint
+) where {T <: JuMP.AbstractJuMPScalar}
+    dim = length(func)
+    mapped_set = _map_set(set,dim)
+    constr = JuMP.build_constraint(_error, func, mapped_set)
+    return _DisjunctConstraint(constr, tag.indicator)
+end
 
 # Allow intervals to handle tags
 function JuMP.build_constraint(
@@ -160,12 +194,12 @@ function JuMP.build_constraint(
     func::JuMP.AbstractJuMPScalar, 
     lb::Real, 
     ub::Real,
-    args...
+    tag::Union{Type{DisjunctConstraint}, DisjunctConstraint}
 )
     constr = JuMP.build_constraint(_error, func, lb, ub)
     func = JuMP.jump_function(constr)
     set = JuMP.moi_set(constr)
-    return JuMP.build_constraint(_error, func, set, args...)
+    return JuMP.build_constraint(_error, func, set, tag)
 end
 
 ## Dispatch on _DisjunctConstraint to update indicator mappings if needed
