@@ -8,11 +8,11 @@ function _optimize_hook(
         _set_ready_to_optimize(model, false)
         #reformulate
         _reformulate_logical_variables(model)
-        _reformulate_disjunctive_constraints(model, method)
+        _reformulate_disjunctions(model, method)
         _reformulate_logical_constraints(model)
         #ready to optimize
         _set_ready_to_optimize(model, true)
         _set_solution_method(model, method)
     end
-    return optimize!(model; ignore_optimize_hook = true)
+    return JuMP.optimize!(model; ignore_optimize_hook = true)
 end
