@@ -579,7 +579,7 @@ function JuMP.build_constraint(
     JuMP.build_constraint(_error, expr, _MOI.EqualTo(isone(set.value)))
 end
 
-# Fallback for Affine/Quad expressions (TODO: we can remove this restriction if needed)
+# Fallback for Affine/Quad expressions
 function JuMP.build_constraint(
     _error::Function,
     expr::Union{JuMP.GenericAffExpr{C, LogicalVariableRef}, JuMP.GenericQuadExpr{C, LogicalVariableRef}},

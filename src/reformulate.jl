@@ -175,7 +175,7 @@ function _reformulate_disjunct_constraint(
 ) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
     new_func = _disaggregate_expression(model, con.func, bvref, method)
     set_value = _set_value(con.set)
-    new_func -= set_value*bvref # TODO update when JuMP supports add_to_expression! for NonlinearExpr
+    JuMP._MA.add_mul!!(new_func, -set_value*bvref) # TODO update when JuMP supports add_to_expression! for NonlinearExpr
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, new_func, S(0))
     )
