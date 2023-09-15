@@ -128,6 +128,9 @@ function JuMP.delete(model::JuMP.Model, cref::DisjunctConstraintRef)
     dict = _disjunct_constraints(model)
     #delete from gdp_data
     delete!(dict, cidx)
+    #delete from constraint_to_indicator mapping
+    delete!(_constraint_to_indicator(model), cidx)
+    # TODO: delete reformulated constraint? This would require mapping cidx to reformulated constraint index
     #not ready to optimize
     _set_ready_to_optimize(model, false)
     return 

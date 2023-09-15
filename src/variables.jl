@@ -41,7 +41,7 @@ function JuMP.build_variable(
         _error("Logical variables cannot be integer valued.")
     elseif info.has_fix && !isone(info.fix) && !iszero(info.fix)
         _error("Invalid fix value, must be 0 or 1.")
-    elseif info.has_start && !isone(info.fix) && !iszero(info.fix)
+    elseif info.has_start && !isone(info.start) && !iszero(info.start)
         _error("Invalid start value, must be 0 or 1.")
     end
 
@@ -83,11 +83,8 @@ end
 
 # JuMP extensions
 JuMP.owner_model(vref::LogicalVariableRef) = vref.model
-
 JuMP.index(vref::LogicalVariableRef) = vref.index
-
 JuMP.isequal_canonical(v::LogicalVariableRef, w::LogicalVariableRef) = v == w
-
 function JuMP.is_valid(model::JuMP.Model, vref::LogicalVariableRef)
     return model === JuMP.owner_model(vref)
 end
@@ -96,7 +93,6 @@ function JuMP.name(vref::LogicalVariableRef)
     data = gdp_data(JuMP.owner_model(vref))
     return data.logical_variables[JuMP.index(vref)].name
 end
-
 function JuMP.set_name(vref::LogicalVariableRef, name::String)
     data = gdp_data(JuMP.owner_model(vref))
     data.logical_variables[JuMP.index(vref)].name = name
@@ -105,9 +101,8 @@ end
 
 function JuMP.start_value(vref::LogicalVariableRef)
     data = gdp_data(JuMP.owner_model(vref))
-    return data.logical_variables[JuMP.index(vref)].variable.start
+    return data.logical_variables[JuMP.index(vref)].variable.start_value
 end
-
 function JuMP.set_start_value(
     vref::LogicalVariableRef, 
     value::Union{Nothing, Bool}
@@ -123,7 +118,6 @@ function JuMP.fix_value(vref::LogicalVariableRef)
     data = gdp_data(JuMP.owner_model(vref))
     return data.logical_variables[JuMP.index(vref)].variable.fix_value
 end
-
 function JuMP.fix(vref::LogicalVariableRef, value::Bool)
     data = gdp_data(JuMP.owner_model(vref))
     var = data.logical_variables[JuMP.index(vref)].variable
@@ -131,7 +125,6 @@ function JuMP.fix(vref::LogicalVariableRef, value::Bool)
     data.logical_variables[JuMP.index(vref)].variable = new_var
     return
 end
-
 function JuMP.unfix(vref::LogicalVariableRef)
     data = gdp_data(JuMP.owner_model(vref))
     var = data.logical_variables[JuMP.index(vref)].variable
@@ -149,12 +142,28 @@ function JuMP.delete(model::JuMP.Model, vref::LogicalVariableRef)
     for cidx in dcidxs
         JuMP.delete(model, DisjunctConstraintRef(model, cidx))
     end
+    delete!(_indicator_to_constraints(model), vidx)
+    #delete any disjunctions that have the logical variable
+    for (didx, ddata) in _disjunctions(model)
+        if vidx in ddata.constraint.disjuncts
+            setdiff!(ddata.constraint.disjuncts, [vidx])
+            JuMP.delete(model, DisjunctionRef(model, didx))
+        end
+    end
     #delete any logical constraints involving the logical variables
     for (cidx, cdata) in _logical_constraints(model)
         lvars = _get_constraint_variables(model, cdata.constraint)
         if vref in lvars
             JuMP.delete(model, LogicalConstraintRef(model, cidx))
         end
+    end
+    #delete any binary variable associated with the logical variable
+    if haskey(_indicator_to_binary(model), vidx)
+        bidx = _indicator_to_binary(model)[vidx]
+        bvref = JuMP.VariableRef(model, bidx)
+        setdiff!(_reformulation_variables(model), [bvref])
+        JuMP.delete(model, bvref)
+        delete!(_indicator_to_binary(model), vidx)
     end
     #delete the logical variable
     delete!(dict, vidx)
