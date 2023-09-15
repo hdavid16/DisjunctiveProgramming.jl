@@ -61,21 +61,13 @@ print(m)
 #  Y[1] binary
 #  Y[2] binary
 
-## Example 1b: Same as Example 1a, but using alternate syntax for disjunction creation and reformulation to MIP via indicator constraints.
-
-# Disjunction Method 2: Create Logical Variables from Disjunctions
-m = GDPModel() # optimizer not specified since HiGHS doesn't support indicator constraints
-@variable(m, -5 ≤ x ≤ 10)
-@constraint(m, disjunct_1_con, 0 ≤ x ≤ 3, DisjunctConstraint)
-@constraint(m, disjunct_2_con_a, 5 ≤ x, DisjunctConstraint)
-@constraint(m, disjunct_2_con_b, x ≤ 9, DisjunctConstraint)
-@disjunction(m, disjunction, [[disjunct_1_con], [disjunct_2_con_a, disjunct_2_con_b]])
-Y = disjunction_indicators(disjunction)
-@constraint(m, Y in Exactly(1)) 
-@objective(m, Max, x)
+## Example 1b: Same as Example 1a, but reformulating to MIP via indicator constraints.
+# NOTE: HiGHS doesn't support indicator constraints
+using Gurobi
+set_optimizer(m, Gurobi.Optimizer)
 
 ## Indicator Constraints reformulation
-reformulate_model(m, Indicator())
+optimize!(m, method = Indicator())
 print(m)
 # Max x
 # Subject to

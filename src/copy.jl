@@ -1,3 +1,7 @@
+################################################################################
+#                              COPY METHODS
+################################################################################
+# logical constraints
 function _copy(logical_constraints::_MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData, T1, T2}, new_model::JuMP.Model) where {T1, T2}
     new_logical_cons = _MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData}()
     for (_, LCD) in logical_constraints
@@ -12,6 +16,7 @@ function _copy(logical_constraints::_MOIUC.CleverDict{LogicalConstraintIndex, Co
     return new_logical_cons
 end
 
+# disjunct constraints
 function _copy(disjunct_constraints::_MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData, T1, T2}, new_model::JuMP.Model) where {T1, T2}
     new_disjunct_cons = _MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}()
     for (_, DCD) in disjunct_constraints
@@ -26,59 +31,50 @@ function _copy(disjunct_constraints::_MOIUC.CleverDict{DisjunctConstraintIndex, 
     return new_disjunct_cons
 end
 
+# nothing
 _copy(::Nothing, new_model::JuMP.Model) = nothing
 
-function _copy(set::S, new_mode::JuMP.Model) where {S<:Union{_MOI.EqualTo, MOIAtLeast, MOIAtMost, MOIExactly}}
+# MOI sets
+function _copy(set::S, new_model::JuMP.Model) where {S <: _MOI.AbstractSet}
     return set
 end
 
-function _copy(set::MOIAtLeast{T}, new_model::JuMP.Model) where {T<:LogicalVariableRef}
-    return MOIAtLeast{T}(
-        LogicalVariableRef(new_model, JuMP.index(set.value)), 
-        set.dimension
-    )
+# Cardinality sets
+function _copy(set::S, new_model::JuMP.Model) where {S <: MOISelector}
+    return S(_copy(set.value, new_model), set.dimension)
 end
 
-function _copy(set::MOIAtMost{T}, new_model::JuMP.Model) where {T<:LogicalVariableRef}
-    return MOIAtMost{T}(
-        LogicalVariableRef(new_model, JuMP.index(set.value)), 
-        set.dimension
-    )
-end
-
-function _copy(set::MOIExactly{T}, new_model::JuMP.Model) where {T<:LogicalVariableRef}
-    return MOIExactly{T}(
-        LogicalVariableRef(new_model, JuMP.index(set.value)), 
-        set.dimension
-    )
-end
-
+# number
 function _copy(c::Number, new_model::JuMP.Model)
     return c
 end
 
+# VariableRef
 function _copy(var::JuMP.VariableRef, new_model::JuMP.Model)
     return JuMP.VariableRef(new_model, JuMP.index(var))
 end
 
+# LogicalVariableRef
 function _copy(lvar::LogicalVariableRef, new_model::JuMP.Model)
     return LogicalVariableRef(new_model, JuMP.index(lvar))
 end
-
 function _copy(lvec::Vector{LogicalVariableRef}, new_model::JuMP.Model)
     return _copy.(lvec, new_model)
 end
 
+# Affine expression
 function _copy(aff::JuMP.AffExpr, new_model::JuMP.Model)
-    new_expr = JuMP.AffExpr(aff.constant)
+    new_expr = zero(JuMP.AffExpr)
     for (var, coeff) in aff.terms
         new_var = _copy(var, new_model)
         JuMP.add_to_expression!(new_expr, coeff*new_var)
     end
+    JuMP.add_to_expression!(new_expr, aff.constant)
 
     return new_expr
 end
 
+# Quadratic expression
 function _copy(quad::JuMP.QuadExpr, new_model::JuMP.Model)
     new_expr = zero(JuMP.QuadExpr)
     JuMP.add_to_expression!(new_expr, _copy(quad.aff, new_model))
@@ -91,6 +87,7 @@ function _copy(quad::JuMP.QuadExpr, new_model::JuMP.Model)
     return new_expr
 end
 
+# Nonlinear expression
 function _copy(nlp::JuMP.NonlinearExpr, new_model::JuMP.Model)
     #TODO: use stack to avoid recursion stackoverflow error for deeply nested expression
     new_args = Vector{Any}(undef, length(nlp.args))
@@ -100,6 +97,7 @@ function _copy(nlp::JuMP.NonlinearExpr, new_model::JuMP.Model)
     return JuMP.NonlinearExpr(nlp.head, new_args)
 end
 
+# Vector of JuMP expressions
 function _copy(expr::Vector{T}, new_model::JuMP.Model) where {T <: JuMP.AbstractJuMPScalar}
     return _copy.(expr, new_model)
 end

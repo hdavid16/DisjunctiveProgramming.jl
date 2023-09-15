@@ -1,3 +1,6 @@
+################################################################################
+#                              BIG-M VALUE
+################################################################################
 # Get Big-M value for a particular constraint
 function _get_M_value(method::BigM, func::JuMP.AbstractJuMPScalar, set::_MOI.AbstractSet)
     if method.tighten

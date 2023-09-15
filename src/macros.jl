@@ -148,7 +148,22 @@ end
 #                                DISJUNCTION MACRO
 ################################################################################
 """
+    @disjunction(model, expr, kw_args...)
 
+Add a disjunction described by the expression `expr`, 
+which must be a `Vector` of `LogicalVariableRef`s.
+
+    @disjunction(model, ref[i=..., j=..., ...], expr, kw_args...)
+
+Add a group of disjunction described by the expression `expr` parameterized
+by `i`, `j`, ..., which must be a `Vector` of `LogicalVariableRef`s.
+
+The recognized keyword arguments in `kw_args` are the following:
+-  `base_name`: Sets the name prefix used to generate constraint names. 
+    It corresponds to the constraint name for scalar constraints, otherwise, 
+    the constraint names are set to `base_name[...]` for each index `...` 
+        of the axes `axes`.
+-  `container`: Specify the container type.
 """
 macro disjunction(model, args...)
     # prepare the model 
@@ -239,10 +254,88 @@ macro disjunction(model, args...)
     return _finalize_macro(_error, esc_model, macro_code, __source__)
 end
 
+# Pluralize the @disjunction macro
+# Inspired from https://github.com/jump-dev/JuMP.jl/blob/9037ed9334720bd04bc372e5915cc042a4895e5b/src/macros.jl#L1489-L1547
 """
+    @disjunctions(model, args...)
 
+Adds groups of disjunctions at once, in the same fashion as the `@disjunction` macro.
+
+The model must be the first argument, and multiple disjunctions can be added on multiple 
+lines wrapped in a `begin ... end` block.
+
+The macro returns a tuple containing the disjunctions that were defined.
+
+## Example
+
+```jldoctest
+julia> model = GDPModel();
+
+julia> @variable(model, w);
+
+julia> @variable(model, x);
+
+julia> @variable(model, Y[1:4], LogicalVariable);
+
+julia> @constraint(model, [i=1:2], w == i, DisjunctConstraint(Y[i]));
+
+julia> @constraint(model, [i=3:4], x == i, DisjunctConstraint(Y[i]));
+
+julia> @disjunctions(model, begin
+           [Y[1], Y[2]]
+           [Y[3], Y[4]]
+       end);
+````
 """
-macro disjunctions(model, args...)
-    # TODO
+macro disjunctions(m, x)
+    if !(isa(x, Expr) && x.head == :block)
+        error(
+            "Invalid syntax for @disjunctions. The second argument must be a `begin end` " *
+            "block. For example:\n" *
+            "```julia\n@disjunctions(model, begin\n    # ... lines here ...\nend)\n```."
+        )
+    end
+    @assert isa(x.args[1], LineNumberNode)
+    lastline = x.args[1]
+    code = Expr(:tuple)
+    singular = Expr(:., DisjunctiveProgramming, :($(QuoteNode(Symbol("@disjunction")))))
+    for it in x.args
+        if isa(it, LineNumberNode)
+            lastline = it
+        elseif isexpr(it, :tuple) # line with commas
+            args = []
+            # Keyword arguments have to appear like:
+            # x, (start = 10, lower_bound = 5)
+            # because of the precedence of "=".
+            for ex in it.args
+                if isexpr(ex, :tuple) # embedded tuple
+                    append!(args, ex.args)
+                else
+                    push!(args, ex)
+                end
+            end
+            macro_call = esc(
+                Expr(
+                    :macrocall,
+                    singular,
+                    lastline,
+                    m,
+                    args...,
+                ),
+            )
+            push!(code.args, macro_call)
+        else # stand-alone symbol or expression
+            macro_call = esc(
+                Expr(
+                    :macrocall,
+                    singular,
+                    lastline,
+                    m,
+                    it,
+                ),
+            )
+            push!(code.args, macro_call)
+        end
+    end
+    return code
 end
-

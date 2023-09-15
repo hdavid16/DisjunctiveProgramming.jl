@@ -10,6 +10,12 @@ function _optimize_hook(
     return JuMP.optimize!(model; ignore_optimize_hook = true)
 end
 
+"""
+    reformulate_model(model::JuMP.Model, method::AbstractSolutionMethod)
+
+Reformulate a `GDPModel` using the specified `method`. Prior to reformulation,
+all previous reformulation variables and constraints are deleted.
+"""
 function reformulate_model(model::JuMP.Model, method::AbstractSolutionMethod)
     #clear all previous reformulations
     for (cidx, cshape) in _reformulation_constraints(model)

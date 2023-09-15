@@ -1,11 +1,7 @@
 ################################################################################
 #                              LOGICAL VARIABLES
 ################################################################################
-"""
-    _variable_info(binary::Bool=false, lower_bound::Float64=-Inf, upper_bound::Float64=Inf)
-
-Wrapper to build `JuMP.VariableInfo` for 
-"""
+# helper function to create the variable info used when creating reformulation variables
 function _variable_info(;
     binary::Bool=false, 
     lower_bound::Float64=-Inf, upper_bound::Float64=Inf, 
@@ -74,65 +70,44 @@ function JuMP.add_variable(
     return LogicalVariableRef(model, idx)
 end
 
-# Basic base extensions
+# Base extensions
 Base.copy(v::LogicalVariableRef) = v
 Base.broadcastable(v::LogicalVariableRef) = Ref(v)
 Base.length(v::LogicalVariableRef) = 1
-
-"""
-
-"""
-JuMP.owner_model(vref::LogicalVariableRef) = vref.model
-
-"""
-
-"""
-JuMP.index(vref::LogicalVariableRef) = vref.index
-
 function Base.:(==)(v::LogicalVariableRef, w::LogicalVariableRef)
     return v.model === w.model && v.index == w.index
 end
-JuMP.isequal_canonical(v::LogicalVariableRef, w::LogicalVariableRef) = v == w
-
 function Base.getindex(map::JuMP.ReferenceMap, vref::LogicalVariableRef)
     return LogicalVariableRef(map.model, JuMP.index(vref))
 end
 
-"""
+# JuMP extensions
+JuMP.owner_model(vref::LogicalVariableRef) = vref.model
 
-"""
+JuMP.index(vref::LogicalVariableRef) = vref.index
+
+JuMP.isequal_canonical(v::LogicalVariableRef, w::LogicalVariableRef) = v == w
+
 function JuMP.is_valid(model::JuMP.Model, vref::LogicalVariableRef)
     return model === JuMP.owner_model(vref)
 end
 
-"""
-
-"""
 function JuMP.name(vref::LogicalVariableRef)
     data = gdp_data(JuMP.owner_model(vref))
     return data.logical_variables[JuMP.index(vref)].name
 end
 
-"""
-
-"""
 function JuMP.set_name(vref::LogicalVariableRef, name::String)
     data = gdp_data(JuMP.owner_model(vref))
     data.logical_variables[JuMP.index(vref)].name = name
     return
 end
 
-"""
-
-"""
 function JuMP.start_value(vref::LogicalVariableRef)
     data = gdp_data(JuMP.owner_model(vref))
     return data.logical_variables[JuMP.index(vref)].variable.start
 end
 
-"""
-
-"""
 function JuMP.set_start_value(
     vref::LogicalVariableRef, 
     value::Union{Nothing, Bool}
@@ -144,17 +119,11 @@ function JuMP.set_start_value(
     return
 end
 
-"""
-
-"""
 function JuMP.fix_value(vref::LogicalVariableRef)
     data = gdp_data(JuMP.owner_model(vref))
     return data.logical_variables[JuMP.index(vref)].variable.fix_value
 end
 
-"""
-
-"""
 function JuMP.fix(vref::LogicalVariableRef, value::Bool)
     data = gdp_data(JuMP.owner_model(vref))
     var = data.logical_variables[JuMP.index(vref)].variable
@@ -163,9 +132,6 @@ function JuMP.fix(vref::LogicalVariableRef, value::Bool)
     return
 end
 
-"""
-
-"""
 function JuMP.unfix(vref::LogicalVariableRef)
     data = gdp_data(JuMP.owner_model(vref))
     var = data.logical_variables[JuMP.index(vref)].variable
@@ -174,9 +140,6 @@ function JuMP.unfix(vref::LogicalVariableRef)
     return
 end
 
-"""
-
-"""
 function JuMP.delete(model::JuMP.Model, vref::LogicalVariableRef)
     @assert JuMP.is_valid(model, vref) "Variable does not belong to model."
     vidx = JuMP.index(vref)
@@ -201,7 +164,7 @@ function JuMP.delete(model::JuMP.Model, vref::LogicalVariableRef)
 end
 
 ################################################################################
-#                              VARIABLE ITERATION
+#                              VARIABLE INTERROGATION
 ################################################################################
 function _get_disjunction_variables(model::JuMP.Model, disj::ConstraintData{Disjunction})
     vars = Set{JuMP.VariableRef}()
@@ -255,19 +218,13 @@ function _interrogate_variables(interrogator::Function, quad::JuMP.QuadExpr)
     return
 end
 
-# NonlinearExpr
-function _interrogate_variables(interrogator::Function, nlp::JuMP.NonlinearExpr)
+# NonlinearExpr and _LogicalExpr (T <: Union{JuMP.VariableRef, LogicalVariableRef})
+function _interrogate_variables(interrogator::Function, nlp::JuMP.GenericNonlinearExpr{T}) where {T}
     for arg in nlp.args
         _interrogate_variables(interrogator, arg)
     end
     # TODO avoid recursion. See InfiniteOpt.jl for alternate method that avoids stackoverflow errors with deeply nested expressions:
     # https://github.com/infiniteopt/InfiniteOpt.jl/blob/cb6dd6ae40fe0144b1dd75da0739ea6e305d5357/src/expressions.jl#L520-L534
-    return
-end
-function _interrogate_variables(interrogator::Function, nlp::_LogicalExpr)
-    for arg in nlp.args
-        _interrogate_variables(interrogator, arg)
-    end
     return
 end
 

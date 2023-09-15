@@ -43,6 +43,7 @@ function _to_cnf(lexpr::_LogicalExpr)
         _flatten
 end
 
+# Eliminate the equivalence operator `⇔` by replacing it with two implications.
 function _eliminate_equivalence(lvar::LogicalVariableRef)
     return lvar
 end
@@ -70,6 +71,7 @@ function _eliminate_equivalence(lexpr::_LogicalExpr)
     return new_lexpr
 end
 
+# Eliminate the implication operator `⟹` by replacing it with a disjunction.
 function _eliminate_implication(lvar::LogicalVariableRef)
     return lvar
 end
@@ -93,6 +95,7 @@ function _eliminate_implication(lexpr::_LogicalExpr)
     return new_lexpr
 end
 
+# Move negations inward by applying De Morgan's laws.
 function _move_negations_inward(lvar::LogicalVariableRef)
     return lvar
 end

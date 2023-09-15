@@ -1,10 +1,7 @@
 ################################################################################
 #                              LOGICAL VARIABLES
 ################################################################################
-"""
-
-Create binary (indicator) variables for logic variables.
-"""
+# create binary (indicator) variables for logic variables.
 function _reformulate_logical_variables(model::JuMP.Model)
     for (lv_idx, lv_data) in _logical_variables(model)
         lv = lv_data.variable
@@ -25,6 +22,7 @@ function _reformulate_disjunctions(model::JuMP.Model, method::AbstractReformulat
         _reformulate_disjunction(model, disj, method)
     end
 end
+
 # disjuncts
 function _reformulate_disjunction(model::JuMP.Model, disj::ConstraintData{T}, method::Union{BigM,Indicator}) where {T<:Disjunction}
     for d in disj.constraint.disjuncts
@@ -55,7 +53,9 @@ function _reformulate_disjunct(model::JuMP.Model, ind_idx::LogicalVariableIndex,
     end
 end
 
-# BigM: individual disjunct constraints
+################################################################################
+#                              BIG-M REFORMULATION
+################################################################################
 function _reformulate_disjunct_constraint(
     model::JuMP.Model,
     con::JuMP.ScalarConstraint{T, S}, 
@@ -166,7 +166,9 @@ function _reformulate_disjunct_constraint(
     )
 end
 
-# Hull: individual disjunct constraints
+################################################################################
+#                              HULL REFORMULATION
+################################################################################
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.ScalarConstraint{T, S}, 
@@ -175,7 +177,7 @@ function _reformulate_disjunct_constraint(
 ) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
     new_func = _disaggregate_expression(model, con.func, bvref, method)
     set_value = _set_value(con.set)
-    JuMP._MA.add_mul!!(new_func, -set_value*bvref) # TODO update when JuMP supports add_to_expression! for NonlinearExpr
+    new_func -= set_value*bvref
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, new_func, S(0))
     )
@@ -283,7 +285,9 @@ function _reformulate_disjunct_constraint(
     )
 end
 
-# Indicator: individual disjunct constraints
+################################################################################
+#                              INDICATOR REFORMULATION
+################################################################################
 function _reformulate_disjunct_constraint(
     model::JuMP.Model,
     con::JuMP.ScalarConstraint{T, S},
@@ -310,7 +314,9 @@ function _reformulate_disjunct_constraint(
     end
 end
 
-# define fallbacks for other constraint types
+################################################################################
+#                              REFORMULATION FALLBACK
+################################################################################
 function _reformulate_disjunct_constraint(
     ::JuMP.Model,  
     con::JuMP.AbstractConstraint, 
@@ -321,26 +327,26 @@ function _reformulate_disjunct_constraint(
 end
 
 ################################################################################
-#                              LOGICAL CONSTRAINTS
+#                       LOGICAL CONSTRAINT REFORMULATION
 ################################################################################
-
-"""
-
-"""
+# all logical constraints
 function _reformulate_logical_constraints(model::JuMP.Model)
     for (_, lcon) in _logical_constraints(model)
         _reformulate_logical_constraint(model, lcon.constraint.func, lcon.constraint.set)
     end
 end
-
+# individual logical constraints
 function _reformulate_logical_constraint(model::JuMP.Model, lvec::Vector{LogicalVariableRef}, set::Union{MOIAtMost, MOIAtLeast, MOIExactly})
     return _reformulate_selector(model, set, set.value, lvec)
 end
-
 function _reformulate_logical_constraint(model::JuMP.Model, lexpr::_LogicalExpr, ::_MOI.EqualTo{Bool})
     return _reformulate_proposition(model, lexpr)
 end
 
+################################################################################
+#                              SELECTOR REFORMULATION
+################################################################################
+# cardinality constraint reformulation
 function _reformulate_selector(model::JuMP.Model, ::MOIAtLeast, val::Number, lvrefs::Vector{LogicalVariableRef})
     bvrefs = _indicator_to_binary_ref.(lvrefs)
     reform_con = JuMP.add_constraint(model,
@@ -387,24 +393,28 @@ function _reformulate_selector(model::JuMP.Model, ::MOIExactly, lvref::LogicalVa
     push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
 
+################################################################################
+#                              PROPOSITION REFORMULATION
+################################################################################
 function _reformulate_proposition(model::JuMP.Model, lexpr::_LogicalExpr)
     expr = _to_cnf(lexpr)
     if expr.head == :∧
         for arg in expr.args
-            _add_proposition(model, arg)
+            _add_reformulated_proposition(model, arg)
         end
     elseif expr.head == :∨ && all(_isa_literal.(expr.args))
-        _add_proposition(model, expr)
+        _add_reformulated_proposition(model, expr)
     else
         error("Expression was not converted to proper Conjunctive Normal Form:\n$expr")
     end
 end
 
+# helper to determine if an object is a logic literal (i.e. a logic variable or its negation)
 _isa_literal(v::LogicalVariableRef) = true
 _isa_literal(v::_LogicalExpr) = (v.head == :¬) && (length(v.args) == 1) && _isa_literal(v.args[1])
 _isa_literal(v) = false
 
-function _add_proposition(model::JuMP.Model, arg::Union{LogicalVariableRef,_LogicalExpr})
+function _add_reformulated_proposition(model::JuMP.Model, arg::Union{LogicalVariableRef,_LogicalExpr})
     func = _reformulate_clause(model, arg)
     if !isempty(func.terms) && !all(iszero.(values(func.terms)))
         con = JuMP.build_constraint(error, func, _MOI.GreaterThan(1))
@@ -420,15 +430,15 @@ function _reformulate_clause(model::JuMP.Model, lvref::LogicalVariableRef)
 end
 
 function _reformulate_clause(model::JuMP.Model, lexpr::_LogicalExpr)
-    func = JuMP.AffExpr() #initialize func expression
+    func = zero(JuMP.AffExpr) #initialize func expression
     if _isa_literal(lexpr)
-        func += (1 - _reformulate_clause(model, lexpr.args[1]))
+        JuMP.add_to_expression!(func, 1 - _reformulate_clause(model, lexpr.args[1]))
     elseif lexpr.head == :∨
         for literal in lexpr.args
             if literal isa LogicalVariableRef
-                func += _reformulate_clause(model, literal)
+                JuMP.add_to_expression!(func, _reformulate_clause(model, literal))
             elseif _isa_literal(literal)
-                func += (1 - _reformulate_clause(model, literal.args[1]))
+                JuMP.add_to_expression!(func, 1 - _reformulate_clause(model, literal.args[1]))
             else
                 error("Expression was not converted to proper Conjunctive Normal Form:\n$literal is not a literal.")
             end

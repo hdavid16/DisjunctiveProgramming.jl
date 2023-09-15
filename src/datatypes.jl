@@ -54,14 +54,8 @@ struct LogicalVariableRef <: JuMP.AbstractVariableRef
 end
 
 ################################################################################
-#                              LOGICAL CONSTRAINTS
+#                        LOGICAL SELECTOR (CARDINALITY) SETS
 ################################################################################
-# Logical sets
-# struct MOIIsTrue <: _MOI.AbstractScalarSet end # we can just use MOI.Equalto(true) instead behind the scenes
-# struct IsTrue <: JuMP.AbstractScalarSet end # we can probably avoid having to make a new set
-# JuMP.moi_set(set::IsTrue) = MOIIsTrue()
-
-# abstract type MOIFirstOrderSet <: _MOI.AbstractVectorSet end # This is probably not needed
 """
     _MOIAtLeast{T<:Union{Int,LogicalVariableRef}} <: MOI.AbstractVectorSet
 
@@ -91,6 +85,8 @@ struct MOIExactly{T<:Union{Int,LogicalVariableRef}} <: _MOI.AbstractVectorSet
     value::T 
     dimension::Int
 end
+
+const MOISelector = Union{MOIAtLeast, MOIAtMost, MOIExactly}
 
 # Create our own JuMP level sets to infer the dimension using the expression
 """
@@ -125,6 +121,9 @@ JuMP.moi_set(set::AtLeast, dim::Int) = MOIAtLeast(set.value, dim)
 JuMP.moi_set(set::AtMost, dim::Int) = MOIAtMost(set.value, dim)
 JuMP.moi_set(set::Exactly, dim::Int) = MOIExactly(set.value, dim)
 
+################################################################################
+#                              LOGICAL CONSTRAINTS
+################################################################################
 const _LogicalExpr = JuMP.GenericNonlinearExpr{LogicalVariableRef}
 
 """
@@ -168,13 +167,6 @@ end
 #                              DISJUNCT CONSTRAINTS
 ################################################################################
 """
-
-"""
-struct DisjunctConstraintIndex
-    value::Int64
-end
-
-"""
     DisjunctConstraint
 
 Used as a tag for constraints that will be used in disjunctions. This is done via 
@@ -193,9 +185,21 @@ struct DisjunctConstraint
 end
 
 # Create internal type for temporarily packaging constraints for disjuncts
-struct _DisjunctConstraint{C <: JuMP.AbstractConstraint, L <: Union{Nothing, LogicalVariableRef}}
+struct _DisjunctConstraint{C <: JuMP.AbstractConstraint, L <: LogicalVariableRef}
     constr::C
     lvref::L
+end
+
+"""
+    DisjunctConstraintIndex
+
+A type for storing the index of a [`DisjunctConstraint`](@ref).
+
+**Fields**
+- `value::Int64`: The index value.
+"""
+struct DisjunctConstraintIndex
+    value::Int64
 end
 
 """
@@ -212,18 +216,6 @@ end
 #                              DISJUNCTIONS
 ################################################################################
 """
-    DisjunctionIndex
-
-A type for storing the index of a [`Disjunction`](@ref).
-
-**Fields**
-- `value::Int64`: The index value.
-"""
-struct DisjunctionIndex
-    value::Int64
-end
-
-"""
     Disjunction <: JuMP.AbstractConstraint
 
 A type for a disjunctive constraint that is comprised of a collection of 
@@ -234,6 +226,18 @@ disjuncts of indicated by a unique [`LogicalVariableRef`](@ref).
 """
 struct Disjunction <: JuMP.AbstractConstraint
     disjuncts::Vector{LogicalVariableIndex}
+end
+
+"""
+    DisjunctionIndex
+
+A type for storing the index of a [`Disjunction`](@ref).
+
+**Fields**
+- `value::Int64`: The index value.
+"""
+struct DisjunctionIndex
+    value::Int64
 end
 
 """
