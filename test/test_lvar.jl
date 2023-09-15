@@ -15,6 +15,32 @@ function test_lvar_add_success()
     @test isnothing(JuMP.fix_value(y))
 end
 
+function test_lvar_add_array()
+    model = GDPModel()
+    @variable(model, y[1:3, 1:2], LogicalVariable)
+    @test typeof(y) == Array{LogicalVariableRef, 2}
+    @test length(y) == 6
+end
+
+function test_lvar_add_dense_axis()
+    model = GDPModel()
+    @variable(model, y[["a","b","c"],[1,2]], LogicalVariable)
+    @test y isa JuMP.Containers.DenseAxisArray
+    @test length(y) == 6
+    @test y.axes[1] == ["a","b","c"]
+    @test y.axes[2] == [1,2]
+    @test y.data isa Array{LogicalVariableRef, 2}
+end
+
+function test_lvar_add_sparse_axis()
+    model = GDPModel()
+    @variable(model, y[i = 1:3, j = 1:3; j > i], LogicalVariable)
+    @test y isa JuMP.Containers.SparseAxisArray
+    @test length(y) == 3
+    @test y.names == (:i, :j)
+    @test Set(keys(y.data)) == Set([(1,2),(1,3),(2,3)])
+end
+
 function test_lvar_set_name()
     model = GDPModel()
     @variable(model, y, LogicalVariable)
@@ -79,11 +105,16 @@ function test_lvar_reformulation()
     bvref = JuMP.VariableRef(model, bidx)
     @test JuMP.owner_model(bvref) == model
     @test JuMP.is_binary(bvref)
+    @test iszero(JuMP.start_value(bvref))
     @test isone(JuMP.fix_value(bvref))
 end
+
 @testset "Logical Variables" begin
     test_lvar_add_fail()
     test_lvar_add_success()
+    test_lvar_add_array()
+    test_lvar_add_dense_axis()
+    test_lvar_add_sparse_axis()
     test_lvar_set_name()
     test_lvar_creation_start_value()
     test_lvar_set_start_value()
