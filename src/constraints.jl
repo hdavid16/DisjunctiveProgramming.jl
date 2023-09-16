@@ -174,16 +174,28 @@ function JuMP.build_constraint(
 end
 
 # Allows for building DisjunctConstraints for VectorConstraints since these get parsed differently by JuMP (the set is changed to a MOI.AbstractScalarSet)
-function JuMP.build_constraint(
-    _error::Function, 
-    func::Vector{T}, 
-    set::Union{_MOI.LessThan{Bool}, _MOI.GreaterThan{Bool}, _MOI.EqualTo{Bool}},
-    tag::DisjunctConstraint
-) where {T <: JuMP.AbstractJuMPScalar}
-    dim = length(func)
-    mapped_set = _scalar_to_vec_set(set,dim)
-    constr = JuMP.build_constraint(_error, func, mapped_set)
-    return _DisjunctConstraint(constr, tag.indicator)
+for SetType in (JuMP.Nonnegatives, JuMP.Nonpositives, JuMP.Zeros)
+    @eval begin
+        @doc """
+            JuMP.build_constraint(
+                _error::Function, 
+                func, 
+                set::$($SetType),
+                tag::DisjunctConstraint
+            )::_DisjunctConstraint
+
+        Extend `JuMP.build_constraint` to add `VectorConstraint`s to disjuncts.
+        """
+        function JuMP.build_constraint(
+            _error::Function, 
+            func, 
+            set::$SetType, 
+            tag::DisjunctConstraint
+        )
+            constr = JuMP.build_constraint(_error, func, set)
+            return _DisjunctConstraint(constr, tag.indicator)
+        end
+    end
 end
 
 # Allow intervals to handle tags
@@ -253,9 +265,6 @@ function _process_structure(_error, s::Vector{LogicalVariableRef}, model::JuMP.M
     end
     return s
 end
-
-# TODO account for nested disjunction inputs with indicators
-# TODO maybe replace Vectors for Tuple structured input to avoid nuance mistakes
 
 # fallback
 function _process_structure(_error, s, model::JuMP.Model)
@@ -394,8 +403,7 @@ This in combination with `JuMP.add_constraint` enables the use of
 `@constraint(model, [name], logical_expr == true/false)` to define a Boolean expression that must
 either be true or false.
 """
-# Cardinality logical constraint
-function JuMP.build_constraint(
+function JuMP.build_constraint( # Cardinality logical constraint
     _error::Function, 
     func::AbstractVector{T}, # allow any vector-like JuMP container
     set::MOISelector # TODO: generalize to allow CP sets from MOI

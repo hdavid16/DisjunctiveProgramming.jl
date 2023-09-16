@@ -5,8 +5,11 @@
 function _reformulate_logical_variables(model::JuMP.Model)
     for (lv_idx, lv_data) in _logical_variables(model)
         lv = lv_data.variable
-        var = JuMP.ScalarVariable(_variable_info(binary=true, start_value = lv.start_value, fix_value = lv.fix_value))
-        bvref = JuMP.add_variable(model, var, lv_data.name)
+        lvref = LogicalVariableRef(model, lv_idx)
+        bvref = JuMP.@variable(model, base_name = lv_data.name, binary=true, start = lv.start_value)
+        if JuMP.is_fixed(lvref)
+            JuMP.fix(bvref, JuMP.fix_value(lvref))
+        end
         bv_idx = JuMP.index(bvref)
         push!(_reformulation_variables(model), bv_idx)
         _indicator_to_binary(model)[lv_idx] = bv_idx

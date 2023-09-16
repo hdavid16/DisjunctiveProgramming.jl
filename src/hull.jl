@@ -24,9 +24,8 @@ function _disaggregate_variable(model::JuMP.Model, ind_idx::LogicalVariableIndex
     #create disaggregated (disjunct) vref
     v_idx = JuMP.index(vref) #variable
     lb, ub = _variable_bounds(model)[v_idx]
-    dvar = JuMP.ScalarVariable(_variable_info(lower_bound = lb, upper_bound = ub))
     lvref = LogicalVariableRef(model, ind_idx)
-    dvref = JuMP.add_variable(model, dvar, "$(vref)_$(lvref)")
+    dvref = JuMP.@variable(model, base_name = "$(vref)_$(lvref)", lower_bound = lb, upper_bound = ub)
     dv_idx = JuMP.index(dvref) #disaggregated (disjunct) variable
     push!(_reformulation_variables(model), dv_idx)
     #get binary indicator variable

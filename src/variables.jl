@@ -1,22 +1,6 @@
 ################################################################################
 #                              LOGICAL VARIABLES
 ################################################################################
-# helper function to create the variable info used when creating reformulation variables
-function _variable_info(;
-    binary::Bool=false, 
-    lower_bound::Float64=-Inf, upper_bound::Float64=Inf, 
-    start_value::Union{Nothing, Bool}=nothing, 
-    fix_value::Union{Nothing, Bool}=nothing
-)
-    JuMP.VariableInfo(
-        !isinf(lower_bound), lower_bound, 
-        !isinf(upper_bound), upper_bound, 
-        !isnothing(fix_value), fix_value, #fix value
-        !isnothing(start_value), start_value, #start value
-        binary, false #integrality
-    )
-end
-
 """
     JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, 
                         ::Type{LogicalVariable})::LogicalVariable
@@ -114,6 +98,10 @@ function JuMP.set_start_value(
     return
 end
 
+function JuMP.is_fixed(vref::LogicalVariableRef)
+    data = gdp_data(JuMP.owner_model(vref))
+    return !isnothing(data.logical_variables[JuMP.index(vref)].variable.fix_value)
+end
 function JuMP.fix_value(vref::LogicalVariableRef)
     data = gdp_data(JuMP.owner_model(vref))
     return data.logical_variables[JuMP.index(vref)].variable.fix_value
