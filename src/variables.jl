@@ -66,61 +66,148 @@ function Base.getindex(map::JuMP.ReferenceMap, vref::LogicalVariableRef)
 end
 
 # JuMP extensions
+"""
+    JuMP.owner_model(vref::LogicalVariableRef)
+
+Return the `GDP model` to which `vref` belongs.
+"""
 JuMP.owner_model(vref::LogicalVariableRef) = vref.model
+
+"""
+    JuMP.index(vref::LogicalVariableRef)
+
+Return the index of logical variable that associated with `vref`.
+"""
 JuMP.index(vref::LogicalVariableRef) = vref.index
+
+"""
+    JuMP.isequal_canonical(v::LogicalVariableRef, w::LogicalVariableRef)
+
+Return `true` if `v` and `w` refer to the same logical variable in the same
+`GDP model`.
+"""
 JuMP.isequal_canonical(v::LogicalVariableRef, w::LogicalVariableRef) = v == w
+
+"""
+    JuMP.is_valid(model::JuMP.Model, vref::LogicalVariableRef)
+
+Return `true` if `vref` refers to a valid logical variable in `GDP model`.
+"""
 function JuMP.is_valid(model::JuMP.Model, vref::LogicalVariableRef)
     return model === JuMP.owner_model(vref)
 end
 
+"""
+    JuMP.name(vref::LogicalVariableRef)
+
+Get a logical variable's name attribute.
+"""
 function JuMP.name(vref::LogicalVariableRef)
     data = gdp_data(JuMP.owner_model(vref))
     return data.logical_variables[JuMP.index(vref)].name
 end
+
+"""
+    JuMP.set_name(vref::LogicalVariableRef, name::String)
+
+Set a logical variable's name attribute.
+"""
 function JuMP.set_name(vref::LogicalVariableRef, name::String)
-    data = gdp_data(JuMP.owner_model(vref))
+    model = JuMP.owner_model(vref)
+    data = gdp_data(model)
     data.logical_variables[JuMP.index(vref)].name = name
+    _set_ready_to_optimize(model, false)
     return
 end
 
+"""
+    JuMP.start_value(vref::LogicalVariableRef)
+
+Return the start value of the logical variable `vref`.
+"""
 function JuMP.start_value(vref::LogicalVariableRef)
     data = gdp_data(JuMP.owner_model(vref))
     return data.logical_variables[JuMP.index(vref)].variable.start_value
 end
+
+"""
+    JuMP.set_start_value(vref::LogicalVariableRef, value::Union{Nothing, Bool})
+
+Set the start value of the logical variable `vref`.
+
+Pass `nothing` to unset the start value.
+"""
 function JuMP.set_start_value(
     vref::LogicalVariableRef, 
     value::Union{Nothing, Bool}
     )
-    data = gdp_data(JuMP.owner_model(vref))
+    model = JuMP.owner_model(vref)
+    data = gdp_data(model)
     var = data.logical_variables[JuMP.index(vref)].variable
     new_var = LogicalVariable(var.fix_value, value)
     data.logical_variables[JuMP.index(vref)].variable = new_var
+    _set_ready_to_optimize(model, false)
     return
 end
+"""
+    JuMP.is_fixed(vref::LogicalVariableRef)
 
+Return `true` if `vref` is a fixed variable. If
+    `true`, the fixed value can be queried with
+    fix_value.
+"""
 function JuMP.is_fixed(vref::LogicalVariableRef)
     data = gdp_data(JuMP.owner_model(vref))
     return !isnothing(data.logical_variables[JuMP.index(vref)].variable.fix_value)
 end
+
+"""
+    JuMP.fix_value(vref::LogicalVariableRef)
+
+Return the value to which a logical variable is fixed.
+"""
 function JuMP.fix_value(vref::LogicalVariableRef)
     data = gdp_data(JuMP.owner_model(vref))
     return data.logical_variables[JuMP.index(vref)].variable.fix_value
 end
+
+"""
+    JuMP.fix(vref::LogicalVariableRef, value::Bool)
+
+Fix a logical variable to a value. Update the fixing
+constraint if one exists, otherwise create a
+new one.
+"""
 function JuMP.fix(vref::LogicalVariableRef, value::Bool)
-    data = gdp_data(JuMP.owner_model(vref))
+    model = JuMP.owner_model(vref)
+    data = gdp_data(model)
     var = data.logical_variables[JuMP.index(vref)].variable
     new_var = LogicalVariable(value, var.start_value)
     data.logical_variables[JuMP.index(vref)].variable = new_var
-    return
-end
-function JuMP.unfix(vref::LogicalVariableRef)
-    data = gdp_data(JuMP.owner_model(vref))
-    var = data.logical_variables[JuMP.index(vref)].variable
-    new_var = LogicalVariable(nothing, var.start_value)
-    data.logical_variables[JuMP.index(vref)].variable = new_var
+    _set_ready_to_optimize(model, false)
     return
 end
 
+"""
+    JuMP.unfix(vref::LogicalVariableRef)
+
+Delete the fixed value of a logical variable.
+"""
+function JuMP.unfix(vref::LogicalVariableRef)
+    model = JuMP.owner_model(vref)
+    data = gdp_data(model)
+    var = data.logical_variables[JuMP.index(vref)].variable
+    new_var = LogicalVariable(nothing, var.start_value)
+    data.logical_variables[JuMP.index(vref)].variable = new_var
+    _set_ready_to_optimize(model, false)
+    return
+end
+
+"""
+    JuMP.delete(model::JuMP.Model, vref::LogicalVariableRef)
+
+Delete the logical variable associated with `vref` from the `GDP model`.
+"""
 function JuMP.delete(model::JuMP.Model, vref::LogicalVariableRef)
     @assert JuMP.is_valid(model, vref) "Variable does not belong to model."
     vidx = JuMP.index(vref)

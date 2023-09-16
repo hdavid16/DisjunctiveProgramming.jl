@@ -21,11 +21,11 @@ function reformulate_model(model::JuMP.Model, method::AbstractSolutionMethod)
     for (cidx, cshape) in _reformulation_constraints(model)
         JuMP.delete(model, JuMP.ConstraintRef(model, cidx, cshape))
     end
-    gdp_data(model).reformulation_constraints = Vector{Tuple{_MOI.ConstraintIndex, JuMP.AbstractShape}}()        
+    empty!(gdp_data(model).reformulation_constraints)
     for vidx in _reformulation_variables(model)
         JuMP.delete(model, JuMP.VariableRef(model, vidx))
     end
-    gdp_data(model).reformulation_variables = Vector{_MOI.VariableIndex}()
+    empty!(gdp_data(model).reformulation_variables)
     #reformulate
     _reformulate_logical_variables(model)
     _reformulate_disjunctions(model, method)

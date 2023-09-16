@@ -37,21 +37,21 @@ for (RefType, loc) in ((:DisjunctConstraintRef, :disjunct_constraints),
         @doc """
             JuMP.owner_model(cref::$($RefType))
 
-        Return the model associated with `cref`.
+        Return the model to which `cref` belongs.
         """
         JuMP.owner_model(cref::$RefType) = cref.model
 
         @doc """
             JuMP.index(cref::$($RefType))
 
-        Return the index associated with `cref`.
+        Return the index constraint associated with `cref`.
         """
         JuMP.index(cref::$RefType) = cref.index
 
         @doc """
             JuMP.is_valid(model::JuMP.Model, cref::$($RefType))
 
-        Return `Bool` whether the reference is valid.
+        Return `true` if `cref` refers to a valid constraint in the `GDP model`.
         """
         function JuMP.is_valid(model::JuMP.Model, cref::$RefType) # TODO: generalize for AbstractModel
             return model === JuMP.owner_model(cref)
@@ -65,7 +65,7 @@ for (RefType, loc) in ((:DisjunctConstraintRef, :disjunct_constraints),
         @doc """
             JuMP.name(cref::$($RefType))
 
-        Return the name associated with `cref`.
+        Get a constraint's name attribute.
         """
         function JuMP.name(cref::$RefType)
             return _constraint_data(cref).name
@@ -74,7 +74,7 @@ for (RefType, loc) in ((:DisjunctConstraintRef, :disjunct_constraints),
         @doc """
             JuMP.set_name(cref::$($RefType), name::String)
 
-        Return the name associated with `cref`.
+        Set a constraint's name attribute.
         """
         function JuMP.set_name(cref::$RefType, name::String)
             _constraint_data(cref).name = name
@@ -85,7 +85,8 @@ for (RefType, loc) in ((:DisjunctConstraintRef, :disjunct_constraints),
         @doc """
             JuMP.constraint_object(cref::$($RefType))
 
-        Return the constraint object associated with `cref`.
+        Return the underlying constraint data for the constraint 
+            referenced by `cref`.
         """
         function JuMP.constraint_object(cref::$RefType)
             return _constraint_data(cref).constraint
@@ -108,6 +109,11 @@ for (RefType, loc) in ((:DisjunctConstraintRef, :disjunct_constraints),
 end
 
 # Extend delete
+"""
+    JuMP.delete(model::JuMP.Model, cref::DisjunctionRef)
+
+Delete a disjunction constraint from the `GDP model`.
+"""
 function JuMP.delete(model::JuMP.Model, cref::DisjunctionRef)
     @assert JuMP.is_valid(model, cref) "Disjunctive constraint does not belong to model."
     cidx = JuMP.index(cref)
@@ -122,6 +128,12 @@ function JuMP.delete(model::JuMP.Model, cref::DisjunctionRef)
     _set_ready_to_optimize(model, false)
     return 
 end
+
+"""
+    JuMP.delete(model::JuMP.Model, cref::DisjunctConstraintRef)
+
+Delete a disjunct constraint from the `GDP model`.
+"""
 function JuMP.delete(model::JuMP.Model, cref::DisjunctConstraintRef)
     @assert JuMP.is_valid(model, cref) "Disjunctive constraint does not belong to model."
     cidx = JuMP.index(cref)
@@ -135,6 +147,12 @@ function JuMP.delete(model::JuMP.Model, cref::DisjunctConstraintRef)
     _set_ready_to_optimize(model, false)
     return 
 end
+
+"""
+    JuMP.delete(model::JuMP.Model, cref::LogicalConstraintRef)
+
+Delete a logical constraint from the `GDP model`.
+"""
 function JuMP.delete(model::JuMP.Model, cref::LogicalConstraintRef)
     @assert JuMP.is_valid(model, cref) "Logical constraint does not belong to model."
     cidx = JuMP.index(cref)

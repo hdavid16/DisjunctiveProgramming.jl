@@ -52,14 +52,14 @@ function _reformulate_disjunct(model::JuMP.Model, ind_idx::LogicalVariableIndex,
     bvref = JuMP.VariableRef(model, bv_idx)
     for cidx in _indicator_to_constraints(model)[ind_idx]
         cdata = _disjunct_constraints(model)[cidx]
-        _reformulate_disjunct_constraint(model, cdata.constraint, bvref, method)
+        reformulate_disjunct_constraint(model, cdata.constraint, bvref, method)
     end
 end
 
 ################################################################################
 #                              BIG-M REFORMULATION
 ################################################################################
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     model::JuMP.Model,
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef,
@@ -74,7 +74,7 @@ function _reformulate_disjunct_constraint(
         (JuMP.index(reform_con), JuMP.ScalarShape())
     )
 end
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     model::JuMP.Model,
     con::JuMP.VectorConstraint{T, S, R}, 
     bvref::JuMP.VariableRef,
@@ -91,7 +91,7 @@ function _reformulate_disjunct_constraint(
     )
     push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
 end
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef,
@@ -104,7 +104,7 @@ function _reformulate_disjunct_constraint(
     )
     push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.VectorConstraint{T, S, R}, 
     bvref::JuMP.VariableRef,
@@ -121,7 +121,7 @@ function _reformulate_disjunct_constraint(
     )
     push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
 end
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef,
@@ -142,7 +142,7 @@ function _reformulate_disjunct_constraint(
         (JuMP.index(reform_con_lt), JuMP.ScalarShape())
     )
 end
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.VectorConstraint{T, S, R}, 
     bvref::JuMP.VariableRef,
@@ -172,7 +172,7 @@ end
 ################################################################################
 #                              HULL REFORMULATION
 ################################################################################
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef, 
@@ -186,7 +186,7 @@ function _reformulate_disjunct_constraint(
     )
     push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.VectorConstraint{T, S, R}, 
     bvref::JuMP.VariableRef, 
@@ -200,7 +200,7 @@ function _reformulate_disjunct_constraint(
     )
     push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
 end
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef,
@@ -219,7 +219,7 @@ function _reformulate_disjunct_constraint(
     )
     push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.VectorConstraint{T, S, R}, 
     bvref::JuMP.VariableRef,
@@ -241,7 +241,7 @@ function _reformulate_disjunct_constraint(
     )
     push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
 end
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef,
@@ -261,7 +261,7 @@ function _reformulate_disjunct_constraint(
         (JuMP.index(reform_con_lt), JuMP.ScalarShape())
     )
 end
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef,
@@ -291,7 +291,7 @@ end
 ################################################################################
 #                              INDICATOR REFORMULATION
 ################################################################################
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     model::JuMP.Model,
     con::JuMP.ScalarConstraint{T, S},
     bvref::JuMP.VariableRef,
@@ -302,7 +302,7 @@ function _reformulate_disjunct_constraint(
     )
     push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
 end
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     model::JuMP.Model,
     con::JuMP.VectorConstraint{T, S},
     bvref::JuMP.VariableRef,
@@ -320,7 +320,7 @@ end
 ################################################################################
 #                              REFORMULATION FALLBACK
 ################################################################################
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     ::JuMP.Model,  
     con::JuMP.AbstractConstraint, 
     ::JuMP.VariableRef,
