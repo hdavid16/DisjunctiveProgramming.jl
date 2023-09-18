@@ -99,3 +99,110 @@ function _interval_arithmetic_GreaterThan(func::JuMP.AffExpr, M::Float64)
     end
     return -(M + func.constant)
 end
+
+################################################################################
+#                              BIG-M REFORMULATION
+################################################################################
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model,
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::BigM
+) where {T, S <: _MOI.LessThan}
+    M = _get_M_value(method, con.func, con.set)
+    new_func = JuMP.@expression(model, con.func - M*(1-bvref))
+    reform_con = JuMP.add_constraint(model, 
+        JuMP.build_constraint(error, new_func, con.set)
+    )
+    push!(_reformulation_constraints(model), 
+        (JuMP.index(reform_con), JuMP.ScalarShape())
+    )
+end
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model,
+    con::JuMP.VectorConstraint{T, S, R}, 
+    bvref::JuMP.VariableRef,
+    method::BigM
+) where {T, S <: _MOI.Nonpositives, R}
+    M = [_get_M_value(method, func, con.set) for func in con.func]
+    new_func = JuMP.@expression(model, [i=1:con.set.dimension], 
+        con.func[i] - M[i]*(1-bvref)
+    )
+    reform_con = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func, con.set)
+    )
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
+end
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::BigM,
+) where {T, S <: _MOI.GreaterThan}
+    M = _get_M_value(method, con.func, con.set)
+    new_func = JuMP.@expression(model, con.func + M*(1-bvref))
+    reform_con = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func, con.set)
+    )
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+end
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.VectorConstraint{T, S, R}, 
+    bvref::JuMP.VariableRef,
+    method::BigM,
+) where {T, S <: _MOI.Nonnegatives, R}
+    M = [_get_M_value(method, func, con.set) for func in con.func]
+    new_func = JuMP.@expression(model, [i=1:con.set.dimension], 
+        con.func[i] + M[i]*(1-bvref)
+    )
+    reform_con = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func, con.set)
+    )
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
+end
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::BigM
+) where {T, S <: Union{_MOI.Interval, _MOI.EqualTo}}
+    M = _get_M_value(method, con.func, con.set)
+    new_func_gt = JuMP.@expression(model, con.func + M[1]*(1-bvref))
+    new_func_lt = JuMP.@expression(model, con.func - M[2]*(1-bvref))
+    set_values = _set_values(con.set)
+    reform_con_gt = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(set_values[1]))
+    )
+    reform_con_lt = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(set_values[2]))
+    )
+    push!(_reformulation_constraints(model), 
+        (JuMP.index(reform_con_gt), JuMP.ScalarShape()), 
+        (JuMP.index(reform_con_lt), JuMP.ScalarShape())
+    )
+end
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.VectorConstraint{T, S, R}, 
+    bvref::JuMP.VariableRef,
+    method::BigM
+) where {T, S <: _MOI.Zeros, R}
+    M = [_get_M_value(method, func, con.set) for func in con.func]
+    new_func_nn = JuMP.@expression(model, [i=1:con.set.dimension], 
+        con.func[i] + M[i][1]*(1-bvref)
+    )
+    new_func_np = JuMP.@expression(model, [i=1:con.set.dimension], 
+        con.func[i] - M[i][2]*(1-bvref)
+    )
+    reform_con_nn = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func_nn, _MOI.Nonnegatives(con.set.dimension))
+    )
+    reform_con_np = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func_np, _MOI.Nonpositives(con.set.dimension))
+    )
+    push!(_reformulation_constraints(model), 
+        (JuMP.index(reform_con_nn), JuMP.VectorShape()), 
+        (JuMP.index(reform_con_np), JuMP.VectorShape())
+    )
+end

@@ -220,8 +220,8 @@ function JuMP.delete(model::JuMP.Model, vref::LogicalVariableRef)
     delete!(_indicator_to_constraints(model), vidx)
     #delete any disjunctions that have the logical variable
     for (didx, ddata) in _disjunctions(model)
-        if vidx in ddata.constraint.disjuncts
-            setdiff!(ddata.constraint.disjuncts, [vidx])
+        if vidx in ddata.constraint.indicators
+            setdiff!(ddata.constraint.indicators, [vidx])
             JuMP.delete(model, DisjunctionRef(model, didx))
         end
     end
@@ -234,10 +234,6 @@ function JuMP.delete(model::JuMP.Model, vref::LogicalVariableRef)
     end
     #delete any binary variable associated with the logical variable
     if haskey(_indicator_to_binary(model), vidx)
-        bidx = _indicator_to_binary(model)[vidx]
-        bvref = JuMP.VariableRef(model, bidx)
-        setdiff!(_reformulation_variables(model), [bvref])
-        JuMP.delete(model, bvref)
         delete!(_indicator_to_binary(model), vidx)
     end
     #delete the logical variable
@@ -252,7 +248,7 @@ end
 ################################################################################
 function _get_disjunction_variables(model::JuMP.Model, disj::ConstraintData{Disjunction})
     vars = Set{JuMP.VariableRef}()
-    for ind_idx in disj.constraint.disjuncts
+    for ind_idx in disj.constraint.indicators
         for cidx in _indicator_to_constraints(model)[ind_idx]
             cdata = _disjunct_constraints(model)[cidx]
             _interrogate_variables(v -> push!(vars, v), cdata.constraint)

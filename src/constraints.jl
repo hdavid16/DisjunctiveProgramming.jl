@@ -8,20 +8,6 @@ _set_value(set::_MOI.EqualTo) = set.value
 _set_values(set::_MOI.EqualTo) = (set.value, set.value)
 _set_values(set::_MOI.Interval) = (set.lower, set.upper)
 
-# helper functions to check parsing of vector constraints for disjuncts
-function _scalar_to_vec_set(set::_MOI.LessThan{Bool}, dim::Int)
-    @assert _set_value(set) == false "Error parsing constraint set."
-    return _MOI.Nonpositives(dim)
-end
-function _scalar_to_vec_set(set::_MOI.GreaterThan{Bool}, dim::Int)
-    @assert _set_value(set) == false "Error parsing constraint set."
-    return _MOI.Nonnegatives(dim)
-end
-function _scalar_to_vec_set(set::_MOI.EqualTo{Bool}, dim::Int)
-    @assert _set_value(set) == false "Error parsing constraint set."
-    return _MOI.Zeros(dim)
-end
-
 # helper functions to reformulate vector constraints to indicator constraints
 _vec_to_scalar_set(set::_MOI.Nonpositives) = _MOI.LessThan(0)
 _vec_to_scalar_set(set::_MOI.Nonnegatives) = _MOI.GreaterThan(0)
@@ -119,7 +105,7 @@ function JuMP.delete(model::JuMP.Model, cref::DisjunctionRef)
     cidx = JuMP.index(cref)
     dict = _disjunctions(model)
     #delete each logical variable
-    for lv_idx in dict[cidx].constraint.disjuncts
+    for lv_idx in dict[cidx].constraint.indicators
         JuMP.delete(model, LogicalVariableRef(model, lv_idx))
     end
     #delete from gdp_data
@@ -142,7 +128,6 @@ function JuMP.delete(model::JuMP.Model, cref::DisjunctConstraintRef)
     delete!(dict, cidx)
     #delete from constraint_to_indicator mapping
     delete!(_constraint_to_indicator(model), cidx)
-    # TODO: delete reformulated constraint? This would require mapping cidx to reformulated constraint index
     #not ready to optimize
     _set_ready_to_optimize(model, false)
     return 
@@ -349,26 +334,35 @@ end
 """
     disjunction(
         model::JuMP.Model, 
-        structure, 
-        name::String = ""; 
-        nested::Bool = false,
-        indicator::LogicalVariableRef
+        disjunct_indicators::Vector{LogicalVariableRef}
+        name::String = ""
     )
 
 Function to add a [`Disjunction`](@ref) to a [`GDPModel`](@ref).
+
+    disjunction(
+        model::JuMP.Model, 
+        disjunct_indicators::Vector{LogicalVariableRef},
+        nested_tag::DisjunctConstraint,
+        name::String = ""
+    )
+
+Function to add a nested [`Disjunction`](@ref) to a [`GDPModel`](@ref).
 """
 function disjunction(
     model::JuMP.Model, 
-    structure, 
-    name::String = ""; 
-    nested::Bool = false,
-    indicator::LogicalVariableRef
+    disjunct_indicators, 
+    name::String = ""
 ) # TODO add kw argument to build exactly 1 constraint
-    if nested
-        return _disjunction(error, model, structure, name, DisjunctConstraint)
-    else
-        return _disjunction(error, model, structure, name, DisjunctConstraint(indicator))
-    end
+    return _disjunction(error, model, disjunct_indicators, name)
+end
+function disjunction(
+    model::JuMP.Model, 
+    disjunct_indicators, 
+    nested_tag::DisjunctConstraint,
+    name::String = "",
+) # TODO add kw argument to build exactly 1 constraint
+    return _disjunction(error, model, disjunct_indicators, name, nested_tag)
 end
 
 ################################################################################

@@ -56,37 +56,37 @@ end
 ################################################################################
 #                        LOGICAL SELECTOR (CARDINALITY) SETS
 ################################################################################
+abstract type MOISelector <: _MOI.AbstractVectorSet end
+
 """
-    _MOIAtLeast{T<:Union{Int,LogicalVariableRef}} <: MOI.AbstractVectorSet
+    MOIAtLeast{T<:Union{Int,LogicalVariableRef}} <: MOISelector
 
 MOI level set for AtLeast constraints, see [`AtLeast`](@ref) for recommended syntax.
 """
-struct MOIAtLeast{T<:Union{Int,LogicalVariableRef}} <: _MOI.AbstractVectorSet
+struct MOIAtLeast{T<:Union{Int,LogicalVariableRef}} <: MOISelector
     value::T
     dimension::Int
 end
 
 """
-    _MOIAtMost{T<:Union{Int,LogicalVariableRef}} <: MOI.AbstractVectorSet
+    MOIAtMost{T<:Union{Int,LogicalVariableRef}} <: MOISelector
 
 MOI level set for AtMost constraints, see [`AtMost`](@ref) for recommended syntax.
 """
-struct MOIAtMost{T<:Union{Int,LogicalVariableRef}} <: _MOI.AbstractVectorSet
+struct MOIAtMost{T<:Union{Int,LogicalVariableRef}} <: MOISelector
     value::T 
     dimension::Int
 end
 
 """
-    _MOIExactly{T<:Union{Int,LogicalVariableRef}} <: _MOI.AbstractVectorSet
+    MOIExactly{T<:Union{Int,LogicalVariableRef}} <: MOISelector
 
 MOI level set for Exactly constraints, see [`Exactly`](@ref) for recommended syntax.
 """
-struct MOIExactly{T<:Union{Int,LogicalVariableRef}} <: _MOI.AbstractVectorSet
+struct MOIExactly{T<:Union{Int,LogicalVariableRef}} <: MOISelector
     value::T 
     dimension::Int
 end
-
-const MOISelector = Union{MOIAtLeast, MOIAtMost, MOIExactly}
 
 # Create our own JuMP level sets to infer the dimension using the expression
 """
@@ -222,10 +222,11 @@ A type for a disjunctive constraint that is comprised of a collection of
 disjuncts of indicated by a unique [`LogicalVariableRef`](@ref).
 
 **Fields**
-- `disjuncts::Vector{LogicalVariableIndex}`: The disjuncts that comprise the constraint.
+- `indicators::Vector{LogicalVariableIndex}`: The indices of the logical variables 
+(indicators) that uniquely identify each disjunct in the disjunction.
 """
 struct Disjunction <: JuMP.AbstractConstraint
-    disjuncts::Vector{LogicalVariableIndex}
+    indicators::Vector{LogicalVariableIndex}
 end
 
 """

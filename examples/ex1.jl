@@ -2,10 +2,10 @@ using JuMP
 using DisjunctiveProgramming
 using HiGHS
 
-## Example 1a: Linear GDP 
+## Example 1: Linear GDP 
 
 # Disjunction Method 1: Assign Logical Variables Explicitly
-m = GDPModel(HiGHS.Optimizer)
+m = GDPModel()
 @variable(m, -5 ≤ x ≤ 10)
 @variable(m, Y[1:2], LogicalVariable)
 @constraint(m, 0 ≤ x ≤ 3, DisjunctConstraint(Y[1]))
@@ -22,7 +22,22 @@ print(m)
 #  x ≥ -5
 #  x ≤ 10
 
+## Indicator Constraints reformulation (NOTE: HiGHS doesn't support indicator constraints)
+reformulate_model(m, Indicator())
+print(m)
+# Max x
+# Subject to
+#  Y[1] + Y[2] = 1
+#  Y[2] => {-x ≤ -5}
+#  Y[2] => {x ≤ 9}
+#  x ≥ -5
+#  x ≤ 10
+#  Y[1] binary
+#  Y[2] binary
+#  Y[1] => {x ∈ [0, 3]}
+
 ## BigM reformulation
+set_optimizer(m, HiGHS.Optimizer)
 optimize!(m, method = BigM())
 print(m)
 # Max x
@@ -60,22 +75,3 @@ print(m)
 #  x_Y[2] ≤ 10
 #  Y[1] binary
 #  Y[2] binary
-
-## Example 1b: Same as Example 1a, but reformulating to MIP via indicator constraints.
-# NOTE: HiGHS doesn't support indicator constraints
-using Gurobi
-set_optimizer(m, Gurobi.Optimizer)
-
-## Indicator Constraints reformulation
-optimize!(m, method = Indicator())
-print(m)
-# Max x
-# Subject to
-#  disjunction_1 + disjunction_2 = 1
-#  disjunction_2 => {-x ≤ -5}
-#  disjunction_2 => {x ≤ 9}
-#  x ≥ -5
-#  x ≤ 10
-#  disjunction_1 binary
-#  disjunction_2 binary
-#  disjunction_1 => {x ∈ [0, 3]}

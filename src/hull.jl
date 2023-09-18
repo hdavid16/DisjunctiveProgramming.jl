@@ -147,3 +147,122 @@ function _disaggregate_nl_expression(model::JuMP.Model, nlp::JuMP.NonlinearExpr,
     new_expr = JuMP.NonlinearExpr(nlp.head, new_args)
     return new_expr
 end
+
+################################################################################
+#                              HULL REFORMULATION
+################################################################################
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef, 
+    method::_Hull
+) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
+    new_func = _disaggregate_expression(model, con.func, bvref, method)
+    set_value = _set_value(con.set)
+    new_func -= set_value*bvref
+    reform_con = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func, S(0))
+    )
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+end
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.VectorConstraint{T, S, R}, 
+    bvref::JuMP.VariableRef, 
+    method::_Hull
+) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: Union{_MOI.Nonpositives, _MOI.Nonnegatives, _MOI.Zeros}, R}
+    new_func = JuMP.@expression(model, [i=1:con.set.dimension],
+        _disaggregate_expression(model, con.func[i], bvref, method)
+    )
+    reform_con = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func, con.set)
+    )
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
+end
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::_Hull
+) where {T <: JuMP.GenericNonlinearExpr, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
+    con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
+    con_func0 = JuMP.value(v -> 0.0, con.func)
+    if isinf(con_func0)
+        error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
+    end
+    ϵ = method.value
+    set_value = _set_value(con.set)
+    new_func = JuMP.@expression(model, ((1-ϵ)*bvref+ϵ)*con_func - ϵ*(1-bvref)*con_func0 - set_value*bvref)
+    reform_con = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func, S(0))
+    )
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+end
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.VectorConstraint{T, S, R}, 
+    bvref::JuMP.VariableRef,
+    method::_Hull
+) where {T <: JuMP.GenericNonlinearExpr, S <: Union{_MOI.Nonpositives, _MOI.Nonnegatives, _MOI.Zeros}, R}
+    con_func = JuMP.@expression(model, [i=1:con.set.dimension],
+        _disaggregate_nl_expression(model, con.func[i], bvref, method)
+    )
+    con_func0 = JuMP.value.(v -> 0.0, con.func)
+    if any(isinf.(con_func0))
+        error("At least of of the operators `$([func.head for func in con.func])` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
+    end
+    ϵ = method.value
+    new_func = JuMP.@expression(model, [i=1:con.set.dimension], 
+        ((1-ϵ)*bvref+ϵ)*con_func[i] - ϵ*(1-bvref)*con_func0[i]
+    )
+    reform_con = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func, con.set)
+    )
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
+end
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::_Hull
+) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: _MOI.Interval}
+    new_func = _disaggregate_expression(model, con.func, bvref, method)
+    new_func_gt = JuMP.@expression(model, new_func - con.set.lower*bvref)
+    new_func_lt = JuMP.@expression(model, new_func - con.set.upper*bvref)
+    reform_con_gt = JuMP.add_constraint(model, 
+        JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(0))
+    )
+    reform_con_lt = JuMP.add_constraint(model, 
+        JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
+    )
+    push!(_reformulation_constraints(model), 
+        (JuMP.index(reform_con_gt), JuMP.ScalarShape()), 
+        (JuMP.index(reform_con_lt), JuMP.ScalarShape())
+    )
+end
+function _reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::_Hull
+) where {T <: JuMP.GenericNonlinearExpr, S <: _MOI.Interval}
+    con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
+    con_func0 = JuMP.value(v -> 0.0, con.func)
+    if isinf(con_func0)
+        error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
+    end
+    ϵ = method.value
+    new_func = JuMP.@expression(model, ((1-ϵ)*bvref+ϵ) * con_func - ϵ*(1-bvref)*con_func0)
+    new_func_gt = JuMP.@expression(model, new_func - con.set.lower*bvref)
+    new_func_lt = JuMP.@expression(model, new_func - con.set.upper*bvref)
+    reform_con_gt = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(0))
+    )
+    reform_con_lt = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
+    )
+    push!(_reformulation_constraints(model), 
+        (JuMP.index(reform_con_gt), JuMP.ScalarShape()), 
+        (JuMP.index(reform_con_lt), JuMP.ScalarShape())
+    )
+end

@@ -62,7 +62,7 @@ Return LogicalVariableRefs associated with a disjunction.
 """
 function disjunction_indicators(disjunction::DisjunctionRef) 
     model, idx = disjunction.model, disjunction.index
-    ind_idxs = _disjunctions(model)[idx].constraint.disjuncts
+    ind_idxs = _disjunctions(model)[idx].constraint.indicators
     return LogicalVariableRef.(model, ind_idxs) # TODO account for nested disjunctions
 end
 

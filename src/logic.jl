@@ -216,3 +216,110 @@ function _flatten(lexpr::_LogicalExpr)
     end
     return new_lexpr
 end
+
+################################################################################
+#                              SELECTOR REFORMULATION
+################################################################################
+# cardinality constraint reformulation
+function _reformulate_selector(model::JuMP.Model, ::MOIAtLeast, val::Number, lvrefs::Vector{LogicalVariableRef})
+    bvrefs = _indicator_to_binary_ref.(lvrefs)
+    reform_con = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.GreaterThan(val))
+    )
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+end
+function _reformulate_selector(model::JuMP.Model, ::MOIAtMost, val::Number, lvrefs::Vector{LogicalVariableRef})
+    bvrefs = _indicator_to_binary_ref.(lvrefs)
+    reform_con = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.LessThan(val))
+    )
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+end
+function _reformulate_selector(model::JuMP.Model, ::MOIExactly, val::Number, lvrefs::Vector{LogicalVariableRef})
+    bvrefs = _indicator_to_binary_ref.(lvrefs)
+    reform_con = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.EqualTo(val))
+    )
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+end
+function _reformulate_selector(model::JuMP.Model, ::MOIAtLeast, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
+    bvref = _indicator_to_binary_ref(lvref)
+    bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
+    reform_con = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), _MOI.GreaterThan(0))
+    )
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+end
+function _reformulate_selector(model::JuMP.Model, ::MOIAtMost, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
+    bvref = _indicator_to_binary_ref(lvref)
+    bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
+    reform_con = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), _MOI.LessThan(0))
+    )
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+end
+function _reformulate_selector(model::JuMP.Model, ::MOIExactly, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
+    bvref = _indicator_to_binary_ref(lvref)
+    bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
+    reform_con = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), _MOI.EqualTo(0))
+    )
+    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+end
+
+################################################################################
+#                              PROPOSITION REFORMULATION
+################################################################################
+function _reformulate_proposition(model::JuMP.Model, lexpr::_LogicalExpr)
+    expr = _to_cnf(lexpr)
+    if expr.head == :∧
+        for arg in expr.args
+            _add_reformulated_proposition(model, arg)
+        end
+    elseif expr.head == :∨ && all(_isa_literal.(expr.args))
+        _add_reformulated_proposition(model, expr)
+    else
+        error("Expression was not converted to proper Conjunctive Normal Form:\n$expr")
+    end
+end
+
+# helper to determine if an object is a logic literal (i.e. a logic variable or its negation)
+_isa_literal(v::LogicalVariableRef) = true
+_isa_literal(v::_LogicalExpr) = (v.head == :¬) && (length(v.args) == 1) && _isa_literal(v.args[1])
+_isa_literal(v) = false
+
+function _add_reformulated_proposition(model::JuMP.Model, arg::Union{LogicalVariableRef,_LogicalExpr})
+    func = _reformulate_clause(model, arg)
+    if !isempty(func.terms) && !all(iszero.(values(func.terms)))
+        con = JuMP.build_constraint(error, func, _MOI.GreaterThan(1))
+        reform_con = JuMP.add_constraint(model, con)
+        push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+    end
+    return
+end
+
+function _reformulate_clause(model::JuMP.Model, lvref::LogicalVariableRef)
+    func = 1 * _indicator_to_binary_ref(lvref)
+    return func
+end
+
+function _reformulate_clause(model::JuMP.Model, lexpr::_LogicalExpr)
+    func = zero(JuMP.AffExpr) #initialize func expression
+    if _isa_literal(lexpr)
+        JuMP.add_to_expression!(func, 1 - _reformulate_clause(model, lexpr.args[1]))
+    elseif lexpr.head == :∨
+        for literal in lexpr.args
+            if literal isa LogicalVariableRef
+                JuMP.add_to_expression!(func, _reformulate_clause(model, literal))
+            elseif _isa_literal(literal)
+                JuMP.add_to_expression!(func, 1 - _reformulate_clause(model, literal.args[1]))
+            else
+                error("Expression was not converted to proper Conjunctive Normal Form:\n$literal is not a literal.")
+            end
+        end
+    else
+        error("Expression was not converted to proper Conjunctive Normal Form:\n$lexpr.")
+    end
+    
+    return func
+end

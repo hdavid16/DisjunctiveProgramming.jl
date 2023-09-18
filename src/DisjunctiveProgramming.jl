@@ -19,6 +19,7 @@ include("macros.jl")
 include("reformulate.jl")
 include("bigm.jl")
 include("hull.jl")
+include("indicator.jl")
 include("optimize.jl")
 
 # Define additional stuff that should not be exported
