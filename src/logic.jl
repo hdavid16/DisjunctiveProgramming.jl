@@ -221,28 +221,28 @@ end
 #                              SELECTOR REFORMULATION
 ################################################################################
 # cardinality constraint reformulation
-function _reformulate_selector(model::JuMP.Model, ::MOIAtLeast, val::Number, lvrefs::Vector{LogicalVariableRef})
+function _reformulate_selector(model::JuMP.Model, ::_MOIAtLeast, val::Number, lvrefs::Vector{LogicalVariableRef})
     bvrefs = _indicator_to_binary_ref.(lvrefs)
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.GreaterThan(val))
     )
     push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
-function _reformulate_selector(model::JuMP.Model, ::MOIAtMost, val::Number, lvrefs::Vector{LogicalVariableRef})
+function _reformulate_selector(model::JuMP.Model, ::_MOIAtMost, val::Number, lvrefs::Vector{LogicalVariableRef})
     bvrefs = _indicator_to_binary_ref.(lvrefs)
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.LessThan(val))
     )
     push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
-function _reformulate_selector(model::JuMP.Model, ::MOIExactly, val::Number, lvrefs::Vector{LogicalVariableRef})
+function _reformulate_selector(model::JuMP.Model, ::_MOIExactly, val::Number, lvrefs::Vector{LogicalVariableRef})
     bvrefs = _indicator_to_binary_ref.(lvrefs)
     reform_con = JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.EqualTo(val))
     )
     push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
-function _reformulate_selector(model::JuMP.Model, ::MOIAtLeast, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
+function _reformulate_selector(model::JuMP.Model, ::_MOIAtLeast, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
     bvref = _indicator_to_binary_ref(lvref)
     bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
     reform_con = JuMP.add_constraint(model,
@@ -250,7 +250,7 @@ function _reformulate_selector(model::JuMP.Model, ::MOIAtLeast, lvref::LogicalVa
     )
     push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
-function _reformulate_selector(model::JuMP.Model, ::MOIAtMost, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
+function _reformulate_selector(model::JuMP.Model, ::_MOIAtMost, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
     bvref = _indicator_to_binary_ref(lvref)
     bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
     reform_con = JuMP.add_constraint(model,
@@ -258,7 +258,7 @@ function _reformulate_selector(model::JuMP.Model, ::MOIAtMost, lvref::LogicalVar
     )
     push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
 end
-function _reformulate_selector(model::JuMP.Model, ::MOIExactly, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
+function _reformulate_selector(model::JuMP.Model, ::_MOIExactly, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
     bvref = _indicator_to_binary_ref(lvref)
     bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
     reform_con = JuMP.add_constraint(model,

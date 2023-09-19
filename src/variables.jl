@@ -220,8 +220,8 @@ function JuMP.delete(model::JuMP.Model, vref::LogicalVariableRef)
     delete!(_indicator_to_constraints(model), vidx)
     #delete any disjunctions that have the logical variable
     for (didx, ddata) in _disjunctions(model)
-        if vidx in ddata.constraint.indicators
-            setdiff!(ddata.constraint.indicators, [vidx])
+        if vref in ddata.constraint.indicators
+            setdiff!(ddata.constraint.indicators, [vref])
             JuMP.delete(model, DisjunctionRef(model, didx))
         end
     end
@@ -248,8 +248,9 @@ end
 ################################################################################
 function _get_disjunction_variables(model::JuMP.Model, disj::ConstraintData{Disjunction})
     vars = Set{JuMP.VariableRef}()
-    for ind_idx in disj.constraint.indicators
-        for cidx in _indicator_to_constraints(model)[ind_idx]
+    for lv_ref in disj.constraint.indicators
+        lv_idx = JuMP.index(lv_ref)
+        for cidx in _indicator_to_constraints(model)[lv_idx]
             cdata = _disjunct_constraints(model)[cidx]
             _interrogate_variables(v -> push!(vars, v), cdata.constraint)
         end
@@ -324,7 +325,22 @@ function _interrogate_variables(interrogator::Function, arr::AbstractArray)
     return
 end
 
+# Set
+function _interrogate_variables(interrogator::Function, set::Set)
+    _interrogate_variables.(interrogator, set)
+    return
+end
+
+# Nested disjunction
+function _interrogate_variables(interrogator::Function, disj::Disjunction)
+    ddata = ConstraintData{Disjunction}(disj, "")
+    model = JuMP.owner_model(disj.indicators[1])
+    dvars = _get_disjunction_variables(model, ddata)
+    _interrogate_variables(interrogator, dvars)
+    return
+end
+
 # Fallback
-function _interrogate_variables(interrogator::Function, other)
+function _interrogate_variables(interrogator::Function, model::JuMP.Model, other)
     error("Cannot extract variables from object of type $(typeof(other)) inside of a disjunctive constraint.")
 end

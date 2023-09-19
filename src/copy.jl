@@ -40,7 +40,7 @@ function _copy(set::S, new_model::JuMP.Model) where {S <: _MOI.AbstractSet}
 end
 
 # Cardinality sets
-function _copy(set::S, new_model::JuMP.Model) where {S <: MOISelector}
+function _copy(set::S, new_model::JuMP.Model) where {S <: _MOISelector}
     return S(_copy(set.value, new_model), set.dimension)
 end
 

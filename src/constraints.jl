@@ -13,6 +13,10 @@ _vec_to_scalar_set(set::_MOI.Nonpositives) = _MOI.LessThan(0)
 _vec_to_scalar_set(set::_MOI.Nonnegatives) = _MOI.GreaterThan(0)
 _vec_to_scalar_set(set::_MOI.Zeros) = _MOI.EqualTo(0)
 
+# helper functions to get the shape of a constraint for storing the reformulated constraints
+_map_con_shape(con::JuMP.ScalarConstraint) = JuMP.ScalarShape()
+_map_con_shape(con::JuMP.VectorConstraint) = JuMP.VectorShape()
+
 ################################################################################
 #                         BOILERPLATE EXTENSION METHODS
 ################################################################################
@@ -105,8 +109,8 @@ function JuMP.delete(model::JuMP.Model, cref::DisjunctionRef)
     cidx = JuMP.index(cref)
     dict = _disjunctions(model)
     #delete each logical variable
-    for lv_idx in dict[cidx].constraint.indicators
-        JuMP.delete(model, LogicalVariableRef(model, lv_idx))
+    for lv_ref in dict[cidx].constraint.indicators
+        JuMP.delete(model, lv_ref)
     end
     #delete from gdp_data
     delete!(dict, cidx)
@@ -222,12 +226,12 @@ function _add_indicator_var(
     model
     ) where {C <: JuMP.AbstractConstraint}
     JuMP.is_valid(model, con.lvref) || error("Logical variable belongs to a different model.")
-    ind_idx = JuMP.index(con.lvref)
-    _constraint_to_indicator(model)[idx] = ind_idx
-    if haskey(_indicator_to_constraints(model), ind_idx)
-        push!(_indicator_to_constraints(model)[ind_idx], idx)
+    lv_idx = JuMP.index(con.lvref)
+    _constraint_to_indicator(model)[idx] = lv_idx
+    if haskey(_indicator_to_constraints(model), lv_idx)
+        push!(_indicator_to_constraints(model)[lv_idx], idx)
     else
-        _indicator_to_constraints(model)[ind_idx] = [idx]
+        _indicator_to_constraints(model)[lv_idx] = [idx]
     end
     return
 end
@@ -285,7 +289,7 @@ function _disjunction(
 
     # build the disjunction
     indicators = _process_structure(_error, structure, model)
-    disjunction = Disjunction(JuMP.index.(indicators))
+    disjunction = Disjunction(indicators)
 
     # add it to the model
     disjunction_data = ConstraintData(disjunction, name)
@@ -305,7 +309,7 @@ function _disjunction(
     _error("Unrecognized disjunction input structure.")
 end
 
-# Disjunction build for nested disjunctions with indicator variable given
+# Disjunction build for nested disjunctions
 function _disjunction(
     _error::Function,
     model::JuMP.Model, # TODO: generalize to AbstractModel
@@ -315,6 +319,7 @@ function _disjunction(
 )
     dref = _disjunction(_error, model, structure, name)
     obj = JuMP.constraint_object(dref)
+    push!(_nested_disjunctions(model), JuMP.index(dref))
     return JuMP.add_constraint(model, _DisjunctConstraint(obj, tag.indicator), name)
 end
 
@@ -385,7 +390,7 @@ JuMP.operator_to_set(_error::Function, ::Val{:⇔}) = _error(
     function JuMP.build_constraint(
         _error::Function, 
         func::AbstractVector{T},
-        set::MOISelector
+        set::_MOISelector
     ) where {T <: Union{LogicalVariableRef, _LogicalExpr}}
 
 Extend `JuMP.build_constraint` to add logical cardinality constraints to a [`GDPModel`](@ref). 
@@ -418,7 +423,7 @@ either be true or false.
 function JuMP.build_constraint( # Cardinality logical constraint
     _error::Function, 
     func::AbstractVector{T}, # allow any vector-like JuMP container
-    set::MOISelector # TODO: generalize to allow CP sets from MOI
+    set::_MOISelector # TODO: generalize to allow CP sets from MOI
 ) where {T <: Union{LogicalVariableRef, _LogicalExpr}}
     return JuMP.VectorConstraint(func, set)
 end

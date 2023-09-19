@@ -62,8 +62,7 @@ Return LogicalVariableRefs associated with a disjunction.
 """
 function disjunction_indicators(disjunction::DisjunctionRef) 
     model, idx = disjunction.model, disjunction.index
-    ind_idxs = _disjunctions(model)[idx].constraint.indicators
-    return LogicalVariableRef.(model, ind_idxs) # TODO account for nested disjunctions
+    return _disjunctions(model)[idx].constraint.indicators
 end
 
 # Create accessors for GDP data fields
@@ -81,6 +80,10 @@ end
 
 function _disjunctions(model::JuMP.Model)
     return model.ext[:GDP].disjunctions
+end
+
+function _nested_disjunctions(model::JuMP.Model)
+    return model.ext[:GDP].nested_disjunctions
 end
 
 function _indicator_to_constraints(model::JuMP.Model)

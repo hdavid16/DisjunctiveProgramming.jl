@@ -56,34 +56,34 @@ end
 ################################################################################
 #                        LOGICAL SELECTOR (CARDINALITY) SETS
 ################################################################################
-abstract type MOISelector <: _MOI.AbstractVectorSet end
+abstract type _MOISelector <: _MOI.AbstractVectorSet end
 
 """
-    MOIAtLeast{T<:Union{Int,LogicalVariableRef}} <: MOISelector
+    _MOIAtLeast{T<:Union{Int,LogicalVariableRef}} <: _MOISelector
 
 MOI level set for AtLeast constraints, see [`AtLeast`](@ref) for recommended syntax.
 """
-struct MOIAtLeast{T<:Union{Int,LogicalVariableRef}} <: MOISelector
+struct _MOIAtLeast{T<:Union{Int,LogicalVariableRef}} <: _MOISelector
     value::T
     dimension::Int
 end
 
 """
-    MOIAtMost{T<:Union{Int,LogicalVariableRef}} <: MOISelector
+    _MOIAtMost{T<:Union{Int,LogicalVariableRef}} <: _MOISelector
 
 MOI level set for AtMost constraints, see [`AtMost`](@ref) for recommended syntax.
 """
-struct MOIAtMost{T<:Union{Int,LogicalVariableRef}} <: MOISelector
+struct _MOIAtMost{T<:Union{Int,LogicalVariableRef}} <: _MOISelector
     value::T 
     dimension::Int
 end
 
 """
-    MOIExactly{T<:Union{Int,LogicalVariableRef}} <: MOISelector
+    _MOIExactly{T<:Union{Int,LogicalVariableRef}} <: _MOISelector
 
 MOI level set for Exactly constraints, see [`Exactly`](@ref) for recommended syntax.
 """
-struct MOIExactly{T<:Union{Int,LogicalVariableRef}} <: MOISelector
+struct _MOIExactly{T<:Union{Int,LogicalVariableRef}} <: _MOISelector
     value::T 
     dimension::Int
 end
@@ -92,7 +92,7 @@ end
 """
     AtLeast{T<:Union{Int,LogicalVariableRef}} <: JuMP.AbstractVectorSet
 
-Convenient alias for using [`MOIAtLeast`](@ref).
+Convenient alias for using [`_MOIAtLeast`](@ref).
 """
 struct AtLeast{T<:Union{Int,LogicalVariableRef}} <: JuMP.AbstractVectorSet
     value::T
@@ -101,7 +101,7 @@ end
 """
     AtMost{T<:Union{Int,LogicalVariableRef}} <: JuMP.AbstractVectorSet
 
-Convenient alias for using [`MOIAtMost`](@ref).
+Convenient alias for using [`_MOIAtMost`](@ref).
 """
 struct AtMost{T<:Union{Int,LogicalVariableRef}} <: JuMP.AbstractVectorSet
     value::T
@@ -110,16 +110,16 @@ end
 """
     Exactly <: JuMP.AbstractVectorSet
 
-Convenient alias for using [`MOIExactly`](@ref).
+Convenient alias for using [`_MOIExactly`](@ref).
 """
 struct Exactly{T<:Union{Int,LogicalVariableRef}} <: JuMP.AbstractVectorSet
     value::T 
 end
 
 # Extend JuMP.moi_set as needed
-JuMP.moi_set(set::AtLeast, dim::Int) = MOIAtLeast(set.value, dim)
-JuMP.moi_set(set::AtMost, dim::Int) = MOIAtMost(set.value, dim)
-JuMP.moi_set(set::Exactly, dim::Int) = MOIExactly(set.value, dim)
+JuMP.moi_set(set::AtLeast, dim::Int) = _MOIAtLeast(set.value, dim)
+JuMP.moi_set(set::AtMost, dim::Int) = _MOIAtMost(set.value, dim)
+JuMP.moi_set(set::Exactly, dim::Int) = _MOIExactly(set.value, dim)
 
 ################################################################################
 #                              LOGICAL CONSTRAINTS
@@ -222,11 +222,11 @@ A type for a disjunctive constraint that is comprised of a collection of
 disjuncts of indicated by a unique [`LogicalVariableRef`](@ref).
 
 **Fields**
-- `indicators::Vector{LogicalVariableIndex}`: The indices of the logical variables 
+- `indicators::Vector{LogicalVariableRef}`: The references to the logical variables 
 (indicators) that uniquely identify each disjunct in the disjunction.
 """
 struct Disjunction <: JuMP.AbstractConstraint
-    indicators::Vector{LogicalVariableIndex}
+    indicators::Vector{LogicalVariableRef}
 end
 
 """
@@ -368,6 +368,7 @@ mutable struct GDPData
     logical_constraints::_MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData}
     disjunct_constraints::_MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}
     disjunctions::_MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}
+    nested_disjunctions::Vector{DisjunctionIndex}
 
     # Indicator variable mappings
     indicator_to_binary::Dict{LogicalVariableIndex, _MOI.VariableIndex}
@@ -390,7 +391,8 @@ mutable struct GDPData
         new(_MOIUC.CleverDict{LogicalVariableIndex, LogicalVariableData}(),
             _MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData}(),
             _MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}(),
-            _MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}(), 
+            _MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}(),
+            Vector{DisjunctionIndex}(), 
             Dict{LogicalVariableIndex, _MOI.VariableIndex}(),
             Dict{LogicalVariableIndex, Vector{DisjunctConstraintIndex}}(),
             Dict{DisjunctConstraintIndex, LogicalVariableIndex}(),

@@ -13,23 +13,23 @@ function _update_variable_bounds(vref::JuMP.VariableRef)
         _variable_bounds(model)[idx] = (lb, ub)
     end
 end
-function _disaggregate_variables(model::JuMP.Model, ind_idx::LogicalVariableIndex, vrefs::Set{JuMP.VariableRef}, disag_vars::_Hull)
+function _disaggregate_variables(model::JuMP.Model, lvref::LogicalVariableRef, vrefs::Set{JuMP.VariableRef}, disag_vars::_Hull)
     #create disaggregated variables for that disjunct
     for vref in vrefs
         JuMP.is_binary(vref) && continue #skip binary variables
-        _disaggregate_variable(model, ind_idx, vref, disag_vars) #create disaggregated var for that disjunct
+        _disaggregate_variable(model, lvref, vref, disag_vars) #create disaggregated var for that disjunct
     end
 end
-function _disaggregate_variable(model::JuMP.Model, ind_idx::LogicalVariableIndex, vref::JuMP.VariableRef, disag_vars::_Hull)
+function _disaggregate_variable(model::JuMP.Model, lvref::LogicalVariableRef, vref::JuMP.VariableRef, disag_vars::_Hull)
     #create disaggregated (disjunct) vref
     v_idx = JuMP.index(vref) #variable
     lb, ub = _variable_bounds(model)[v_idx]
-    lvref = LogicalVariableRef(model, ind_idx)
+    lv_idx = JuMP.index(lvref)
     dvref = JuMP.@variable(model, base_name = "$(vref)_$(lvref)", lower_bound = lb, upper_bound = ub)
     dv_idx = JuMP.index(dvref) #disaggregated (disjunct) variable
     push!(_reformulation_variables(model), dv_idx)
     #get binary indicator variable
-    bv_idx = _indicator_to_binary(model)[ind_idx]
+    bv_idx = _indicator_to_binary(model)[lv_idx]
     bvref = JuMP.VariableRef(model, bv_idx)
     #temp storage
     push!(disag_vars.disjunction[vref], dvref)
@@ -55,17 +55,15 @@ end
 ################################################################################
 #                              VARIABLE AGGREGATION
 ################################################################################
-
-function _aggregate_variable(model::JuMP.Model, vref::JuMP.VariableRef, disag_vars::_Hull)
+function _aggregate_variable(model::JuMP.Model, vref::JuMP.VariableRef, disag_vars::_Hull, nested::Bool)
     JuMP.is_binary(vref) && return #skip binary variables
     con_expr = JuMP.@expression(model, -vref + sum(disag_vars.disjunction[vref]))
     con = JuMP.build_constraint(error, con_expr, _MOI.EqualTo(0))
-    con_ref = JuMP.add_constraint(model, con, "$vref aggregation")
-    push!(_reformulation_constraints(model), 
-        (JuMP.index(con_ref), JuMP.ScalarShape())
-    )
+    if !nested
+        _add_reformulated_constraint(model, con, "$(vref)_aggregation")
+    end
 
-    return con_ref
+    return con
 end
 
 ################################################################################
@@ -75,7 +73,7 @@ end
 function _disaggregate_expression(model::JuMP.Model, aff::JuMP.AffExpr, bvref::JuMP.VariableRef, method::_Hull)
     new_expr = JuMP.@expression(model, aff.constant*bvref) #multiply constant by binary indicator variable
     for (vref, coeff) in aff.terms
-        if JuMP.is_binary(vref) #keep any binary terms unchanged
+        if JuMP.is_binary(vref) || !haskey(method.disjunct, (vref, bvref)) #keep any binary variables or nested disaggregated variables unchanged 
             JuMP.add_to_expression!(new_expr, coeff*vref)
         else #replace other vars with disaggregated form
             dvref = method.disjunct[vref, bvref]
@@ -155,35 +153,47 @@ function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef, 
-    method::_Hull
+    method::_Hull,
+    name::String,
+    nested::Bool
 ) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
     new_func = _disaggregate_expression(model, con.func, bvref, method)
     set_value = _set_value(con.set)
     new_func -= set_value*bvref
-    reform_con = JuMP.add_constraint(model,
-        JuMP.build_constraint(error, new_func, S(0))
-    )
-    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+    reform_con = JuMP.build_constraint(error, new_func, S(0))
+    if !nested
+        con_name = isempty(name) ? name : string(name, "_", bvref)
+        _add_reformulated_constraint(model, reform_con, con_name)
+    end
+
+    return [reform_con]
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.VectorConstraint{T, S, R}, 
     bvref::JuMP.VariableRef, 
-    method::_Hull
+    method::_Hull,
+    name::String,
+    nested::Bool
 ) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: Union{_MOI.Nonpositives, _MOI.Nonnegatives, _MOI.Zeros}, R}
     new_func = JuMP.@expression(model, [i=1:con.set.dimension],
         _disaggregate_expression(model, con.func[i], bvref, method)
     )
-    reform_con = JuMP.add_constraint(model,
-        JuMP.build_constraint(error, new_func, con.set)
-    )
-    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
+    reform_con = JuMP.build_constraint(error, new_func, con.set)
+    if !nested
+        con_name = isempty(name) ? name : string(name, "_", bvref)
+        _add_reformulated_constraint(model, reform_con, con_name)
+    end
+
+    return [reform_con]
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef,
-    method::_Hull
+    method::_Hull,
+    name::String,
+    nested::Bool
 ) where {T <: JuMP.GenericNonlinearExpr, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
     con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
     con_func0 = JuMP.value(v -> 0.0, con.func)
@@ -193,16 +203,21 @@ function _reformulate_disjunct_constraint(
     ϵ = method.value
     set_value = _set_value(con.set)
     new_func = JuMP.@expression(model, ((1-ϵ)*bvref+ϵ)*con_func - ϵ*(1-bvref)*con_func0 - set_value*bvref)
-    reform_con = JuMP.add_constraint(model,
-        JuMP.build_constraint(error, new_func, S(0))
-    )
-    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+    reform_con = JuMP.build_constraint(error, new_func, S(0))
+    if !nested
+        con_name = isempty(name) ? name : string(name, "_", bvref)
+        _add_reformulated_constraint(model, reform_con, con_name)
+    end
+
+    return [reform_con]
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.VectorConstraint{T, S, R}, 
     bvref::JuMP.VariableRef,
-    method::_Hull
+    method::_Hull,
+    name::String,
+    nested::Bool
 ) where {T <: JuMP.GenericNonlinearExpr, S <: Union{_MOI.Nonpositives, _MOI.Nonnegatives, _MOI.Zeros}, R}
     con_func = JuMP.@expression(model, [i=1:con.set.dimension],
         _disaggregate_nl_expression(model, con.func[i], bvref, method)
@@ -215,36 +230,43 @@ function _reformulate_disjunct_constraint(
     new_func = JuMP.@expression(model, [i=1:con.set.dimension], 
         ((1-ϵ)*bvref+ϵ)*con_func[i] - ϵ*(1-bvref)*con_func0[i]
     )
-    reform_con = JuMP.add_constraint(model,
-        JuMP.build_constraint(error, new_func, con.set)
-    )
-    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.VectorShape()))
+    reform_con = JuMP.build_constraint(error, new_func, con.set)
+    if !nested
+        con_name = isempty(name) ? name : string(name, "_", bvref)
+        _add_reformulated_constraint(model, reform_con, con_name)
+    end
+
+    return [reform_con]
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef,
-    method::_Hull
+    method::_Hull,
+    name::String,
+    nested::Bool
 ) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: _MOI.Interval}
     new_func = _disaggregate_expression(model, con.func, bvref, method)
     new_func_gt = JuMP.@expression(model, new_func - con.set.lower*bvref)
     new_func_lt = JuMP.@expression(model, new_func - con.set.upper*bvref)
-    reform_con_gt = JuMP.add_constraint(model, 
-        JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(0))
-    )
-    reform_con_lt = JuMP.add_constraint(model, 
-        JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
-    )
-    push!(_reformulation_constraints(model), 
-        (JuMP.index(reform_con_gt), JuMP.ScalarShape()), 
-        (JuMP.index(reform_con_lt), JuMP.ScalarShape())
-    )
+    reform_con_gt = JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(0))
+    reform_con_lt = JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
+    if !nested
+        con_name1 = isempty(name) ? name : string(name, "_", bvref, "_1")
+        con_name2 = isempty(name) ? name : string(name, "_", bvref, "_2")
+        _add_reformulated_constraint(model, reform_con_gt, con_name1)
+        _add_reformulated_constraint(model, reform_con_lt, con_name2)
+    end
+
+    return [reform_con_gt, reform_con_lt]
 end
 function _reformulate_disjunct_constraint(
     model::JuMP.Model, 
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef,
-    method::_Hull
+    method::_Hull,
+    name::String,
+    nested::Bool
 ) where {T <: JuMP.GenericNonlinearExpr, S <: _MOI.Interval}
     con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
     con_func0 = JuMP.value(v -> 0.0, con.func)
@@ -255,14 +277,14 @@ function _reformulate_disjunct_constraint(
     new_func = JuMP.@expression(model, ((1-ϵ)*bvref+ϵ) * con_func - ϵ*(1-bvref)*con_func0)
     new_func_gt = JuMP.@expression(model, new_func - con.set.lower*bvref)
     new_func_lt = JuMP.@expression(model, new_func - con.set.upper*bvref)
-    reform_con_gt = JuMP.add_constraint(model,
-        JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(0))
-    )
-    reform_con_lt = JuMP.add_constraint(model,
-        JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
-    )
-    push!(_reformulation_constraints(model), 
-        (JuMP.index(reform_con_gt), JuMP.ScalarShape()), 
-        (JuMP.index(reform_con_lt), JuMP.ScalarShape())
-    )
+    reform_con_gt = JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(0))
+    reform_con_lt = JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
+    if !nested
+        con_name1 = isempty(name) ? name : string(name, "_", bvref, "_1")
+        con_name2 = isempty(name) ? name : string(name, "_", bvref, "_2")
+        _add_reformulated_constraint(model, reform_con_gt, con_name1)
+        _add_reformulated_constraint(model, reform_con_lt, con_name2)
+    end
+
+    return [reform_con_gt, reform_con_lt]
 end
