@@ -1,4 +1,36 @@
 ################################################################################
+#                              REFORMULATE
+################################################################################
+"""
+    reformulate_model(model::JuMP.Model, method::AbstractSolutionMethod)
+
+Reformulate a `GDPModel` using the specified `method`. Prior to reformulation,
+all previous reformulation variables and constraints are deleted.
+"""
+function reformulate_model(model::JuMP.Model, method::AbstractSolutionMethod)
+    #clear all previous reformulations
+    _clear_reformulations(model)
+    #reformulate
+    _reformulate_logical_variables(model)
+    _reformulate_disjunctions(model, method)
+    _reformulate_logical_constraints(model)
+    #set solution method
+    _set_solution_method(model, method)
+    _set_ready_to_optimize(model, true)
+end
+
+function _clear_reformulations(model::JuMP.Model)
+    for (cidx, cshape) in _reformulation_constraints(model)
+        JuMP.delete(model, JuMP.ConstraintRef(model, cidx, cshape))
+    end
+    empty!(gdp_data(model).reformulation_constraints)
+    for vidx in _reformulation_variables(model)
+        JuMP.delete(model, JuMP.VariableRef(model, vidx))
+    end
+    empty!(gdp_data(model).reformulation_variables)
+end
+
+################################################################################
 #                              LOGICAL VARIABLES
 ################################################################################
 # create binary (indicator) variables for logic variables.
@@ -20,21 +52,31 @@ end
 #                              DISJUNCTIONS
 ################################################################################
 # disjunctions
-function _reformulate_disjunctions(model::JuMP.Model, method::AbstractReformulationMethod)
-    for (didx, disj) in _disjunctions(model)
-        if !(didx in _nested_disjunctions(model))
-            reformulate_disjunction(model, disj, method, false)
+function _reformulate_all_disjunctions(model::JuMP.Model, method::AbstractReformulationMethod)
+    for (_, disj) in _disjunctions(model)
+        disj.constraint.nested && continue #only reformulate top level disjunctions
+        ref_cons = reformulate_disjunction(model, disj.constraint, method)
+        for (i, ref_con) in enumerate(ref_cons)
+            name = isempty(disj.name) ? "" : string(disj.name,"_$i")
+            cref = JuMP.add_constraint(model, ref_con, name)
+            push!(_reformulation_constraints(model), (JuMP.index(cref), _map_con_shape(ref_con)))
         end
     end
+end
+function _reformulate_disjunctions(model::JuMP.Model, method::AbstractReformulationMethod)
+    _reformulate_all_disjunctions(model, method)
+end
+function _reformulate_disjunctions(model::JuMP.Model, method::Hull)
+    _query_variable_bounds(model, method)
+    _reformulate_all_disjunctions(model, method)
 end
 
 # disjuncts
 """
     reformulate_disjunction(
         model::JuMP.Model, 
-        disj::ConstraintData{T},
-        method::AbstractReformulationMethod,
-        nested::Bool
+        disj::Disjunction,
+        method::AbstractReformulationMethod
     ) where {T<:Disjunction}
 
 Reformulate a disjunction using the specified `method`. Current reformulation methods include
@@ -43,82 +85,74 @@ Reformulate a disjunction using the specified `method`. Current reformulation me
 The `disj` field is the `ConstraintData` object for the disjunction, stored in the 
 `disjunctions` field of the `GDPData` object.
 """
-function reformulate_disjunction(model::JuMP.Model, disj::ConstraintData{T}, method::BigM, nested::Bool) where {T<:Disjunction}
+# generic fallback (e.g., BigM, Indicator)
+function reformulate_disjunction(model::JuMP.Model, disj::Disjunction, method::AbstractReformulationMethod)
     ref_cons = Vector{JuMP.AbstractConstraint}()
-    for d in disj.constraint.indicators
-        push!(ref_cons, _reformulate_disjunct(model, d, method, nested)...)
+    for d in disj.indicators
+        push!(ref_cons, _reformulate_disjunct(model, d, method)...)
     end
 
     return ref_cons
 end
-function reformulate_disjunction(model::JuMP.Model, disj::ConstraintData{T}, method::Indicator, nested::Bool) where {T<:Disjunction}
-    ref_cons = Vector{JuMP.AbstractConstraint}()
-    for d in disj.constraint.indicators
-        push!(ref_cons, _reformulate_disjunct(model, d, method, nested)...)
-    end
-
-    return ref_cons
-end
-function reformulate_disjunction(model::JuMP.Model, disj::ConstraintData{T}, method::Hull, nested::Bool) where {T<:Disjunction}
+# hull specific
+function reformulate_disjunction(model::JuMP.Model, disj::Disjunction, method::Hull)
     ref_cons = Vector{JuMP.AbstractConstraint}()
     disj_vrefs = _get_disjunction_variables(model, disj)
-    _update_variable_bounds.(disj_vrefs)
-    hull = _Hull(method.value, disj_vrefs)
-    for d in disj.constraint.indicators #reformulate each disjunct
+    hull = _Hull(method, disj_vrefs)
+    for d in disj.indicators #reformulate each disjunct
         _disaggregate_variables(model, d, disj_vrefs, hull) #disaggregate variables for that disjunct
-        push!(ref_cons, _reformulate_disjunct(model, d, hull, nested)...)
+        push!(ref_cons, _reformulate_disjunct(model, d, hull)...)
     end
     for vref in disj_vrefs #create sum constraint for disaggregated variables
-        push!(ref_cons, _aggregate_variable(model, vref, hull, nested))
+        push!(ref_cons, _aggregate_variable(model, vref, hull))
     end
 
     return ref_cons
 end
-function reformulate_disjunction(model::JuMP.Model, disj::ConstraintData{T}, method::_Hull, nested::Bool) where {T<:Disjunction}
-    reformulate_disjunction(model, disj, Hull(method.value), nested)
+function reformulate_disjunction(model::JuMP.Model, disj::Disjunction, method::_Hull)
+    reformulate_disjunction(model, disj, Hull(method.value, method.variable_bounds))
 end
 
 # individual disjuncts
-function _reformulate_disjunct(model::JuMP.Model, ind_ref::LogicalVariableRef, method::AbstractReformulationMethod, nested::Bool)
+function _reformulate_disjunct(model::JuMP.Model, ind_ref::LogicalVariableRef, method::AbstractReformulationMethod)
     #reformulate each constraint and add to the model
     lv_idx = JuMP.index(ind_ref)
     bv_idx = _indicator_to_binary(model)[lv_idx]
     bvref = JuMP.VariableRef(model, bv_idx)
     ref_cons = Vector{JuMP.AbstractConstraint}()
     for cidx in _indicator_to_constraints(model)[lv_idx]
-        cdata = _disjunct_constraints(model)[cidx]
-        push!(ref_cons, _reformulate_disjunct_constraint(model, cdata.constraint, bvref, method, cdata.name, nested)...)
+        cdata = _index_to_constraint(model, cidx)
+        push!(ref_cons, reformulate_disjunct_constraint(model, cdata.constraint, bvref, method)...)
     end
 
     return ref_cons
 end
 
+_index_to_constraint(model::JuMP.Model, cidx::DisjunctConstraintIndex) = _disjunct_constraints(model)[cidx]
+_index_to_constraint(model::JuMP.Model, cidx::DisjunctionIndex) = _disjunctions(model)[cidx]
+
 # reformulation for nested disjunction
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     model::JuMP.Model,  
     con::Disjunction, 
     bvref::JuMP.VariableRef,
-    method::AbstractReformulationMethod,
-    name::String,
-    nested::Bool
+    method::AbstractReformulationMethod
 )
-    disj = ConstraintData{Disjunction}(con, name)
-    ref_cons = reformulate_disjunction(model, disj, method, true)
+    ref_cons = reformulate_disjunction(model, con, method)
     new_ref_cons = Vector{JuMP.AbstractConstraint}()
     for ref_con in ref_cons
-        push!(new_ref_cons, _reformulate_disjunct_constraint(model, ref_con, bvref, method, name, nested)...) #nested = false only for the parent disjunction (only adds the constraints when they have moved up all the way)
+        push!(new_ref_cons, reformulate_disjunct_constraint(model, ref_con, bvref, method)...) #nested = false only for the parent disjunction (only adds the constraints when they have moved up all the way)
     end
     
     return new_ref_cons
 end
 
 # reformulation fallback for individual disjunct constraints
-function _reformulate_disjunct_constraint(
+function reformulate_disjunct_constraint(
     model::JuMP.Model,  
     con::JuMP.AbstractConstraint, 
     bvref::JuMP.VariableRef,
-    method::AbstractReformulationMethod,
-    name::String
+    method::AbstractReformulationMethod
 )
     error("$method reformulation for constraint $con is not supported yet.")
 end

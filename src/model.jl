@@ -82,24 +82,12 @@ function _disjunctions(model::JuMP.Model)
     return model.ext[:GDP].disjunctions
 end
 
-function _nested_disjunctions(model::JuMP.Model)
-    return model.ext[:GDP].nested_disjunctions
-end
-
-function _indicator_to_constraints(model::JuMP.Model)
-    return model.ext[:GDP].indicator_to_constraints
-end
-
-function _constraint_to_indicator(model::JuMP.Model)
-    return model.ext[:GDP].constraint_to_indicator
-end
-
 function _indicator_to_binary(model::JuMP.Model)
     return model.ext[:GDP].indicator_to_binary
 end
 
-function _variable_bounds(model::JuMP.Model)
-    return model.ext[:GDP].variable_bounds
+function _indicator_to_constraints(model::JuMP.Model)
+    return model.ext[:GDP].indicator_to_constraints
 end
 
 function _reformulation_variables(model::JuMP.Model)
@@ -114,25 +102,3 @@ function _indicator_to_binary_ref(lvref::LogicalVariableRef)
     model, idx = lvref.model, lvref.index
     return JuMP.VariableRef(model, _indicator_to_binary(model)[idx])
 end
-
-################################################################################
-#                              COPY EXT
-################################################################################
-
-function JuMP.copy_extension_data(data::GDPData, new_model::JuMP.AbstractModel, model::JuMP.AbstractModel)
-    new_model.ext[:GDP] = GDPData(
-        data.logical_variables, 
-        _copy(data.logical_constraints, new_model), 
-        _copy(data.disjunct_constraints, new_model),
-        data.disjunctions,
-        data.indicator_to_binary,
-        data.indicator_to_constraints,
-        data.constraint_to_indicator,
-        data.variable_bounds,
-        data.reformulation_variables,
-        data.reformulation_constraints,
-        data.solution_method, 
-        data.ready_to_optimize,
-    )
-end
-

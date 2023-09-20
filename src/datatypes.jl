@@ -224,9 +224,11 @@ disjuncts of indicated by a unique [`LogicalVariableRef`](@ref).
 **Fields**
 - `indicators::Vector{LogicalVariableRef}`: The references to the logical variables 
 (indicators) that uniquely identify each disjunct in the disjunction.
+- `nested::Bool`: Is this disjunction nested within another disjunction?
 """
 struct Disjunction <: JuMP.AbstractConstraint
     indicators::Vector{LogicalVariableRef}
+    nested::Bool
 end
 
 """
@@ -330,21 +332,30 @@ constraints.
 """
 struct Hull <: AbstractReformulationMethod # TODO add fields if needed
     value::Float64
-    function Hull(ϵ = 1e-6)
-        new(ϵ)
+    variable_bounds::Dict{JuMP.VariableRef, Tuple{Float64, Float64}} # TODO support other number types?
+    function Hull(ϵ::Float64 = 1e-6)
+        new(ϵ, Dict{JuMP.VariableRef, Tuple{Float64, Float64}}())
+    end
+    function Hull(ϵ::Float64, v_bounds::Dict{JuMP.VariableRef, Tuple{Float64, Float64}})
+        new(ϵ, v_bounds)
     end
 end
+
 
 # temp struct to store variable disaggregations (reset for each disjunction)
 mutable struct _Hull <: AbstractReformulationMethod
     value::Float64
-    disjunction::Dict{JuMP.VariableRef, Vector{JuMP.VariableRef}}
-    disjunct::Dict{Tuple{JuMP.VariableRef,JuMP.VariableRef}, JuMP.VariableRef}
-    _Hull(value, vrefs::Set{JuMP.VariableRef}) = new(
-        value,
-        Dict{JuMP.VariableRef, Vector{JuMP.VariableRef}}(vref => Vector{JuMP.VariableRef}() for vref in vrefs), 
-        Dict{Tuple{JuMP.VariableRef,JuMP.VariableRef}, JuMP.VariableRef}()
-    )
+    variable_bounds::Dict{JuMP.VariableRef, Tuple{Float64, Float64}} # TODO support other number types?
+    disjunction_variables::Dict{JuMP.VariableRef, Vector{JuMP.VariableRef}}
+    disjunct_variables::Dict{Tuple{JuMP.VariableRef,JuMP.VariableRef}, JuMP.VariableRef}
+    function _Hull(method::Hull, vrefs::Set{JuMP.VariableRef})
+        new(
+            method.value,
+            method.variable_bounds,
+            Dict{JuMP.VariableRef, Vector{JuMP.VariableRef}}(vref => Vector{JuMP.VariableRef}() for vref in vrefs), 
+            Dict{Tuple{JuMP.VariableRef,JuMP.VariableRef}, JuMP.VariableRef}()
+        )
+    end
 end
 
 """
@@ -368,15 +379,10 @@ mutable struct GDPData
     logical_constraints::_MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData}
     disjunct_constraints::_MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}
     disjunctions::_MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}
-    nested_disjunctions::Vector{DisjunctionIndex}
 
     # Indicator variable mappings
     indicator_to_binary::Dict{LogicalVariableIndex, _MOI.VariableIndex}
-    indicator_to_constraints::Dict{LogicalVariableIndex, Vector{DisjunctConstraintIndex}}
-    constraint_to_indicator::Dict{DisjunctConstraintIndex, LogicalVariableIndex}
-
-    # Map of variable bounds
-    variable_bounds::Dict{_MOI.VariableIndex, Tuple{Float64, Float64}} # TODO allow for other precision
+    indicator_to_constraints::Dict{LogicalVariableIndex, Vector{Union{DisjunctConstraintIndex, DisjunctionIndex}}}
 
     # Reformulation variables and constraints
     reformulation_variables::Vector{_MOI.VariableIndex}
@@ -392,11 +398,8 @@ mutable struct GDPData
             _MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData}(),
             _MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}(),
             _MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}(),
-            Vector{DisjunctionIndex}(), 
             Dict{LogicalVariableIndex, _MOI.VariableIndex}(),
-            Dict{LogicalVariableIndex, Vector{DisjunctConstraintIndex}}(),
-            Dict{DisjunctConstraintIndex, LogicalVariableIndex}(),
-            Dict{_MOI.VariableIndex, Tuple{Float64, Float64}}(),
+            Dict{LogicalVariableIndex, Vector{Union{DisjunctConstraintIndex, DisjunctionIndex}}}(),
             Vector{_MOI.VariableIndex}(),
             Vector{Tuple{_MOI.ConstraintIndex, JuMP.AbstractShape}}(),
             nothing,

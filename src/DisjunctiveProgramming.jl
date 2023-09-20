@@ -10,7 +10,6 @@ const _MOIUC = JuMP.MOIU.CleverDicts
 
 # Load in the source files
 include("datatypes.jl")
-include("copy.jl")
 include("model.jl")
 include("logic.jl")
 include("variables.jl")

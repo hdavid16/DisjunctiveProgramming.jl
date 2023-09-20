@@ -108,10 +108,6 @@ function JuMP.delete(model::JuMP.Model, cref::DisjunctionRef)
     @assert JuMP.is_valid(model, cref) "Disjunctive constraint does not belong to model."
     cidx = JuMP.index(cref)
     dict = _disjunctions(model)
-    #delete each logical variable
-    for lv_ref in dict[cidx].constraint.indicators
-        JuMP.delete(model, lv_ref)
-    end
     #delete from gdp_data
     delete!(dict, cidx)
     #not ready to optimize
@@ -130,8 +126,6 @@ function JuMP.delete(model::JuMP.Model, cref::DisjunctConstraintRef)
     dict = _disjunct_constraints(model)
     #delete from gdp_data
     delete!(dict, cidx)
-    #delete from constraint_to_indicator mapping
-    delete!(_constraint_to_indicator(model), cidx)
     #not ready to optimize
     _set_ready_to_optimize(model, false)
     return 
@@ -227,7 +221,6 @@ function _add_indicator_var(
     ) where {C <: JuMP.AbstractConstraint}
     JuMP.is_valid(model, con.lvref) || error("Logical variable belongs to a different model.")
     lv_idx = JuMP.index(con.lvref)
-    _constraint_to_indicator(model)[idx] = lv_idx
     if haskey(_indicator_to_constraints(model), lv_idx)
         push!(_indicator_to_constraints(model)[lv_idx], idx)
     else
@@ -279,17 +272,18 @@ function _process_structure(_error, s, model::JuMP.Model)
 end
 
 # Write the main function for creating disjunctions that is macro friendly
-function _disjunction(
+function _create_disjunction(
     _error::Function,
     model::JuMP.Model, # TODO: generalize to AbstractModel
     structure::Vector,
-    name::String
+    name::String,
+    nested::Bool
 )
     is_gdp_model(model) || error("Can only add disjunctions to `GDPModel`s.")
 
     # build the disjunction
     indicators = _process_structure(_error, structure, model)
-    disjunction = Disjunction(indicators)
+    disjunction = Disjunction(indicators, nested)
 
     # add it to the model
     disjunction_data = ConstraintData(disjunction, name)
@@ -297,6 +291,16 @@ function _disjunction(
 
     _set_ready_to_optimize(model, false)
     return DisjunctionRef(model, idx)
+end
+
+# Disjunction build for unnested disjunctions
+function _disjunction(
+    _error::Function,
+    model::JuMP.Model, # TODO: generalize to AbstractModel
+    structure::Vector,
+    name::String
+)
+    _create_disjunction(_error, model, structure, name, false)
 end
 
 # Fallback disjunction build for nonvector structure
@@ -317,10 +321,9 @@ function _disjunction(
     name::String,
     tag::DisjunctConstraint
 )
-    dref = _disjunction(_error, model, structure, name)
+    dref = _create_disjunction(_error, model, structure, name, true)
     obj = JuMP.constraint_object(dref)
-    push!(_nested_disjunctions(model), JuMP.index(dref))
-    return JuMP.add_constraint(model, _DisjunctConstraint(obj, tag.indicator), name)
+    _add_indicator_var(_DisjunctConstraint(obj, tag.indicator), JuMP.index(dref), model)
 end
 
 # General fallback for additional arguments

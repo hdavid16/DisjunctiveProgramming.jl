@@ -2,10 +2,9 @@
 
 using JuMP
 using DisjunctiveProgramming
-using HiGHS
 
 ##
-m = GDPModel(HiGHS.Optimizer)
+m = GDPModel()
 @variable(m, 1 ≤ x[1:2] ≤ 9)
 @variable(m, Y[1:2], LogicalVariable)
 @variable(m, W[1:2], LogicalVariable)

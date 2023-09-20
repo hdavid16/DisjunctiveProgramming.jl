@@ -232,10 +232,6 @@ function JuMP.delete(model::JuMP.Model, vref::LogicalVariableRef)
             JuMP.delete(model, LogicalConstraintRef(model, cidx))
         end
     end
-    #delete any binary variable associated with the logical variable
-    if haskey(_indicator_to_binary(model), vidx)
-        delete!(_indicator_to_binary(model), vidx)
-    end
     #delete the logical variable
     delete!(dict, vidx)
     #not ready to optimize
@@ -246,12 +242,12 @@ end
 ################################################################################
 #                              VARIABLE INTERROGATION
 ################################################################################
-function _get_disjunction_variables(model::JuMP.Model, disj::ConstraintData{Disjunction})
+function _get_disjunction_variables(model::JuMP.Model, disj::Disjunction)
     vars = Set{JuMP.VariableRef}()
-    for lv_ref in disj.constraint.indicators
+    for lv_ref in disj.indicators
         lv_idx = JuMP.index(lv_ref)
         for cidx in _indicator_to_constraints(model)[lv_idx]
-            cdata = _disjunct_constraints(model)[cidx]
+            cdata = _index_to_constraint(model, cidx)
             _interrogate_variables(v -> push!(vars, v), cdata.constraint)
         end
     end
@@ -333,9 +329,8 @@ end
 
 # Nested disjunction
 function _interrogate_variables(interrogator::Function, disj::Disjunction)
-    ddata = ConstraintData{Disjunction}(disj, "")
     model = JuMP.owner_model(disj.indicators[1])
-    dvars = _get_disjunction_variables(model, ddata)
+    dvars = _get_disjunction_variables(model, disj)
     _interrogate_variables(interrogator, dvars)
     return
 end
