@@ -13,10 +13,6 @@ _vec_to_scalar_set(set::_MOI.Nonpositives) = _MOI.LessThan(0)
 _vec_to_scalar_set(set::_MOI.Nonnegatives) = _MOI.GreaterThan(0)
 _vec_to_scalar_set(set::_MOI.Zeros) = _MOI.EqualTo(0)
 
-# helper functions to get the shape of a constraint for storing the reformulated constraints
-_map_con_shape(con::JuMP.ScalarConstraint) = JuMP.ScalarShape()
-_map_con_shape(con::JuMP.VectorConstraint) = JuMP.VectorShape()
-
 ################################################################################
 #                         BOILERPLATE EXTENSION METHODS
 ################################################################################
@@ -216,16 +212,14 @@ end
 # Add the variable mappings
 function _add_indicator_var(
     con::_DisjunctConstraint{C, LogicalVariableRef}, 
-    idx, 
+    cref, 
     model
     ) where {C <: JuMP.AbstractConstraint}
     JuMP.is_valid(model, con.lvref) || error("Logical variable belongs to a different model.")
-    lv_idx = JuMP.index(con.lvref)
-    if haskey(_indicator_to_constraints(model), lv_idx)
-        push!(_indicator_to_constraints(model)[lv_idx], idx)
-    else
-        _indicator_to_constraints(model)[lv_idx] = [idx]
+    if !haskey(_indicator_to_constraints(model), con.lvref)
+        _indicator_to_constraints(model)[con.lvref] = Vector{Union{DisjunctConstraintRef, DisjunctionRef}}()
     end
+    push!(_indicator_to_constraints(model)[con.lvref], cref)
     return
 end
 
@@ -247,7 +241,7 @@ function JuMP.add_constraint(
     is_gdp_model(model) || error("Can only add disjunct constraints to `GDPModel`s.")
     data = ConstraintData(con.constr, name)
     idx = _MOIUC.add_item(gdp_data(model).disjunct_constraints, data)
-    _add_indicator_var(con, idx, model)
+    _add_indicator_var(con, DisjunctConstraintRef(model, idx), model)
     return DisjunctConstraintRef(model, idx)
 end
 
@@ -259,7 +253,7 @@ function _process_structure(_error, s::Vector{LogicalVariableRef}, model::JuMP.M
     for lvref in s
         if !JuMP.is_valid(model, lvref)
             _error("`$lvref` is not a valid logical variable reference.")
-        elseif !haskey(_indicator_to_constraints(model), JuMP.index(lvref))
+        elseif !haskey(_indicator_to_constraints(model), lvref)
             _error("`$lvref` is not associated with any constraints.")
         end
     end
@@ -323,7 +317,7 @@ function _disjunction(
 )
     dref = _create_disjunction(_error, model, structure, name, true)
     obj = JuMP.constraint_object(dref)
-    _add_indicator_var(_DisjunctConstraint(obj, tag.indicator), JuMP.index(dref), model)
+    _add_indicator_var(_DisjunctConstraint(obj, tag.indicator), dref, model)
 end
 
 # General fallback for additional arguments

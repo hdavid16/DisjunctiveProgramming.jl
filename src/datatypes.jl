@@ -381,12 +381,12 @@ mutable struct GDPData
     disjunctions::_MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}
 
     # Indicator variable mappings
-    indicator_to_binary::Dict{LogicalVariableIndex, _MOI.VariableIndex}
-    indicator_to_constraints::Dict{LogicalVariableIndex, Vector{Union{DisjunctConstraintIndex, DisjunctionIndex}}}
+    indicator_to_binary::Dict{LogicalVariableRef, JuMP.VariableRef}
+    indicator_to_constraints::Dict{LogicalVariableRef, Vector{Union{DisjunctConstraintRef, DisjunctionRef}}}
 
     # Reformulation variables and constraints
-    reformulation_variables::Vector{_MOI.VariableIndex}
-    reformulation_constraints::Vector{Tuple{_MOI.ConstraintIndex, JuMP.AbstractShape}}
+    reformulation_variables::Vector{JuMP.VariableRef}
+    reformulation_constraints::Vector{JuMP.ConstraintRef}
 
     # Solution data
     solution_method::Union{Nothing, AbstractSolutionMethod}
@@ -398,10 +398,10 @@ mutable struct GDPData
             _MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData}(),
             _MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}(),
             _MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}(),
-            Dict{LogicalVariableIndex, _MOI.VariableIndex}(),
-            Dict{LogicalVariableIndex, Vector{Union{DisjunctConstraintIndex, DisjunctionIndex}}}(),
-            Vector{_MOI.VariableIndex}(),
-            Vector{Tuple{_MOI.ConstraintIndex, JuMP.AbstractShape}}(),
+            Dict{LogicalVariableRef, JuMP.VariableRef}(),
+            Dict{LogicalVariableRef, Vector{Union{DisjunctConstraintRef, DisjunctionRef}}}(),
+            Vector{JuMP.VariableRef}(),
+            Vector{JuMP.ConstraintRef}(),
             nothing,
             false,
             )

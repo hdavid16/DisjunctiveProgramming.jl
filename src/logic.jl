@@ -222,49 +222,49 @@ end
 ################################################################################
 # cardinality constraint reformulation
 function _reformulate_selector(model::JuMP.Model, ::_MOIAtLeast, val::Number, lvrefs::Vector{LogicalVariableRef})
-    bvrefs = _indicator_to_binary_ref.(lvrefs)
-    reform_con = JuMP.add_constraint(model,
+    bvrefs = [_indicator_to_binary(model)[lvref] for lvref in lvrefs]
+    cref = JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.GreaterThan(val))
     )
-    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+    push!(_reformulation_constraints(model), cref)
 end
 function _reformulate_selector(model::JuMP.Model, ::_MOIAtMost, val::Number, lvrefs::Vector{LogicalVariableRef})
-    bvrefs = _indicator_to_binary_ref.(lvrefs)
-    reform_con = JuMP.add_constraint(model,
+    bvrefs = [_indicator_to_binary(model)[lvref] for lvref in lvrefs]
+    cref = JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.LessThan(val))
     )
-    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+    push!(_reformulation_constraints(model), cref)
 end
 function _reformulate_selector(model::JuMP.Model, ::_MOIExactly, val::Number, lvrefs::Vector{LogicalVariableRef})
-    bvrefs = _indicator_to_binary_ref.(lvrefs)
-    reform_con = JuMP.add_constraint(model,
+    bvrefs = [_indicator_to_binary(model)[lvref] for lvref in lvrefs]
+    cref = JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.EqualTo(val))
     )
-    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+    push!(_reformulation_constraints(model), cref)
 end
 function _reformulate_selector(model::JuMP.Model, ::_MOIAtLeast, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
-    bvref = _indicator_to_binary_ref(lvref)
-    bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
-    reform_con = JuMP.add_constraint(model,
+    bvref = _indicator_to_binary(model)[lvref]
+    bvrefs = [_indicator_to_binary(model)[lvref] for lvref in lvrefs]
+    cref = JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), _MOI.GreaterThan(0))
     )
-    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+    push!(_reformulation_constraints(model), cref)
 end
 function _reformulate_selector(model::JuMP.Model, ::_MOIAtMost, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
-    bvref = _indicator_to_binary_ref(lvref)
-    bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
-    reform_con = JuMP.add_constraint(model,
+    bvref = _indicator_to_binary(model)[lvref]
+    bvrefs = [_indicator_to_binary(model)[lvref] for lvref in lvrefs]
+    cref = JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), _MOI.LessThan(0))
     )
-    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+    push!(_reformulation_constraints(model), cref)
 end
 function _reformulate_selector(model::JuMP.Model, ::_MOIExactly, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
-    bvref = _indicator_to_binary_ref(lvref)
-    bvrefs = Vector{Any}(_indicator_to_binary_ref.(lvrefs))
-    reform_con = JuMP.add_constraint(model,
+    bvref = _indicator_to_binary(model)[lvref]
+    bvrefs = [_indicator_to_binary(model)[lvref] for lvref in lvrefs]
+    cref = JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), _MOI.EqualTo(0))
     )
-    push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+    push!(_reformulation_constraints(model), cref)
 end
 
 ################################################################################
@@ -292,14 +292,14 @@ function _add_reformulated_proposition(model::JuMP.Model, arg::Union{LogicalVari
     func = _reformulate_clause(model, arg)
     if !isempty(func.terms) && !all(iszero.(values(func.terms)))
         con = JuMP.build_constraint(error, func, _MOI.GreaterThan(1))
-        reform_con = JuMP.add_constraint(model, con)
-        push!(_reformulation_constraints(model), (JuMP.index(reform_con), JuMP.ScalarShape()))
+        cref = JuMP.add_constraint(model, con)
+        push!(_reformulation_constraints(model), cref)
     end
     return
 end
 
 function _reformulate_clause(model::JuMP.Model, lvref::LogicalVariableRef)
-    func = 1 * _indicator_to_binary_ref(lvref)
+    func = 1 * _indicator_to_binary(model)[lvref]
     return func
 end
 

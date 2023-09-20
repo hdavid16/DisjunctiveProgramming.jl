@@ -28,13 +28,10 @@ end
 function _disaggregate_variable(model::JuMP.Model, lvref::LogicalVariableRef, vref::JuMP.VariableRef, method::_Hull)
     #create disaggregated vref
     lb, ub = method.variable_bounds[vref]
-    lv_idx = JuMP.index(lvref)
     dvref = JuMP.@variable(model, base_name = "$(vref)_$(lvref)", lower_bound = lb, upper_bound = ub)
-    dv_idx = JuMP.index(dvref) #disaggregated (disjunct) variable
-    push!(_reformulation_variables(model), dv_idx)
+    push!(_reformulation_variables(model), dvref)
     #get binary indicator variable
-    bv_idx = _indicator_to_binary(model)[lv_idx]
-    bvref = JuMP.VariableRef(model, bv_idx)
+    bvref = _indicator_to_binary(model)[lvref]
     #temp storage
     if !haskey(method.disjunction_variables, vref)
         method.disjunction_variables[vref] = Vector{JuMP.VariableRef}()
@@ -51,10 +48,7 @@ function _disaggregate_variable(model::JuMP.Model, lvref::LogicalVariableRef, vr
         JuMP.build_constraint(error, dvref - ub*bvref, _MOI.LessThan(0)),
         "$dvname upper bounding"
     )
-    push!(_reformulation_constraints(model), 
-        (JuMP.index(new_con_lb_ref), JuMP.ScalarShape()), 
-        (JuMP.index(new_con_ub_ref), JuMP.ScalarShape())
-    )
+    push!(_reformulation_constraints(model), new_con_lb_ref, new_con_ub_ref)
 
     return dvref
 end

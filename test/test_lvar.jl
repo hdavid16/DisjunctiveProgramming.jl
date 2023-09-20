@@ -85,14 +85,13 @@ function test_lvar_delete()
     @test_throws AssertionError JuMP.delete(m2, y)
     
     JuMP.delete(m1, y)
-    @test !haskey(gdp_data(m1).logical_variables, JuMP.index(y))
-    @test !haskey(gdp_data(m1).logical_variables, JuMP.index(z))
-    @test !haskey(gdp_data(m1).disjunct_constraints, JuMP.index(con))
-    @test !haskey(gdp_data(m1).disjunctions, JuMP.index(disj))
-    @test !haskey(gdp_data(m1).logical_constraints, JuMP.index(lcon))
-    @test !haskey(gdp_data(m1).indicator_to_constraints, JuMP.index(y))
-    @test !haskey(gdp_data(m1).constraint_to_indicator, JuMP.index(con))
-    @test !haskey(gdp_data(m1).indicator_to_binary, JuMP.index(y))
+    @test !haskey(gdp_data(m1).logical_variables, y)
+    @test !haskey(gdp_data(m1).logical_variables, z)
+    @test !haskey(gdp_data(m1).disjunct_constraints, con)
+    @test !haskey(gdp_data(m1).disjunctions, disj)
+    @test !haskey(gdp_data(m1).logical_constraints, lcon)
+    @test !haskey(gdp_data(m1).indicator_to_constraints, y)
+    @test !haskey(gdp_data(m1).indicator_to_binary, y)
     @test !DP._ready_to_optimize(m1)
 end
 
@@ -101,8 +100,7 @@ function test_lvar_reformulation()
     @variable(model, y, LogicalVariable, start = false)
     JuMP.fix(y, true)
     DP._reformulate_logical_variables(model)
-    bidx = gdp_data(model).indicator_to_binary[JuMP.index(y)]
-    bvref = JuMP.VariableRef(model, bidx)
+    bvref = gdp_data(model).indicator_to_binary[y]
     @test JuMP.owner_model(bvref) == model
     @test JuMP.is_binary(bvref)
     @test iszero(JuMP.start_value(bvref))

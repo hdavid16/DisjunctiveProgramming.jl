@@ -97,8 +97,3 @@ end
 function _reformulation_constraints(model::JuMP.Model)
     return model.ext[:GDP].reformulation_constraints
 end
-
-function _indicator_to_binary_ref(lvref::LogicalVariableRef)
-    model, idx = lvref.model, lvref.index
-    return JuMP.VariableRef(model, _indicator_to_binary(model)[idx])
-end
