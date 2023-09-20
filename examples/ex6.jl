@@ -27,5 +27,5 @@ m = GDPModel()
 @constraint(m, z in Exactly(w[1]))
 
 ##
-reformulate_model(m, BigM())
+reformulate_model(m, Indicator())
 print(m)
