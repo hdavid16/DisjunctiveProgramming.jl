@@ -60,7 +60,7 @@ end
 function _aggregate_variable(model::JuMP.Model, ref_cons::Vector{JuMP.AbstractConstraint}, vref::JuMP.VariableRef, method::_Hull)
     JuMP.is_binary(vref) && return #skip binary variables
     con_expr = JuMP.@expression(model, -vref + sum(method.disjunction_variables[vref]))
-    append!(ref_cons,
+    push!(ref_cons,
         JuMP.build_constraint(error, con_expr, _MOI.EqualTo(0))
     )
     return 
