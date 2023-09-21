@@ -1,3 +1,5 @@
+using HiGHS
+
 function test_empty_model()
     model = GDPModel()
     @test gdp_data(model) isa GDPData
@@ -15,7 +17,7 @@ end
 
 function test_non_gdp_model()
     model = JuMP.Model()
-    @test_throws ErrorException gdp_dta(model)
+    @test_throws ErrorException gdp_data(model)
 end
 
 function test_creation_optimizer()
@@ -32,6 +34,6 @@ end
 @testset "GDP Model" begin
     test_empty_model()
     test_non_gdp_model()
-    test_optimizer_set()
+    test_creation_optimizer()
     test_set_optimizer()
 end

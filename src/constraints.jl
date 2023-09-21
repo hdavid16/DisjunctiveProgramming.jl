@@ -140,6 +140,14 @@ end
 ################################################################################
 #                              Disjunct Constraints
 ################################################################################
+function _check_expression(expr)
+    vars = Set{JuMP.VariableRef}()
+    _interrogate_variables(v -> push!(vars, v), expr) 
+    if any(JuMP.is_binary.(vars)) || any(JuMP.is_integer.(vars))
+        error("Disjunct constraints cannot contain binary or integer variables.")
+    end
+    return
+end
 """
     JuMP.build_constraint(
         _error::Function, 
@@ -160,11 +168,12 @@ function JuMP.build_constraint(
     set::_MOI.AbstractScalarSet, 
     tag::DisjunctConstraint
 )
+    _check_expression(func)
     constr = JuMP.build_constraint(_error, func, set)
     return _DisjunctConstraint(constr, tag.indicator)
 end
 
-# Allows for building DisjunctConstraints for VectorConstraints since these get parsed differently by JuMP (the set is changed to a MOI.AbstractScalarSet)
+# Allows for building DisjunctConstraints for VectorConstraints since these get parsed differently by JuMP (JuMP changes the set to a MOI.AbstractScalarSet)
 for SetType in (JuMP.Nonnegatives, JuMP.Nonpositives, JuMP.Zeros)
     @eval begin
         @doc """
@@ -183,6 +192,7 @@ for SetType in (JuMP.Nonnegatives, JuMP.Nonpositives, JuMP.Zeros)
             set::$SetType, 
             tag::DisjunctConstraint
         )
+            _check_expression(func)
             constr = JuMP.build_constraint(_error, func, set)
             return _DisjunctConstraint(constr, tag.indicator)
         end
@@ -197,24 +207,11 @@ function JuMP.build_constraint(
     ub::Real,
     tag::DisjunctConstraint
 )
+    _check_expression(func)
     constr = JuMP.build_constraint(_error, func, lb, ub)
     func = JuMP.jump_function(constr)
     set = JuMP.moi_set(constr)
     return JuMP.build_constraint(_error, func, set, tag)
-end
-
-# Add the variable mappings
-function _add_indicator_var(
-    con::_DisjunctConstraint{C, LogicalVariableRef}, 
-    cref, 
-    model
-    ) where {C <: JuMP.AbstractConstraint}
-    JuMP.is_valid(model, con.lvref) || error("Logical variable belongs to a different model.")
-    if !haskey(_indicator_to_constraints(model), con.lvref)
-        _indicator_to_constraints(model)[con.lvref] = Vector{Union{DisjunctConstraintRef, DisjunctionRef}}()
-    end
-    push!(_indicator_to_constraints(model)[con.lvref], cref)
-    return
 end
 
 """
@@ -242,20 +239,34 @@ end
 ################################################################################
 #                              DISJUNCTIONS
 ################################################################################
-function _process_structure(_error, s::Vector{LogicalVariableRef}, model::JuMP.Model)
-    allunique(s) ||_error("Not all the logical indicator variables are unique.")
-    for lvref in s
+# Add the variable mappings
+function _add_indicator_var(
+    con::_DisjunctConstraint{C, LogicalVariableRef}, 
+    cref, 
+    model
+    ) where {C <: JuMP.AbstractConstraint}
+    JuMP.is_valid(model, con.lvref) || error("Logical variable belongs to a different model.")
+    if !haskey(_indicator_to_constraints(model), con.lvref)
+        _indicator_to_constraints(model)[con.lvref] = Vector{Union{DisjunctConstraintRef, DisjunctionRef}}()
+    end
+    push!(_indicator_to_constraints(model)[con.lvref], cref)
+    return
+end
+# check disjunction
+function _check_disjunction(_error, lvrefs::Vector{LogicalVariableRef}, model::JuMP.Model)
+    allunique(lvrefs) ||_error("Not all the logical indicator variables are unique.")
+    for lvref in lvrefs
         if !JuMP.is_valid(model, lvref)
             _error("`$lvref` is not a valid logical variable reference.")
         elseif !haskey(_indicator_to_constraints(model), lvref)
             _error("`$lvref` is not associated with any constraints.")
         end
     end
-    return s
+    return lvrefs
 end
 
 # fallback
-function _process_structure(_error, s, model::JuMP.Model)
+function _check_disjunction(_error, lvrefs, model::JuMP.Model)
     _error("Unrecognized disjunction input structure.") # TODO add details on proper syntax
 end
 
@@ -270,7 +281,7 @@ function _create_disjunction(
     is_gdp_model(model) || error("Can only add disjunctions to `GDPModel`s.")
 
     # build the disjunction
-    indicators = _process_structure(_error, structure, model)
+    indicators = _check_disjunction(_error, structure, model)
     disjunction = Disjunction(indicators, nested)
 
     # add it to the model

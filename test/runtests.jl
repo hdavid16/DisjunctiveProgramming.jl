@@ -1,6 +1,5 @@
 using DisjunctiveProgramming
 using JuMP
-using HiGHS
 using Test
 
 const DP = DisjunctiveProgramming
