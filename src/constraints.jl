@@ -294,7 +294,7 @@ function _disjunction(
     structure::Vector,
     name::String
 )
-    _create_disjunction(_error, model, structure, name, false)
+    return _create_disjunction(_error, model, structure, name, false)
 end
 
 # Fallback disjunction build for nonvector structure
