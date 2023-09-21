@@ -288,7 +288,7 @@ function _disjunction(
     structure::Vector,
     name::String
 )
-    _create_disjunction(_error, model, structure, name, false)
+    return _create_disjunction(_error, model, structure, name, false)
 end
 
 # Fallback disjunction build for nonvector structure
@@ -312,6 +312,7 @@ function _disjunction(
     dref = _create_disjunction(_error, model, structure, name, true)
     obj = JuMP.constraint_object(dref)
     _add_indicator_var(_DisjunctConstraint(obj, tag.indicator), dref, model)
+    return dref
 end
 
 # General fallback for additional arguments
