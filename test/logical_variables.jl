@@ -1,3 +1,4 @@
+# test creating, modifying, and reformulating logical variables
 function test_lvar_add_fail()
    model = Model()
    @test_throws ErrorException @variable(model, y, LogicalVariable)
@@ -6,13 +7,20 @@ end
 function test_lvar_add_success()
     model = GDPModel()
     @variable(model, y, LogicalVariable)
-
-    @test model == JuMP.owner_model(y)
     @test typeof(y) == LogicalVariableRef
+    @test JuMP.owner_model(y) == model
+    @test JuMP.is_valid(model, y)
     @test JuMP.name(y) == "y"
     @test JuMP.index(y) == LogicalVariableIndex(1)
     @test isnothing(JuMP.start_value(y))
     @test isnothing(JuMP.fix_value(y))
+    @test JuMP.isequal_canonical(y, copy(y))
+    @test haskey(DP._logical_variables(model), JuMP.index(y))
+    @test DP._logical_variables(model)[JuMP.index(y)] isa LogicalVariableData
+    @test DP._logical_variables(model)[JuMP.index(y)].variable == LogicalVariable(nothing, nothing)
+    @test DP._logical_variables(model)[JuMP.index(y)].name == "y"
+    #reformulate the variable
+    test_reformulating_lvar(model, y)
 end
 
 function test_lvar_add_array()
@@ -46,27 +54,37 @@ function test_lvar_set_name()
     @variable(model, y, LogicalVariable)
     JuMP.set_name(y, "z")
     @test JuMP.name(y) == "z"
+    #reformulate the variable
+    test_reformulating_lvar(model, y)
 end
 
 function test_lvar_creation_start_value()
     model = GDPModel()
     @variable(model, y, LogicalVariable, start = true)
     @test JuMP.start_value(y)
+    #reformulate the variable
+    test_reformulating_lvar(model, y)
 end
 
 function test_lvar_set_start_value()
     model = GDPModel()
     @variable(model, y, LogicalVariable)
-    JuMP.set_start_value(y, true)
-    @test JuMP.start_value(y)
+    @test isnothing(JuMP.start_value(y))
+    JuMP.set_start_value(y, false)
+    @test !JuMP.start_value(y)
+    #reformulate the variable
+    test_reformulating_lvar(model, y)
 end
 
 function test_lvar_fix_value()
     model = GDPModel()
     @variable(model, y, LogicalVariable)
+    @test isnothing(JuMP.fix_value(y))
     JuMP.fix(y, true)
     @test JuMP.fix_value(y)
-
+    #reformulate the variable
+    test_reformulating_lvar(model, y)
+    #unfix the value
     JuMP.unfix(y)
     @test isnothing(JuMP.fix_value(y))
 end
@@ -99,12 +117,32 @@ function test_lvar_reformulation()
     model = GDPModel()
     @variable(model, y, LogicalVariable, start = false)
     JuMP.fix(y, true)
+    test_reformulating_lvar(model, y)
+end
+
+function test_reformulating_lvar(model::JuMP.Model, lvref::LogicalVariableRef)
+    model = JuMP.owner_model(lvref)
     DP._reformulate_logical_variables(model)
-    bvref = gdp_data(model).indicator_to_binary[y]
-    @test JuMP.owner_model(bvref) == model
+    @test haskey(DP._indicator_to_binary(model), lvref)
+    bvref = DP._indicator_to_binary(model)[lvref]
+    @test bvref in DP._reformulation_variables(model)
+    @test JuMP.name(bvref) == JuMP.name(lvref)
+    @test JuMP.is_valid(model, bvref)
     @test JuMP.is_binary(bvref)
-    @test iszero(JuMP.start_value(bvref))
-    @test isone(JuMP.fix_value(bvref))
+    if isnothing(JuMP.start_value(lvref))
+        @test isnothing(JuMP.start_value(bvref))
+    elseif JuMP.start_value(lvref)
+        @test isone(JuMP.start_value(bvref))
+    else
+        @test iszero(JuMP.start_value(bvref))
+    end
+    if isnothing(JuMP.fix_value(lvref))
+        @test_throws Exception JuMP.fix_value(bvref)
+    elseif JuMP.fix_value(lvref)
+        @test isone(JuMP.fix_value(bvref))
+    else
+        @test iszero(JuMP.fix_value(bvref))
+    end
 end
 
 @testset "Logical Variables" begin

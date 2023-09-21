@@ -1,8 +1,10 @@
 using DisjunctiveProgramming
 using JuMP
+using HiGHS
 using Test
 
 const DP = DisjunctiveProgramming
 
-include("test_aqua.jl")
-include("test_lvar.jl")
+include("aqua.jl")
+include("logical_variables.jl")
+include("model.jl")
