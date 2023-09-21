@@ -108,15 +108,23 @@ function test_lvar_reformulation()
 end
 
 @testset "Logical Variables" begin
-    test_lvar_add_fail()
-    test_lvar_add_success()
-    test_lvar_add_array()
-    test_lvar_add_dense_axis()
-    test_lvar_add_sparse_axis()
-    test_lvar_set_name()
-    test_lvar_creation_start_value()
-    test_lvar_set_start_value()
-    test_lvar_fix_value()
-    test_lvar_delete()
-    test_lvar_reformulation()
+    @testset "Add Logical Variables" begin
+        test_lvar_add_fail()
+        test_lvar_add_success()
+        test_lvar_add_array()
+        test_lvar_add_dense_axis()
+        test_lvar_add_sparse_axis()
+    end
+    @testset "Logical Variable Properties" begin
+        test_lvar_set_name()
+        test_lvar_creation_start_value()
+        test_lvar_set_start_value()
+        test_lvar_fix_value()
+    end
+    @testset "Delete Logical Variables" begin
+        test_lvar_delete()
+    end
+    @testset "Reformulate Logical Variables" begin
+        test_lvar_reformulation()
+    end
 end

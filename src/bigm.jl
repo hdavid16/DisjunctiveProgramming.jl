@@ -111,8 +111,7 @@ function reformulate_disjunct_constraint(
 ) where {T, S <: _MOI.LessThan}
     M = _get_M_value(method, con.func, con.set)
     new_func = JuMP.@expression(model, con.func - M*(1-bvref))
-    reform_con = JuMP.build_constraint(error, new_func, con.set)
-
+    reform_con = JuMP.build_constraint(error, new_func, con.set)    
     return [reform_con]
 end
 function reformulate_disjunct_constraint(
@@ -125,8 +124,7 @@ function reformulate_disjunct_constraint(
     new_func = JuMP.@expression(model, [i=1:con.set.dimension], 
         con.func[i] - M[i]*(1-bvref)
     )
-    reform_con = JuMP.build_constraint(error, new_func, con.set)
-
+    reform_con = JuMP.build_constraint(error, new_func, con.set)    
     return [reform_con]
 end
 function reformulate_disjunct_constraint(
@@ -138,7 +136,6 @@ function reformulate_disjunct_constraint(
     M = _get_M_value(method, con.func, con.set)
     new_func = JuMP.@expression(model, con.func + M*(1-bvref))
     reform_con = JuMP.build_constraint(error, new_func, con.set)
-
     return [reform_con]
 end
 function reformulate_disjunct_constraint(
@@ -152,7 +149,6 @@ function reformulate_disjunct_constraint(
         con.func[i] + M[i]*(1-bvref)
     )
     reform_con = JuMP.build_constraint(error, new_func, con.set)
-
     return [reform_con]
 end
 function reformulate_disjunct_constraint(
@@ -167,7 +163,6 @@ function reformulate_disjunct_constraint(
     set_values = _set_values(con.set)
     reform_con_gt = JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(set_values[1]))
     reform_con_lt = JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(set_values[2]))
-
     return [reform_con_gt, reform_con_lt]
 end
 function reformulate_disjunct_constraint(
@@ -185,6 +180,5 @@ function reformulate_disjunct_constraint(
     )
     reform_con_nn = JuMP.build_constraint(error, new_func_nn, _MOI.Nonnegatives(con.set.dimension))
     reform_con_np = JuMP.build_constraint(error, new_func_np, _MOI.Nonpositives(con.set.dimension))
-
     return [reform_con_nn, reform_con_np]
 end

@@ -34,7 +34,7 @@ function _reformulate_logical_variables(model::JuMP.Model)
     for (lv_idx, lv_data) in _logical_variables(model)
         lv = lv_data.variable
         lvref = LogicalVariableRef(model, lv_idx)
-        bvref = JuMP.@variable(model, base_name = lv_data.name, binary=true, start = lv.start_value)
+        bvref = JuMP.@variable(model, base_name = lv_data.name, binary = true, start = lv.start_value)
         if JuMP.is_fixed(lvref)
             JuMP.fix(bvref, JuMP.fix_value(lvref))
         end
@@ -82,43 +82,39 @@ The `disj` field is the `ConstraintData` object for the disjunction, stored in t
 """
 # generic fallback (e.g., BigM, Indicator)
 function reformulate_disjunction(model::JuMP.Model, disj::Disjunction, method::AbstractReformulationMethod)
-    ref_cons = Vector{JuMP.AbstractConstraint}()
+    ref_cons = Vector{JuMP.AbstractConstraint}() #store reformulated constraints
     for d in disj.indicators
-        push!(ref_cons, _reformulate_disjunct(model, d, method)...)
+        _reformulate_disjunct(model, ref_cons, d, method)
     end
-
     return ref_cons
 end
 # hull specific
 function reformulate_disjunction(model::JuMP.Model, disj::Disjunction, method::Hull)
-    ref_cons = Vector{JuMP.AbstractConstraint}()
+    ref_cons = Vector{JuMP.AbstractConstraint}() #store reformulated constraints
     disj_vrefs = _get_disjunction_variables(model, disj)
     hull = _Hull(method, disj_vrefs)
     for d in disj.indicators #reformulate each disjunct
         _disaggregate_variables(model, d, disj_vrefs, hull) #disaggregate variables for that disjunct
-        push!(ref_cons, _reformulate_disjunct(model, d, hull)...)
+        _reformulate_disjunct(model, ref_cons, d, hull)
     end
     for vref in disj_vrefs #create sum constraint for disaggregated variables
-        push!(ref_cons, _aggregate_variable(model, vref, hull))
+        _aggregate_variable(model, ref_cons, vref, hull)
     end
-
     return ref_cons
 end
 function reformulate_disjunction(model::JuMP.Model, disj::Disjunction, method::_Hull)
-    reformulate_disjunction(model, disj, Hull(method.value, method.variable_bounds))
+    return reformulate_disjunction(model, disj, Hull(method.value, method.variable_bounds))
 end
 
 # individual disjuncts
-function _reformulate_disjunct(model::JuMP.Model, lvref::LogicalVariableRef, method::AbstractReformulationMethod)
+function _reformulate_disjunct(model::JuMP.Model, ref_cons::Vector{JuMP.AbstractConstraint}, lvref::LogicalVariableRef, method::AbstractReformulationMethod)
     #reformulate each constraint and add to the model
     bvref = _indicator_to_binary(model)[lvref]
-    ref_cons = Vector{JuMP.AbstractConstraint}()
     for cref in _indicator_to_constraints(model)[lvref]
         con = JuMP.constraint_object(cref)
-        push!(ref_cons, reformulate_disjunct_constraint(model, con, bvref, method)...)
+        append!(ref_cons, reformulate_disjunct_constraint(model, con, bvref, method))
     end
-
-    return ref_cons
+    return
 end
 
 _index_to_constraint(model::JuMP.Model, cidx::DisjunctConstraintIndex) = _disjunct_constraints(model)[cidx]
@@ -136,7 +132,6 @@ function reformulate_disjunct_constraint(
     for ref_con in ref_cons
         push!(new_ref_cons, reformulate_disjunct_constraint(model, ref_con, bvref, method)...) #nested = false only for the parent disjunction (only adds the constraints when they have moved up all the way)
     end
-    
     return new_ref_cons
 end
 

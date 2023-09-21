@@ -9,7 +9,6 @@ function reformulate_disjunct_constraint(
     method::Indicator
 ) where {T, S}
     reform_con = JuMP.build_constraint(error, [1*bvref, con.func], _MOI.Indicator{_MOI.ACTIVATE_ON_ONE}(con.set))
-    
     return [reform_con]
 end
 #vectorized disjunct constraint
@@ -25,7 +24,6 @@ function reformulate_disjunct_constraint(
         reform_con = JuMP.build_constraint(error, [1*bvref, func], _MOI.Indicator{_MOI.ACTIVATE_ON_ONE}(set))
         push!(reform_cons, reform_con)
     end
-
     return reform_cons
 end
 #nested indicator reformulation
@@ -35,6 +33,5 @@ function reformulate_disjunct_constraint(
     bvref::JuMP.VariableRef,
     method::Indicator
 ) where {T, S <: _MOI.Indicator}
-    
     return [con]
 end

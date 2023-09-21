@@ -104,9 +104,7 @@ function JuMP.delete(model::JuMP.Model, cref::DisjunctionRef)
     @assert JuMP.is_valid(model, cref) "Disjunctive constraint does not belong to model."
     cidx = JuMP.index(cref)
     dict = _disjunctions(model)
-    #delete from gdp_data
     delete!(dict, cidx)
-    #not ready to optimize
     _set_ready_to_optimize(model, false)
     return 
 end
@@ -120,9 +118,7 @@ function JuMP.delete(model::JuMP.Model, cref::DisjunctConstraintRef)
     @assert JuMP.is_valid(model, cref) "Disjunctive constraint does not belong to model."
     cidx = JuMP.index(cref)
     dict = _disjunct_constraints(model)
-    #delete from gdp_data
     delete!(dict, cidx)
-    #not ready to optimize
     _set_ready_to_optimize(model, false)
     return 
 end
@@ -136,9 +132,7 @@ function JuMP.delete(model::JuMP.Model, cref::LogicalConstraintRef)
     @assert JuMP.is_valid(model, cref) "Logical constraint does not belong to model."
     cidx = JuMP.index(cref)
     dict = _logical_constraints(model)
-    #delete from gdp_data
     delete!(dict, cidx)
-    #not ready to optimize
     _set_ready_to_optimize(model, false)
     return 
 end

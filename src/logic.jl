@@ -67,7 +67,6 @@ function _eliminate_equivalence(lexpr::_LogicalExpr)
             _eliminate_equivalence(arg) for arg in lexpr.args
         ])
     end
-
     return new_lexpr
 end
 
@@ -91,7 +90,6 @@ function _eliminate_implication(lexpr::_LogicalExpr)
             _eliminate_implication(arg) for arg in lexpr.args
         ])
     end
-
     return new_lexpr
 end
 
@@ -110,7 +108,6 @@ function _move_negations_inward(lexpr::_LogicalExpr)
             _move_negations_inward(arg) for arg in lexpr.args
         ])
     end
-
     return new_lexpr
 end
 
@@ -181,7 +178,6 @@ function _distribute_and_over_or(lexpr0::_LogicalExpr)
             _distribute_and_over_or(arg) for arg in lexpr.args
         ])
     end
-
     return new_lexpr
 end
 
@@ -320,6 +316,5 @@ function _reformulate_clause(model::JuMP.Model, lexpr::_LogicalExpr)
     else
         error("Expression was not converted to proper Conjunctive Normal Form:\n$lexpr.")
     end
-    
     return func
 end

@@ -40,26 +40,30 @@ function _disaggregate_variable(model::JuMP.Model, lvref::LogicalVariableRef, vr
     method.disjunct_variables[vref, bvref] = dvref
     #create bounding constraints
     dvname = JuMP.name(dvref)
+    lbname = isempty(dvname) ? "" : "$(dvname)_lower_bound"
+    ubname = isempty(dvname) ? "" : "$(dvname)_upper_bound"
     new_con_lb_ref = JuMP.add_constraint(model,
         JuMP.build_constraint(error, lb*bvref - dvref, _MOI.LessThan(0)),
-        "$dvname lower bounding"
+        lbname
     )
     new_con_ub_ref = JuMP.add_constraint(model,
         JuMP.build_constraint(error, dvref - ub*bvref, _MOI.LessThan(0)),
-        "$dvname upper bounding"
+        ubname
     )
     push!(_reformulation_constraints(model), new_con_lb_ref, new_con_ub_ref)
-
     return dvref
 end
 
 ################################################################################
 #                              VARIABLE AGGREGATION
 ################################################################################
-function _aggregate_variable(model::JuMP.Model, vref::JuMP.VariableRef, method::_Hull)
+function _aggregate_variable(model::JuMP.Model, ref_cons::Vector{JuMP.AbstractConstraint}, vref::JuMP.VariableRef, method::_Hull)
     JuMP.is_binary(vref) && return #skip binary variables
     con_expr = JuMP.@expression(model, -vref + sum(method.disjunction_variables[vref]))
-    return JuMP.build_constraint(error, con_expr, _MOI.EqualTo(0))
+    append!(ref_cons,
+        JuMP.build_constraint(error, con_expr, _MOI.EqualTo(0))
+    )
+    return 
 end
 
 ################################################################################
@@ -91,7 +95,6 @@ function _disaggregate_expression(model::JuMP.Model, quad::JuMP.QuadExpr, bvref:
         db_ref = method.disjunct_variables[pair.b, bvref]
          new_expr += coeff * da_ref * db_ref / ((1-ϵ)*bvref+ϵ)
     end
-
     return new_expr
 end
 # constant in NonlinearExpr
@@ -155,7 +158,6 @@ function reformulate_disjunct_constraint(
     set_value = _set_value(con.set)
     new_func -= set_value*bvref
     reform_con = JuMP.build_constraint(error, new_func, S(0))
-
     return [reform_con]
 end
 function reformulate_disjunct_constraint(
@@ -168,7 +170,6 @@ function reformulate_disjunct_constraint(
         _disaggregate_expression(model, con.func[i], bvref, method)
     )
     reform_con = JuMP.build_constraint(error, new_func, con.set)
-
     return [reform_con]
 end
 function reformulate_disjunct_constraint(
@@ -186,7 +187,6 @@ function reformulate_disjunct_constraint(
     set_value = _set_value(con.set)
     new_func = JuMP.@expression(model, ((1-ϵ)*bvref+ϵ)*con_func - ϵ*(1-bvref)*con_func0 - set_value*bvref)
     reform_con = JuMP.build_constraint(error, new_func, S(0))
-
     return [reform_con]
 end
 function reformulate_disjunct_constraint(
@@ -207,7 +207,6 @@ function reformulate_disjunct_constraint(
         ((1-ϵ)*bvref+ϵ)*con_func[i] - ϵ*(1-bvref)*con_func0[i]
     )
     reform_con = JuMP.build_constraint(error, new_func, con.set)
-
     return [reform_con]
 end
 function reformulate_disjunct_constraint(
@@ -221,7 +220,6 @@ function reformulate_disjunct_constraint(
     new_func_lt = JuMP.@expression(model, new_func - con.set.upper*bvref)
     reform_con_gt = JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(0))
     reform_con_lt = JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
-
     return [reform_con_gt, reform_con_lt]
 end
 function reformulate_disjunct_constraint(
@@ -241,6 +239,5 @@ function reformulate_disjunct_constraint(
     new_func_lt = JuMP.@expression(model, new_func - con.set.upper*bvref)
     reform_con_gt = JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(0))
     reform_con_lt = JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
-
     return [reform_con_gt, reform_con_lt]
 end
