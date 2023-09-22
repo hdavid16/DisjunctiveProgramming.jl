@@ -130,7 +130,7 @@ function reformulate_disjunct_constraint(
     ref_cons = reformulate_disjunction(model, con, method)
     new_ref_cons = Vector{JuMP.AbstractConstraint}()
     for ref_con in ref_cons
-        push!(new_ref_cons, reformulate_disjunct_constraint(model, ref_con, bvref, method)...) #nested = false only for the parent disjunction (only adds the constraints when they have moved up all the way)
+        append!(new_ref_cons, reformulate_disjunct_constraint(model, ref_con, bvref, method)) #nested = false only for the parent disjunction (only adds the constraints when they have moved up all the way)
     end
     return new_ref_cons
 end
