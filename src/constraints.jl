@@ -549,7 +549,7 @@ function JuMP.add_constraint(
     model::JuMP.Model,
     c::JuMP.VectorConstraint{<:F, S, Shape},
     name::String = ""
-) where {F <: Union{Number, LogicalVariableRef, _LogicalExpr}, S, Shape}
+) where {F <: Union{LogicalVariableRef, _LogicalExpr}, S, Shape}
     is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")
     @assert all(JuMP.is_valid.(model, _get_constraint_variables(model, c))) "Constraint variables do not belong to model."
     constr_data = ConstraintData(c, name)

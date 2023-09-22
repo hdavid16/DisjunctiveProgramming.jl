@@ -57,14 +57,20 @@ end
 #                        LOGICAL SELECTOR (CARDINALITY) SETS
 ################################################################################
 abstract type _MOISelector <: _MOI.AbstractVectorSet end
-
+# TODO check required methods for AbstractVectorSet: 
+# All AbstractVectorSets of type S must implement:
+# •  dimension, unless the dimension is
+#    stored in the set.dimension field
+# •  Utilities.set_dot, unless the dot
+#    product between two vectors in the set
+#    is equivalent to LinearAlgebra.dot.
 """
     _MOIAtLeast{T<:Union{Int,LogicalVariableRef}} <: _MOISelector
 
 MOI level set for AtLeast constraints, see [`AtLeast`](@ref) for recommended syntax.
 """
 struct _MOIAtLeast{T<:Union{Int,LogicalVariableRef}} <: _MOISelector
-    value::T
+    value::T # TODO for nested disjunctions, we use selector constraints where `value` can be LogicalVariableRef (revise this as variables shouldn't be in the set)
     dimension::Int
 end
 
@@ -74,7 +80,7 @@ end
 MOI level set for AtMost constraints, see [`AtMost`](@ref) for recommended syntax.
 """
 struct _MOIAtMost{T<:Union{Int,LogicalVariableRef}} <: _MOISelector
-    value::T 
+    value::T # TODO for nested disjunctions, we use selector constraints where `value` can be LogicalVariableRef (revise this as variables shouldn't be in the set)
     dimension::Int
 end
 
@@ -84,7 +90,7 @@ end
 MOI level set for Exactly constraints, see [`Exactly`](@ref) for recommended syntax.
 """
 struct _MOIExactly{T<:Union{Int,LogicalVariableRef}} <: _MOISelector
-    value::T 
+    value::T # TODO for nested disjunctions, we use selector constraints where `value` can be LogicalVariableRef (revise this as variables shouldn't be in the set)
     dimension::Int
 end
 

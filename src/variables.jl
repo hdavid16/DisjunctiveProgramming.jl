@@ -249,8 +249,9 @@ function _get_disjunction_variables(model::JuMP.Model, disj::Disjunction)
 end
 
 function _get_constraint_variables(model::JuMP.Model, con::Union{JuMP.ScalarConstraint, JuMP.VectorConstraint})
-    vars = Set{LogicalVariableRef}()
-    _interrogate_variables(v -> push!(vars, v), con) 
+    vars = Set{Union{JuMP.VariableRef, LogicalVariableRef}}()
+    _interrogate_variables(v -> push!(vars, v), con.func)
+    _interrogate_variables(v -> push!(vars, v), con.set) 
     return vars   
 end
 
@@ -259,15 +260,21 @@ function _interrogate_variables(interrogator::Function, c::Number)
     return
 end
 
-# VariableRef
-function _interrogate_variables(interrogator::Function, var::JuMP.VariableRef)
+# VariableRef/LogicalVariableRef
+function _interrogate_variables(interrogator::Function, var::Union{JuMP.VariableRef, LogicalVariableRef})
     interrogator(var)
     return
 end
 
-# LogicalVariableRef
-function _interrogate_variables(interrogator::Function, var::LogicalVariableRef)
-    interrogator(var)
+# _MOISelector
+# TODO sets probably shouldn't have variables stored in them
+function _interrogate_variables(interrogator::Function, set::_MOISelector)
+    _interrogate_variables(interrogator, set.value)
+    return
+end
+
+# _MOI.AbstractSet
+function _interrogate_variables(interrogator::Function, set::_MOI.AbstractSet)
     return
 end
 
@@ -300,13 +307,8 @@ function _interrogate_variables(interrogator::Function, nlp::JuMP.GenericNonline
 end
 
 # Constraint
-function _interrogate_variables(interrogator::Function, con::JuMP.ScalarConstraint)
+function _interrogate_variables(interrogator::Function, con::Union{JuMP.ScalarConstraint, JuMP.VectorConstraint})
     _interrogate_variables(interrogator, con.func)
-end
-function _interrogate_variables(interrogator::Function, con::JuMP.VectorConstraint)
-    for func in con.func
-        _interrogate_variables(interrogator, func)
-    end
 end
 
 # AbstractArray
@@ -330,6 +332,6 @@ function _interrogate_variables(interrogator::Function, disj::Disjunction)
 end
 
 # Fallback
-function _interrogate_variables(interrogator::Function, model::JuMP.Model, other)
-    error("Cannot extract variables from object of type $(typeof(other)) inside of a disjunctive constraint.")
+function _interrogate_variables(interrogator::Function, other)
+    error("Cannot extract variables from object of type $(typeof(other)).")
 end
