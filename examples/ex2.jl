@@ -45,23 +45,23 @@ optimize!(m, method = Hull())
 print(m)
 # Max x[1] + x[2]
 # Subject to
-#  x[2] aggregation : -x[2] + x[2]_Y[1] + x[2]_Y[2] = 0
-#  x[1] aggregation : -x[1] + x[1]_Y[1] + x[1]_Y[2] = 0
+#  -x[2] + x[2]_Y[1] + x[2]_Y[2] = 0
+#  -x[1] + x[1]_Y[1] + x[1]_Y[2] = 0
 #  Y[1] + Y[2] = 1
 #  x[1]_Y[1] ≥ 0
 #  x[2]_Y[1] ≥ 0
 #  -5 Y[2] + x[1]_Y[2] ≥ 0
 #  -4 Y[2] + x[2]_Y[2] ≥ 0
-#  x[2]_Y[1] lower bounding : -5 Y[1] - x[2]_Y[1] ≤ 0
-#  x[2]_Y[1] upper bounding : -10 Y[1] + x[2]_Y[1] ≤ 0
-#  x[1]_Y[1] lower bounding : -5 Y[1] - x[1]_Y[1] ≤ 0
-#  x[1]_Y[1] upper bounding : -10 Y[1] + x[1]_Y[1] ≤ 0
+#  x[2]_Y[1]_lower_bound : -5 Y[1] - x[2]_Y[1] ≤ 0
+#  x[2]_Y[1]_upper_bound : -10 Y[1] + x[2]_Y[1] ≤ 0
+#  x[1]_Y[1]_lower_bound : -5 Y[1] - x[1]_Y[1] ≤ 0
+#  x[1]_Y[1]_upper_bound : -10 Y[1] + x[1]_Y[1] ≤ 0
+#  x[2]_Y[2]_lower_bound : -5 Y[2] - x[2]_Y[2] ≤ 0
+#  x[2]_Y[2]_upper_bound : -10 Y[2] + x[2]_Y[2] ≤ 0
+#  x[1]_Y[2]_lower_bound : -5 Y[2] - x[1]_Y[2] ≤ 0
+#  x[1]_Y[2]_upper_bound : -10 Y[2] + x[1]_Y[2] ≤ 0
 #  -3 Y[1] + x[1]_Y[1] ≤ 0
 #  -4 Y[1] + x[2]_Y[1] ≤ 0
-#  x[2]_Y[2] lower bounding : -5 Y[2] - x[2]_Y[2] ≤ 0
-#  x[2]_Y[2] upper bounding : -10 Y[2] + x[2]_Y[2] ≤ 0
-#  x[1]_Y[2] lower bounding : -5 Y[2] - x[1]_Y[2] ≤ 0
-#  x[1]_Y[2] upper bounding : -10 Y[2] + x[1]_Y[2] ≤ 0
 #  -9 Y[2] + x[1]_Y[2] ≤ 0
 #  -6 Y[2] + x[2]_Y[2] ≤ 0
 #  x[1] ≥ -5

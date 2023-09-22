@@ -39,14 +39,14 @@ print(m)
 # Subject to
 #  (((0.999999 Y[2] + 1.0e-6) * (exp(x_Y[2] / (0.999999 Y[2] + 1.0e-6)) - 3.0)) - (2.0e-6 Y[2] - 2.0e-6)) - (0) ≥ 0
 #  (((0.999999 Y[1] + 1.0e-6) * (exp(x_Y[1] / (0.999999 Y[1] + 1.0e-6)) - 2.0)) - (1.0e-6 Y[1] - 1.0e-6)) - (0) ≤ 0
-#  x aggregation : -x + x_Y[1] + x_Y[2] = 0
+#  -x + x_Y[1] + x_Y[2] = 0
 #  Y[1] + Y[2] = 1
 #  3 Y[1] + x_Y[1] ≥ 0
 #  -5 Y[2] + x_Y[2] ≥ 0
-#  x_Y[1] lower bounding : -5 Y[1] - x_Y[1] ≤ 0
-#  x_Y[1] upper bounding : -10 Y[1] + x_Y[1] ≤ 0
-#  x_Y[2] lower bounding : -5 Y[2] - x_Y[2] ≤ 0
-#  x_Y[2] upper bounding : -10 Y[2] + x_Y[2] ≤ 0
+#  x_Y[1]_lower_bound : -5 Y[1] - x_Y[1] ≤ 0
+#  x_Y[1]_upper_bound : -10 Y[1] + x_Y[1] ≤ 0
+#  x_Y[2]_lower_bound : -5 Y[2] - x_Y[2] ≤ 0
+#  x_Y[2]_upper_bound : -10 Y[2] + x_Y[2] ≤ 0
 #  x ≥ -5
 #  x_Y[1] ≥ -5
 #  x_Y[2] ≥ -5

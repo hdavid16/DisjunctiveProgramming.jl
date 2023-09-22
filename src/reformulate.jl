@@ -155,9 +155,9 @@ function _reformulate_logical_constraints(model::JuMP.Model)
     end
 end
 # individual logical constraints
-function _reformulate_logical_constraint(model::JuMP.Model, lvec::Vector{LogicalVariableRef}, set::Union{_MOIAtMost, _MOIAtLeast, _MOIExactly})
-    return _reformulate_selector(model, set, set.value, lvec)
+function _reformulate_logical_constraint(model::JuMP.Model, func, set::Union{_MOIAtMost, _MOIAtLeast, _MOIExactly})
+    return _reformulate_selector(model, func, set)
 end
-function _reformulate_logical_constraint(model::JuMP.Model, lexpr::_LogicalExpr, ::_MOI.EqualTo{Bool})
-    return _reformulate_proposition(model, lexpr)
+function _reformulate_logical_constraint(model::JuMP.Model, func, ::_MOI.EqualTo{Bool})
+    return _reformulate_proposition(model, func)
 end

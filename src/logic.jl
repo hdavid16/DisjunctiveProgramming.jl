@@ -217,48 +217,19 @@ end
 #                              SELECTOR REFORMULATION
 ################################################################################
 # cardinality constraint reformulation
-function _reformulate_selector(model::JuMP.Model, ::_MOIAtLeast, val::Number, lvrefs::Vector{LogicalVariableRef})
-    bvrefs = [_indicator_to_binary(model)[lvref] for lvref in lvrefs]
+function _reformulate_selector(model::JuMP.Model, func, set::_MOISelector)
+    bvrefs = [_indicator_to_binary(model)[first(keys(lvref.terms))] for lvref in func[2:end]]
+    new_set = _vec_to_scalar_set(set)(func[1].constant)
     cref = JuMP.add_constraint(model,
-        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.GreaterThan(val))
+        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), new_set)
     )
     push!(_reformulation_constraints(model), cref)
 end
-function _reformulate_selector(model::JuMP.Model, ::_MOIAtMost, val::Number, lvrefs::Vector{LogicalVariableRef})
-    bvrefs = [_indicator_to_binary(model)[lvref] for lvref in lvrefs]
+function _reformulate_selector(model::JuMP.Model, func::Vector{LogicalVariableRef}, set::_MOISelector)
+    bvref, bvrefs... = [_indicator_to_binary(model)[lvref] for lvref in func]
+    new_set = _vec_to_scalar_set(set)(0)
     cref = JuMP.add_constraint(model,
-        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.LessThan(val))
-    )
-    push!(_reformulation_constraints(model), cref)
-end
-function _reformulate_selector(model::JuMP.Model, ::_MOIExactly, val::Number, lvrefs::Vector{LogicalVariableRef})
-    bvrefs = [_indicator_to_binary(model)[lvref] for lvref in lvrefs]
-    cref = JuMP.add_constraint(model,
-        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), _MOI.EqualTo(val))
-    )
-    push!(_reformulation_constraints(model), cref)
-end
-function _reformulate_selector(model::JuMP.Model, ::_MOIAtLeast, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
-    bvref = _indicator_to_binary(model)[lvref]
-    bvrefs = [_indicator_to_binary(model)[lvref] for lvref in lvrefs]
-    cref = JuMP.add_constraint(model,
-        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), _MOI.GreaterThan(0))
-    )
-    push!(_reformulation_constraints(model), cref)
-end
-function _reformulate_selector(model::JuMP.Model, ::_MOIAtMost, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
-    bvref = _indicator_to_binary(model)[lvref]
-    bvrefs = [_indicator_to_binary(model)[lvref] for lvref in lvrefs]
-    cref = JuMP.add_constraint(model,
-        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), _MOI.LessThan(0))
-    )
-    push!(_reformulation_constraints(model), cref)
-end
-function _reformulate_selector(model::JuMP.Model, ::_MOIExactly, lvref::LogicalVariableRef, lvrefs::Vector{LogicalVariableRef})
-    bvref = _indicator_to_binary(model)[lvref]
-    bvrefs = [_indicator_to_binary(model)[lvref] for lvref in lvrefs]
-    cref = JuMP.add_constraint(model,
-        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), _MOI.EqualTo(0))
+        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), new_set)
     )
     push!(_reformulation_constraints(model), cref)
 end

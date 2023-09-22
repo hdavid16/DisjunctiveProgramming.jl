@@ -251,7 +251,6 @@ end
 function _get_constraint_variables(model::JuMP.Model, con::Union{JuMP.ScalarConstraint, JuMP.VectorConstraint})
     vars = Set{Union{JuMP.VariableRef, LogicalVariableRef}}()
     _interrogate_variables(v -> push!(vars, v), con.func)
-    _interrogate_variables(v -> push!(vars, v), con.set) 
     return vars   
 end
 
@@ -266,20 +265,8 @@ function _interrogate_variables(interrogator::Function, var::Union{JuMP.Variable
     return
 end
 
-# _MOISelector
-# TODO sets probably shouldn't have variables stored in them
-function _interrogate_variables(interrogator::Function, set::_MOISelector)
-    _interrogate_variables(interrogator, set.value)
-    return
-end
-
-# _MOI.AbstractSet
-function _interrogate_variables(interrogator::Function, set::_MOI.AbstractSet)
-    return
-end
-
 # AffExpr
-function _interrogate_variables(interrogator::Function, aff::JuMP.AffExpr)
+function _interrogate_variables(interrogator::Function, aff::JuMP.GenericAffExpr)
     for (var, _) in aff.terms
         interrogator(var)
     end

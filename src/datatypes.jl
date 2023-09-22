@@ -65,32 +65,29 @@ abstract type _MOISelector <: _MOI.AbstractVectorSet end
 #    product between two vectors in the set
 #    is equivalent to LinearAlgebra.dot.
 """
-    _MOIAtLeast{T<:Union{Int,LogicalVariableRef}} <: _MOISelector
+    _MOIAtLeast <: _MOISelector
 
 MOI level set for AtLeast constraints, see [`AtLeast`](@ref) for recommended syntax.
 """
-struct _MOIAtLeast{T<:Union{Int,LogicalVariableRef}} <: _MOISelector
-    value::T # TODO for nested disjunctions, we use selector constraints where `value` can be LogicalVariableRef (revise this as variables shouldn't be in the set)
+struct _MOIAtLeast <: _MOISelector
     dimension::Int
 end
 
 """
-    _MOIAtMost{T<:Union{Int,LogicalVariableRef}} <: _MOISelector
+    _MOIAtMost <: _MOISelector
 
 MOI level set for AtMost constraints, see [`AtMost`](@ref) for recommended syntax.
 """
-struct _MOIAtMost{T<:Union{Int,LogicalVariableRef}} <: _MOISelector
-    value::T # TODO for nested disjunctions, we use selector constraints where `value` can be LogicalVariableRef (revise this as variables shouldn't be in the set)
+struct _MOIAtMost <: _MOISelector
     dimension::Int
 end
 
 """
-    _MOIExactly{T<:Union{Int,LogicalVariableRef}} <: _MOISelector
+    _MOIExactly <: _MOISelector
 
 MOI level set for Exactly constraints, see [`Exactly`](@ref) for recommended syntax.
 """
-struct _MOIExactly{T<:Union{Int,LogicalVariableRef}} <: _MOISelector
-    value::T # TODO for nested disjunctions, we use selector constraints where `value` can be LogicalVariableRef (revise this as variables shouldn't be in the set)
+struct _MOIExactly <: _MOISelector
     dimension::Int
 end
 
@@ -123,9 +120,9 @@ struct Exactly{T<:Union{Int,LogicalVariableRef}} <: JuMP.AbstractVectorSet
 end
 
 # Extend JuMP.moi_set as needed
-JuMP.moi_set(set::AtLeast, dim::Int) = _MOIAtLeast(set.value, dim)
-JuMP.moi_set(set::AtMost, dim::Int) = _MOIAtMost(set.value, dim)
-JuMP.moi_set(set::Exactly, dim::Int) = _MOIExactly(set.value, dim)
+JuMP.moi_set(set::AtLeast, dim::Int) = _MOIAtLeast(dim)
+JuMP.moi_set(set::AtMost, dim::Int) = _MOIAtMost(dim)
+JuMP.moi_set(set::Exactly, dim::Int) = _MOIExactly(dim)
 
 ################################################################################
 #                              LOGICAL CONSTRAINTS

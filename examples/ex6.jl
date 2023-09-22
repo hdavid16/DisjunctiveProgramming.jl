@@ -29,3 +29,32 @@ m = GDPModel()
 ##
 reformulate_model(m, BigM())
 print(m)
+# Feasibility
+# Subject to
+#  y[1] + y[2] = 1
+#  -y[1] + w[1] + w[2] = 0
+#  -w[1] + z[1] + z[2] = 0
+#  x[3] - 9 z[2] ≥ -5
+#  x[2] - 8 w[2] ≥ -5
+#  x[3] - 5 w[2] ≥ -5
+#  x[1] - 7 y[2] ≥ -5
+#  x[2] - 4 y[2] ≥ -5
+#  x[3] - 6 y[2] ≥ -5
+#  x[1] + 7 y[1] ≤ 5
+#  x[2] + 8 w[1] ≤ 5
+#  x[3] + 9 z[1] ≤ 5
+#  x[3] + 5 w[2] ≤ 5
+#  x[2] + 6 y[2] ≤ 5
+#  x[3] + 4 y[2] ≤ 5
+#  x[1] ≥ -5
+#  x[2] ≥ -5
+#  x[3] ≥ -5
+#  x[1] ≤ 5
+#  x[2] ≤ 5
+#  x[3] ≤ 5
+#  y[1] binary
+#  y[2] binary
+#  w[1] binary
+#  w[2] binary
+#  z[1] binary
+#  z[2] binary

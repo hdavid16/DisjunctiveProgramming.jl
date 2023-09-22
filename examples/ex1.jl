@@ -57,14 +57,14 @@ optimize!(m, method = Hull())
 print(m)
 # Max x
 # Subject to
-#  x aggregation : -x + x_Y[1] + x_Y[2] = 0
+#  -x + x_Y[1] + x_Y[2] = 0
 #  Y[1] + Y[2] = 1
 #  x_Y[1] ≥ 0
-#  x_Y[1] lower bounding : -5 Y[1] - x_Y[1] ≤ 0
-#  x_Y[1] upper bounding : -10 Y[1] + x_Y[1] ≤ 0
+#  x_Y[1]_lower_bound : -5 Y[1] - x_Y[1] ≤ 0
+#  x_Y[1]_upper_bound : -10 Y[1] + x_Y[1] ≤ 0
+#  x_Y[2]_lower_bound : -5 Y[2] - x_Y[2] ≤ 0
+#  x_Y[2]_upper_bound : -10 Y[2] + x_Y[2] ≤ 0
 #  -3 Y[1] + x_Y[1] ≤ 0
-#  x_Y[2] lower bounding : -5 Y[2] - x_Y[2] ≤ 0
-#  x_Y[2] upper bounding : -10 Y[2] + x_Y[2] ≤ 0
 #  5 Y[2] - x_Y[2] ≤ 0
 #  -9 Y[2] + x_Y[2] ≤ 0
 #  x ≥ -5

@@ -13,6 +13,16 @@ _vec_to_scalar_set(set::_MOI.Nonpositives) = _MOI.LessThan(0)
 _vec_to_scalar_set(set::_MOI.Nonnegatives) = _MOI.GreaterThan(0)
 _vec_to_scalar_set(set::_MOI.Zeros) = _MOI.EqualTo(0)
 
+# helper functions to map jump selector to moi selector sets
+_jump_to_moi_selector(set::Exactly) = _MOIExactly
+_jump_to_moi_selector(set::AtLeast) = _MOIAtLeast
+_jump_to_moi_selector(set::AtMost) = _MOIAtMost
+
+# helper functions to map selectors to scalar sets
+_vec_to_scalar_set(set::_MOIExactly) = _MOI.EqualTo
+_vec_to_scalar_set(set::_MOIAtLeast) = _MOI.GreaterThan
+_vec_to_scalar_set(set::_MOIAtMost) = _MOI.LessThan
+
 ################################################################################
 #                         BOILERPLATE EXTENSION METHODS
 ################################################################################
@@ -393,8 +403,8 @@ JuMP.operator_to_set(_error::Function, ::Val{:⇔}) = _error(
     function JuMP.build_constraint(
         _error::Function, 
         func::AbstractVector{T},
-        set::_MOISelector
-    ) where {T <: Union{LogicalVariableRef, _LogicalExpr}}
+        set::S
+    ) where {T <: Union{LogicalVariableRef, _LogicalExpr}, S <: Union{Exactly, AtLeast, AtMost}}
 
 Extend `JuMP.build_constraint` to add logical cardinality constraints to a [`GDPModel`](@ref). 
 This in combination with `JuMP.add_constraint` enables the use of 
@@ -426,9 +436,11 @@ either be true or false.
 function JuMP.build_constraint( # Cardinality logical constraint
     _error::Function, 
     func::AbstractVector{T}, # allow any vector-like JuMP container
-    set::_MOISelector # TODO: generalize to allow CP sets from MOI
-) where {T <: Union{LogicalVariableRef, _LogicalExpr}}
-    return JuMP.VectorConstraint(func, set)
+    set::S # TODO: generalize to allow CP sets from MOI
+) where {T <: LogicalVariableRef, S <: Union{Exactly, AtLeast, AtMost}}
+    new_set = _jump_to_moi_selector(set)(length(func) + 1)
+    new_func = [set.value, func...]
+    return JuMP.VectorConstraint(new_func, new_set)
 end
 
 # Proposition logical constraint: EqualTo{Bool} w/ LogicalExpr
@@ -534,7 +546,7 @@ for a [`GDPModel`](@ref) with the `@constraint` macro.
 """
 function JuMP.add_constraint(
     model::JuMP.Model,
-    c::JuMP.ScalarConstraint{<:F, S},
+    c::JuMP.ScalarConstraint{F, S},
     name::String = ""
 ) where {F <: Union{LogicalVariableRef, _LogicalExpr}, S}
     is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")
@@ -547,9 +559,9 @@ function JuMP.add_constraint(
 end
 function JuMP.add_constraint(
     model::JuMP.Model,
-    c::JuMP.VectorConstraint{<:F, S, Shape},
+    c::JuMP.VectorConstraint{F, S, Shape},
     name::String = ""
-) where {F <: Union{LogicalVariableRef, _LogicalExpr}, S <: _MOISelector, Shape}
+) where {F, S <: _MOISelector, Shape}
     is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")
     @assert all(JuMP.is_valid.(model, _get_constraint_variables(model, c))) "Constraint variables do not belong to model."
     constr_data = ConstraintData(c, name)

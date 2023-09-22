@@ -2,6 +2,7 @@ using HiGHS
 
 function test_linear_gdp_example()
     m = GDPModel(HiGHS.Optimizer)
+    set_attribute(m, MOI.Silent(), true)
     @variable(m, 1 ≤ x[1:2] ≤ 9)
     @variable(m, Y[1:2], LogicalVariable)
     @variable(m, W[1:2], LogicalVariable)
