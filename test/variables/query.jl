@@ -1,4 +1,4 @@
-function interrogate_non_variables()
+function test_interrogate_non_variables()
     vars = Set()
     f = Base.Fix1(push!, vars) #interrogator
     #numbers
@@ -13,7 +13,7 @@ function interrogate_non_variables()
     @test_throws ErrorException DP._interrogate_variables(f, :a)
 end
 
-function interrogate_variables()
+function test_interrogate_variables()
     vars = Set()
     f = Base.Fix1(push!, vars) #interrogator
     m = GDPModel()
@@ -25,7 +25,7 @@ function interrogate_variables()
     @test length(vars) == 2
 end
 
-function interrogate_affexpr()
+function test_interrogate_affexpr()
     vars = Set()
     f = Base.Fix1(push!, vars) #interrogator
     m = GDPModel()
@@ -39,7 +39,7 @@ function interrogate_affexpr()
     @test length(vars) == 3
 end
 
-function interrogate_quadexpr()
+function test_interrogate_quadexpr()
     vars = Set()
     f = Base.Fix1(push!, vars) #interrogator
     m = GDPModel()
@@ -54,7 +54,7 @@ function interrogate_quadexpr()
     empty!(vars)
 end
 
-function interrogate_nonlinear_expr()
+function test_interrogate_nonlinear_expr()
     vars = Set()
     f = Base.Fix1(push!, vars) #interrogator
     m = GDPModel()
@@ -68,7 +68,7 @@ function interrogate_nonlinear_expr()
     @test length(vars) == 2
 end
 
-function interrogate_logical_expr()
+function test_interrogate_logical_expr()
     vars = Set()
     f = Base.Fix1(push!, vars) #interrogator
     m = GDPModel()
@@ -85,7 +85,7 @@ function interrogate_logical_expr()
     @test length(vars) == 5
 end
 
-function interrogate_proposition_constraint()
+function test_interrogate_proposition_constraint()
     m = GDPModel()
     @variable(m, y, LogicalVariable)
     @variable(m, w[1:5], LogicalVariable)
@@ -102,7 +102,7 @@ function interrogate_proposition_constraint()
     @test length(vars) == 5
 end
 
-function interrogate_selector_constraint()
+function test_interrogate_selector_constraint()
     m = GDPModel()
     @variable(m, y, LogicalVariable)
     @variable(m, w[1:5], LogicalVariable)
@@ -118,7 +118,7 @@ function interrogate_selector_constraint()
     @test length(vars) == 5
 end
 
-function interrogate_disjunction()
+function test_interrogate_disjunction()
     m = GDPModel()
     @variable(m, -5 ≤ x[1:2] ≤ 10)
     @variable(m, Y[1:2], LogicalVariable)
@@ -130,7 +130,7 @@ function interrogate_disjunction()
     @test Set(x) == vars
 end
 
-function interrogate_nested_disjunction()
+function test_interrogate_nested_disjunction()
     m = GDPModel()
     @variable(m, -5 <= x[1:3] <= 5)
 
@@ -155,14 +155,14 @@ function interrogate_nested_disjunction()
 end
 
 @testset "Variable Interrogation" begin
-    interrogate_non_variables()
-    interrogate_variables()
-    interrogate_affexpr()
-    interrogate_quadexpr()
-    interrogate_nonlinear_expr()
-    interrogate_logical_expr()
-    interrogate_proposition_constraint()
-    interrogate_selector_constraint()
-    interrogate_disjunction()
-    interrogate_nested_disjunction()
+    test_interrogate_non_variables()
+    test_interrogate_variables()
+    test_interrogate_affexpr()
+    test_interrogate_quadexpr()
+    test_interrogate_nonlinear_expr()
+    test_interrogate_logical_expr()
+    test_interrogate_proposition_constraint()
+    test_interrogate_selector_constraint()
+    test_interrogate_disjunction()
+    test_interrogate_nested_disjunction()
 end

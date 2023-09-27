@@ -218,7 +218,8 @@ end
 ################################################################################
 # cardinality constraint reformulation
 function _reformulate_selector(model::JuMP.Model, func, set::_MOISelector)
-    bvrefs = [_indicator_to_binary(model)[first(keys(lvref.terms))] for lvref in func[2:end]]
+    dict = _indicator_to_binary(model)
+    bvrefs = [dict[first(keys(lvref.terms))] for lvref in func[2:end]]
     new_set = _vec_to_scalar_set(set)(func[1].constant)
     cref = JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), new_set)
@@ -226,7 +227,8 @@ function _reformulate_selector(model::JuMP.Model, func, set::_MOISelector)
     push!(_reformulation_constraints(model), cref)
 end
 function _reformulate_selector(model::JuMP.Model, func::Vector{LogicalVariableRef}, set::_MOISelector)
-    bvref, bvrefs... = [_indicator_to_binary(model)[lvref] for lvref in func]
+    dict = _indicator_to_binary(model)
+    bvref, bvrefs... = [dict[lvref] for lvref in func]
     new_set = _vec_to_scalar_set(set)(0)
     cref = JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), new_set)
