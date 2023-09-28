@@ -17,32 +17,32 @@ function test_linear_gdp_example()
     @constraint(m, W in Exactly(Y[1]))
 
     optimize!(m, method = BigM())
-    @test JuMP.termination_status(m) == MOI.OPTIMAL
-    @test JuMP.objective_value(m) ≈ 11
-    @test JuMP.value.(x) ≈ [9,2]
+    @test termination_status(m) == MOI.OPTIMAL
+    @test objective_value(m) ≈ 11
+    @test value.(x) ≈ [9,2]
     bins = gdp_data(m).indicator_to_binary
-    @test JuMP.value(bins[Y[1]]) ≈ 0
-    @test JuMP.value(bins[Y[2]]) ≈ 1
-    @test JuMP.value(bins[W[1]]) ≈ 0
-    @test JuMP.value(bins[W[2]]) ≈ 0
+    @test value(bins[Y[1]]) ≈ 0
+    @test value(bins[Y[2]]) ≈ 1
+    @test value(bins[W[1]]) ≈ 0
+    @test value(bins[W[2]]) ≈ 0
 
     optimize!(m, method = Hull())
-    @test JuMP.termination_status(m) == MOI.OPTIMAL
-    @test JuMP.objective_value(m) ≈ 11
-    @test JuMP.value.(x) ≈ [9,2]
+    @test termination_status(m) == MOI.OPTIMAL
+    @test objective_value(m) ≈ 11
+    @test value.(x) ≈ [9,2]
     bins = gdp_data(m).indicator_to_binary
-    @test JuMP.value(bins[Y[1]]) ≈ 0
-    @test JuMP.value(bins[Y[2]]) ≈ 1
-    @test JuMP.value(bins[W[1]]) ≈ 0
-    @test JuMP.value(bins[W[2]]) ≈ 0
-    @test JuMP.value(JuMP.variable_by_name(m, "x[1]_Y[1]")) ≈ 0
-    @test JuMP.value(JuMP.variable_by_name(m, "x[1]_Y[2]")) ≈ 9
-    @test JuMP.value(JuMP.variable_by_name(m, "x[1]_W[1]")) ≈ 0
-    @test JuMP.value(JuMP.variable_by_name(m, "x[1]_W[2]")) ≈ 0
-    @test JuMP.value(JuMP.variable_by_name(m, "x[2]_Y[1]")) ≈ 0
-    @test JuMP.value(JuMP.variable_by_name(m, "x[2]_Y[2]")) ≈ 2
-    @test JuMP.value(JuMP.variable_by_name(m, "x[2]_W[1]")) ≈ 0
-    @test JuMP.value(JuMP.variable_by_name(m, "x[2]_W[2]")) ≈ 0
+    @test value(bins[Y[1]]) ≈ 0
+    @test value(bins[Y[2]]) ≈ 1
+    @test value(bins[W[1]]) ≈ 0
+    @test value(bins[W[2]]) ≈ 0
+    @test value(variable_by_name(m, "x[1]_Y[1]")) ≈ 0
+    @test value(variable_by_name(m, "x[1]_Y[2]")) ≈ 9
+    @test value(variable_by_name(m, "x[1]_W[1]")) ≈ 0
+    @test value(variable_by_name(m, "x[1]_W[2]")) ≈ 0
+    @test value(variable_by_name(m, "x[2]_Y[1]")) ≈ 0
+    @test value(variable_by_name(m, "x[2]_Y[2]")) ≈ 2
+    @test value(variable_by_name(m, "x[2]_W[1]")) ≈ 0
+    @test value(variable_by_name(m, "x[2]_W[2]")) ≈ 0
 end
 
 @testset "Solve Linear GDP" begin

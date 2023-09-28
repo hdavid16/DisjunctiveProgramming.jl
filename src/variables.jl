@@ -232,6 +232,7 @@ function JuMP.delete(model::JuMP.Model, vref::LogicalVariableRef)
     end
     #delete the logical variable
     delete!(dict, vidx)
+    delete!(_indicator_to_binary(model), vref)
     #not ready to optimize
     _set_ready_to_optimize(model, false)
     return 

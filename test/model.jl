@@ -16,7 +16,7 @@ function test_empty_model()
 end
 
 function test_non_gdp_model()
-    model = JuMP.Model()
+    model = Model()
     @test_throws ErrorException gdp_data(model)
 end
 

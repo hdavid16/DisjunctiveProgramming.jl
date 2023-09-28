@@ -462,13 +462,17 @@ function JuMP.build_constraint(
         return JuMP.ScalarConstraint(func, set)
     end
 end
-# Proposition logical constraint: LogicalVariableRef
+
+# Fallback for LogicalVariableRef in IsTrue
 function JuMP.build_constraint(
     _error::Function, 
     func::LogicalVariableRef,
     set::IsTrue
     )
-    return JuMP.ScalarConstraint(func, set)
+    _error(
+        "Logical propositions must be of the form `logical_expr in IsTrue()`. " *
+        "If you are trying to fix a logical variable, use `fix(logical_var, true)` instead."
+    )
 end
 
 # Fallback for Affine/Quad expressions

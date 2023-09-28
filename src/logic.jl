@@ -6,10 +6,10 @@ function _op_fallback(name)
 end
 
 # Define all the logical operators
-_logical_operators = (
-    :∨, :logical_or, :(|), # \vee + tab
-    :∧, :logical_and, :(&), # \wedge + tab
-    :¬, :logical_negation, :(!), # \neg + tab
+const _logical_operators = (
+    :∨, :logical_or, # \vee + tab
+    :∧, :logical_and, # \wedge + tab
+    :¬, :logical_not, # \neg + tab
     :⇔, :iff, :⇔, # \Leftrightarrow + tab
     :⟹, :implies, :⟹ # Longrightarrow + tab
 )
@@ -26,7 +26,7 @@ end
 for (name, alt, func) in (
     (:∨, :logical_or, :(|)), # \vee + tab
     (:∧, :logical_and, :(&)), # \wedge + tab
-    (:¬, :logical_negation, :(!)) # \neg + tab
+    (:¬, :logical_not, :(!)) # \neg + tab
     )
     # make operators
     @eval begin 
@@ -252,7 +252,7 @@ function _reformulate_proposition(model::JuMP.Model, lexpr::_LogicalExpr)
         for arg in expr.args
             _add_reformulated_proposition(model, arg)
         end
-    elseif expr.head == :∨ && all(_isa_literal.(expr.args))
+    elseif expr.head in (:∨, :¬) && all(_isa_literal.(expr.args))
         _add_reformulated_proposition(model, expr)
     else
         error("Expression was not converted to proper Conjunctive Normal Form:\n$expr")
