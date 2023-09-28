@@ -16,7 +16,6 @@ function test_lvar_add_success()
     @test isnothing(JuMP.fix_value(y))
     @test JuMP.isequal_canonical(y, copy(y))
     @test haskey(DP._logical_variables(model), JuMP.index(y))
-    @test DP._logical_variables(model)[JuMP.index(y)] isa LogicalVariableData
     @test DP._logical_variables(model)[JuMP.index(y)].variable == LogicalVariable(nothing, nothing)
     @test DP._logical_variables(model)[JuMP.index(y)].name == "y"
     #reformulate the variable
@@ -98,7 +97,7 @@ function test_lvar_delete()
     @constraint(m1, con, x <= 10, DisjunctConstraint(y))
     @constraint(m1, con2, x >= 50, DisjunctConstraint(z))
     @disjunction(m1, disj, [y, z])
-    @constraint(m1, lcon, y == true)
+    @constraint(m1, lcon, y in IsTrue())
 
     @test_throws AssertionError JuMP.delete(m2, y)
     

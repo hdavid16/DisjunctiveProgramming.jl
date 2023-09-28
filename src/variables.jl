@@ -61,6 +61,9 @@ Base.length(v::LogicalVariableRef) = 1
 function Base.:(==)(v::LogicalVariableRef, w::LogicalVariableRef)
     return v.model === w.model && v.index == w.index
 end
+function Base.getindex(map::JuMP.ReferenceMap, vref::LogicalVariableRef)
+    return LogicalVariableRef(map.model, JuMP.index(vref))
+end
 
 # JuMP extensions
 """

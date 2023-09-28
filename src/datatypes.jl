@@ -54,9 +54,13 @@ struct LogicalVariableRef <: JuMP.AbstractVariableRef
 end
 
 ################################################################################
+#                        LOGICAL PROPOSITION SETS
+################################################################################
+struct IsTrue <: _MOI.AbstractScalarSet end
+
+################################################################################
 #                        LOGICAL SELECTOR (CARDINALITY) SETS
 ################################################################################
-abstract type _MOISelector <: _MOI.AbstractVectorSet end
 # TODO check required methods for AbstractVectorSet: 
 # All AbstractVectorSets of type S must implement:
 # •  dimension, unless the dimension is
@@ -65,29 +69,29 @@ abstract type _MOISelector <: _MOI.AbstractVectorSet end
 #    product between two vectors in the set
 #    is equivalent to LinearAlgebra.dot.
 """
-    _MOIAtLeast <: _MOISelector
+    _MOIAtLeast <: _MOI.AbstractVectorSet
 
 MOI level set for AtLeast constraints, see [`AtLeast`](@ref) for recommended syntax.
 """
-struct _MOIAtLeast <: _MOISelector
+struct _MOIAtLeast <: _MOI.AbstractVectorSet
     dimension::Int
 end
 
 """
-    _MOIAtMost <: _MOISelector
+    _MOIAtMost <: _MOI.AbstractVectorSet
 
 MOI level set for AtMost constraints, see [`AtMost`](@ref) for recommended syntax.
 """
-struct _MOIAtMost <: _MOISelector
+struct _MOIAtMost <: _MOI.AbstractVectorSet
     dimension::Int
 end
 
 """
-    _MOIExactly <: _MOISelector
+    _MOIExactly <: _MOI.AbstractVectorSet
 
 MOI level set for Exactly constraints, see [`Exactly`](@ref) for recommended syntax.
 """
-struct _MOIExactly <: _MOISelector
+struct _MOIExactly <: _MOI.AbstractVectorSet
     dimension::Int
 end
 

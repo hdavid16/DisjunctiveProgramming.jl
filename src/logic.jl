@@ -6,6 +6,13 @@ function _op_fallback(name)
 end
 
 # Define all the logical operators
+_logical_operators = (
+    :∨, :logical_or, :(|), # \vee + tab
+    :∧, :logical_and, :(&), # \wedge + tab
+    :¬, :logical_negation, :(!), # \neg + tab
+    :⇔, :iff, :⇔, # \Leftrightarrow + tab
+    :⟹, :implies, :⟹ # Longrightarrow + tab
+)
 for (name, alt) in (
     (:⇔, :iff), # \Leftrightarrow + tab
     (:⟹, :implies) # Longrightarrow + tab
@@ -217,16 +224,16 @@ end
 #                              SELECTOR REFORMULATION
 ################################################################################
 # cardinality constraint reformulation
-function _reformulate_selector(model::JuMP.Model, func, set::_MOISelector)
+function _reformulate_selector(model::JuMP.Model, func, set::Union{_MOIAtLeast, _MOIAtMost, _MOIExactly})
     dict = _indicator_to_binary(model)
-    bvrefs = [dict[first(keys(lvref.terms))] for lvref in func[2:end]]
+    bvrefs = [dict[lvref] for lvref in func[2:end]]
     new_set = _vec_to_scalar_set(set)(func[1].constant)
     cref = JuMP.add_constraint(model,
         JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), new_set)
     )
     push!(_reformulation_constraints(model), cref)
 end
-function _reformulate_selector(model::JuMP.Model, func::Vector{LogicalVariableRef}, set::_MOISelector)
+function _reformulate_selector(model::JuMP.Model, func::Vector{LogicalVariableRef}, set::Union{_MOIAtLeast, _MOIAtMost, _MOIExactly})
     dict = _indicator_to_binary(model)
     bvref, bvrefs... = [dict[lvref] for lvref in func]
     new_set = _vec_to_scalar_set(set)(0)

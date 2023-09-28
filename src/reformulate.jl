@@ -158,6 +158,6 @@ end
 function _reformulate_logical_constraint(model::JuMP.Model, func, set::Union{_MOIAtMost, _MOIAtLeast, _MOIExactly})
     return _reformulate_selector(model, func, set)
 end
-function _reformulate_logical_constraint(model::JuMP.Model, func, ::_MOI.EqualTo{Bool})
+function _reformulate_logical_constraint(model::JuMP.Model, func, set::IsTrue)
     return _reformulate_proposition(model, func)
 end
