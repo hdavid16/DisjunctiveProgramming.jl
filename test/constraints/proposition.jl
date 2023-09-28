@@ -222,8 +222,10 @@ function test_lvar_cnf_functions()
     @variable(model, y, LogicalVariable)
     @test DP._eliminate_equivalence(y) == y
     @test DP._eliminate_implication(y) == y
-    @test DP._move_negation_inward(y) == y
-    @test DP._negate(y) == ¬y
+    @test DP._move_negations_inward(y) == y
+    neg_y = DP._negate(y)
+    @test neg_y.head == :¬
+    @test neg_y.args[1] == y
     @test DP._distribute_and_over_or(y) == y
     @test DP._flatten(y) == y
 end
@@ -237,8 +239,8 @@ function test_eliminate_equivalence()
     @test length(new_ex.args) == 2
     @test new_ex.args[1].head == :⟹
     @test new_ex.args[2].head == :⟹
-    @test new_ex.args[1].args == y
-    @test new_ex.args[2].args == y
+    @test Set(new_ex.args[1].args) == Set{Any}(y)
+    @test Set(new_ex.args[2].args) == Set{Any}(y)
 end
 
 function test_eliminate_equivalence_flat()
@@ -432,4 +434,79 @@ function test_to_cnf()
     @variable(model, y[1:3], LogicalVariable)
     ex = iff(y...)
     new_ex = DP._to_cnf(ex)
+    @test new_ex.head == :∧
+    for arg in new_ex.args
+        @test arg.head == :∨
+    end
+    @test (y[1] in new_ex.args[1].args && y[2] in new_ex.args[1].args && y[3] in new_ex.args[1].args) ||
+        (y[1] in new_ex.args[2].args && y[2] in new_ex.args[2].args && y[3] in new_ex.args[2].args) ||
+        (y[1] in new_ex.args[3].args && y[2] in new_ex.args[3].args && y[3] in new_ex.args[3].args) ||
+        (y[1] in new_ex.args[4].args && y[2] in new_ex.args[4].args && y[3] in new_ex.args[4].args) ||
+        (y[1] in new_ex.args[5].args && y[2] in new_ex.args[5].args && y[3] in new_ex.args[5].args) ||
+        (y[1] in new_ex.args[6].args && y[2] in new_ex.args[6].args && y[3] in new_ex.args[6].args)
+
+    @test (y[1] in new_ex.args[1].args && !(y[2] in new_ex.args[1].args) && !(y[3] in new_ex.args[1].args)) ||
+        (y[1] in new_ex.args[2].args && !(y[2] in new_ex.args[2].args) && !(y[3] in new_ex.args[2].args)) ||
+        (y[1] in new_ex.args[3].args && !(y[2] in new_ex.args[3].args) && !(y[3] in new_ex.args[3].args)) ||
+        (y[1] in new_ex.args[4].args && !(y[2] in new_ex.args[4].args) && !(y[3] in new_ex.args[4].args)) ||
+        (y[1] in new_ex.args[5].args && !(y[2] in new_ex.args[5].args) && !(y[3] in new_ex.args[5].args)) ||
+        (y[1] in new_ex.args[6].args && !(y[2] in new_ex.args[6].args) && !(y[3] in new_ex.args[6].args))
+
+    @test (!(y[1] in new_ex.args[1].args) && y[2] in new_ex.args[1].args && !(y[3] in new_ex.args[1].args)) ||
+        (!(y[1] in new_ex.args[2].args) && y[2] in new_ex.args[2].args && !(y[3] in new_ex.args[2].args)) ||
+        (!(y[1] in new_ex.args[3].args) && y[2] in new_ex.args[3].args && !(y[3] in new_ex.args[3].args)) ||
+        (!(y[1] in new_ex.args[4].args) && y[2] in new_ex.args[4].args && !(y[3] in new_ex.args[4].args)) ||
+        (!(y[1] in new_ex.args[5].args) && y[2] in new_ex.args[5].args && !(y[3] in new_ex.args[5].args)) ||
+        (!(y[1] in new_ex.args[6].args) && y[2] in new_ex.args[6].args && !(y[3] in new_ex.args[6].args))
+
+    @test (!(y[1] in new_ex.args[1].args) && !(y[2] in new_ex.args[1].args) && y[3] in new_ex.args[1].args) ||
+        (!(y[1] in new_ex.args[2].args) && !(y[2] in new_ex.args[2].args) && y[3] in new_ex.args[2].args) ||
+        (!(y[1] in new_ex.args[3].args) && !(y[2] in new_ex.args[3].args) && y[3] in new_ex.args[3].args) ||
+        (!(y[1] in new_ex.args[4].args) && !(y[2] in new_ex.args[4].args) && y[3] in new_ex.args[4].args) ||
+        (!(y[1] in new_ex.args[5].args) && !(y[2] in new_ex.args[5].args) && y[3] in new_ex.args[5].args) ||
+        (!(y[1] in new_ex.args[6].args) && !(y[2] in new_ex.args[6].args) && y[3] in new_ex.args[6].args)
+end
+
+@testset "Logical Proposition Constraints" begin
+    @testset "Add Proposition" begin
+        test_proposition_add_fail()
+        test_negation_add_success()
+        test_implication_add_success()
+        test_equivalence_add_success()
+        test_intersection_and_flatten_add_success()
+        test_union_and_flatten_add_success()
+        test_proposition_add_array()
+        test_proposition_add_dense_axis()
+        test_proposition_add_sparse_axis()
+    end
+    @testset "Reformulate Proposition" begin
+        test_negation_reformulation()
+        test_implication_reformulation()
+        test_implication_reformulation_fail()
+        test_equivalence_reformulation()
+        test_intersection_reformulation()
+        test_implication_reformulation()
+    end
+    @testset "Conjunctive Normal Form" begin
+        test_lvar_cnf_functions()
+        test_eliminate_equivalence()
+        test_eliminate_equivalence_flat()
+        test_eliminate_equivalence_nested()
+        test_eliminate_implication()
+        test_eliminate_implication_error()
+        test_eliminate_implication_nested()
+        test_move_negation_inward_error()
+        test_move_negation_inward()
+        test_move_negation_inward_nested()
+        test_negate_error()
+        test_negate_or()
+        test_negate_or_error()
+        test_negate_and()
+        test_negate_and_error()
+        test_negate_negation()
+        test_negate_negation_error()
+        test_distribute_and_over_or()
+        test_distribute_and_over_or_nested()
+        test_to_cnf()
+    end
 end
