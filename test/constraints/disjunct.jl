@@ -1,0 +1,1 @@
+"Logical variable belongs to a different model."

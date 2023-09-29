@@ -264,7 +264,7 @@ function _add_indicator_var(
 end
 # check disjunction
 function _check_disjunction(_error, lvrefs::Vector{LogicalVariableRef}, model::JuMP.Model)
-    allunique(lvrefs) ||_error("Not all the logical indicator variables are unique.")
+    allunique(lvrefs) || _error("Not all the logical indicator variables are unique.")
     for lvref in lvrefs
         if !JuMP.is_valid(model, lvref)
             _error("`$lvref` is not a valid logical variable reference.")

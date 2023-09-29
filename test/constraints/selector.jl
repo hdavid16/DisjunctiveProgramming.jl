@@ -46,7 +46,7 @@ end
 function test_selector_add_array()
     model = GDPModel()
     @variable(model, y[1:2, 1:3, 1:4], LogicalVariable)
-    @constraint(model, con[i=1:2,j=1:3], y[i,j,:] in Exactly(1))
+    @constraint(model, con[i=1:2, j=1:3], y[i,j,:] in Exactly(1))
     @test con isa Matrix{LogicalConstraintRef}
     @test length(con) == 6
 end
@@ -56,7 +56,7 @@ function test_selector_add_dense_axis()
     I = ["a", "b", "c"]
     J = [1, 2]
     @variable(model, y[I, J, 1:4], LogicalVariable)
-    @constraint(model, con[i=I,j=J], y[i,j,:] in Exactly(1))
+    @constraint(model, con[i=I, j=J], y[i,j,:] in Exactly(1))
     @test con isa Containers.DenseAxisArray
     @test con.axes[1] == ["a","b","c"]
     @test con.axes[2] == [1,2]
@@ -66,7 +66,7 @@ end
 function test_selector_add_sparse_axis()
     model = GDPModel()
     @variable(model, y[1:3, 1:3, 1:4], LogicalVariable)
-    @constraint(model, con[i=1:3,j=1:3; j > i], y[i,j,:] in Exactly(1))
+    @constraint(model, con[i=1:3, j=1:3; j > i], y[i,j,:] in Exactly(1))
     @test con isa Containers.SparseAxisArray
     @test length(con) == 3
     @test con.names == (:i, :j)
@@ -77,8 +77,8 @@ function test_selector_set_name()
     model = GDPModel()
     @variable(model, y[1:3], LogicalVariable)
     c1 = @constraint(model, y in Exactly(1))
-    set_name(c1, "proposition")
-    @test name(c1) == "proposition"
+    set_name(c1, "selector")
+    @test name(c1) == "selector"
 end
 
 function test_selector_delete()

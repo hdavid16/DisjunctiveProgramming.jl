@@ -24,7 +24,7 @@ function reformulate_disjunct_constraint(
         for f in con.func
     ]
 end
-#nested indicator reformulation
+#nested indicator reformulation. NOTE: the user needs to provide the appropriate linking constraint for the logical variables for this to work (e.g. w in Exactly(y[1]) to link the parent disjunct y[1] to the nested disjunction w)
 function reformulate_disjunct_constraint(
     model::JuMP.Model,
     con::JuMP.VectorConstraint{T, S},

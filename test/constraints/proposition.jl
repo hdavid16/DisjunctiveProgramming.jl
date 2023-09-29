@@ -136,6 +136,25 @@ function test_proposition_add_sparse_axis()
     @test Set(keys(con.data)) == Set([(1,2),(1,3),(2,3)])
 end
 
+function test_proposition_set_name()
+    model = GDPModel()
+    @variable(model, y[1:3], LogicalVariable)
+    c1 = @constraint(model, logical_not(y...) in IsTrue())
+    set_name(c1, "proposition")
+    @test name(c1) == "proposition"
+end
+
+function test_proposition_delete()
+    model = GDPModel()
+    @variable(model, y[1:3], LogicalVariable)
+    c1 = @constraint(model, logical_not(y...) in IsTrue())
+
+    @test_throws AssertionError delete(GDPModel(), c1)
+    delete(model, c1)
+    @test !haskey(gdp_data(model).logical_constraints, index(c1))
+    @test !DP._ready_to_optimize(model)
+end
+
 function test_negation_reformulation()
     model = GDPModel()
     @variable(model, y, LogicalVariable)

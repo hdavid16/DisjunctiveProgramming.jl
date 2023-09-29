@@ -27,9 +27,11 @@ macro test_macro_throws(errortype, m)
 end
 
 include("aqua.jl")
+include("model.jl")
 include("variables/query.jl")
 include("variables/logical.jl")
 include("constraints/selector.jl")
 include("constraints/proposition.jl")
-include("model.jl")
+include("constraints/indicator.jl")
+include("disjunction.jl")
 include("solve.jl")
