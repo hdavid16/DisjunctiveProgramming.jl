@@ -184,6 +184,10 @@ macro disjunction(model, args...)
         _error("Invalid syntax. Did you mean to use `@disjunctions`?")
     end
 
+# TODO: two cases lead to problems when julia variables are used for DisjunctConstraint tags
+# (1) @disjunction(m, Y[1, :], tag[1]) --> gets confused for @disjunction(m, name[...], Y[1, :])
+# (2) @disjunction(m, Y, tagref) --> gets confused for @disjunction(m, name, Y)
+
     # Determine if a reference/container argument was given by the user
     # There are 8 cases to consider:
     # y                                  | type of y | y.head
