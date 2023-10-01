@@ -263,8 +263,8 @@ function _add_indicator_var(
     return
 end
 # check disjunction
-function _check_disjunction(_error, lvrefs::Vector{LogicalVariableRef}, model::JuMP.Model)
-    allunique(lvrefs) || _error("Not all the logical indicator variables are unique.")
+function _check_disjunction(_error, lvrefs::AbstractVector{LogicalVariableRef}, model::JuMP.Model)
+    isequal(unique(lvrefs),lvrefs) || _error("Not all the logical indicator variables are unique.")
     for lvref in lvrefs
         if !JuMP.is_valid(model, lvref)
             _error("`$lvref` is not a valid logical variable reference.")
@@ -284,7 +284,7 @@ end
 function _create_disjunction(
     _error::Function,
     model::JuMP.Model, # TODO: generalize to AbstractModel
-    structure::Vector,
+    structure::AbstractVector, #generalize for containers
     name::String,
     nested::Bool
 )
@@ -306,7 +306,7 @@ end
 function _disjunction(
     _error::Function,
     model::JuMP.Model, # TODO: generalize to AbstractModel
-    structure::Vector,
+    structure::AbstractVector, #generalize for containers
     name::String
 )
     return _create_disjunction(_error, model, structure, name, false)

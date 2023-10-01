@@ -9,7 +9,7 @@ function test_disjunction_add_fail()
     @test_macro_throws UndefVarError @disjunction(GDPModel(), y) #wrong model
     @test_macro_throws ErrorException @disjunction(Model(), y) #not a GDPModel
     @test_macro_throws UndefVarError @disjunction(model, [y[1], y[1]]) #duplicate indicator
-    @test_macro_throws ErrorException @disjunction(model, y[1]) #no disjunction expression
+    @test_macro_throws UndefVarError @disjunction(model, y[1]) #no disjunction expression
     @test_macro_throws UndefVarError @disjunction(model, y, "random_arg") #unrecognized extra argument
     @test_macro_throws UndefVarError @disjunction(model, "ABC") #unrecognized structure
     @test_macro_throws ErrorException @disjunction(model, begin y end) #@disjunctions (plural)
@@ -72,43 +72,45 @@ function test_disjunction_add_nested()
     @test inner in DP._indicator_to_constraints(model)[z[1]]
 end
 
-# function test_disjunction_add_array()
-#     model=GDPModel()
-#     @variable(model, x)
-#     @variable(model, y[1:2, 1:3, 1:4], LogicalVariable)
-#     @constraint(model, con[i=1:2, j=1:3, k=1:4], x==i+j+k, DisjunctConstraint(y[i,j,k]))
-#     @disjunction(model, disj[i=1:2, j=1:3], y[i,j,:])
+function test_disjunction_add_array()
+    model=GDPModel()
+    @variable(model, x)
+    @variable(model, y[1:2, 1:3, 1:4], LogicalVariable)
+    @constraint(model, con[i=1:2, j=1:3, k=1:4], x==i+j+k, DisjunctConstraint(y[i,j,k]))
+    @disjunction(model, disj[i=1:2, j=1:3], y[i,j,:])
 
-#     @test disj isa Matrix{DisjunctionRef}
-#     @test length(disj) == 6
-#     @test all(is_valid.(model, disj))
-# end
+    @test disj isa Matrix{DisjunctionRef}
+    @test length(disj) == 6
+    @test all(is_valid.(model, disj))
+end
 
-# function test_disjunciton_add_dense_axis()
-#     model = GDPModel()
-#     I = ["a", "b", "c"]
-#     J = [1, 2]
-#     @variable(model, y[I, J, 1:4], LogicalVariable)
-#     @constraint(model, con[i=I, j=J, k=1:4], x==k, DisjunctConstraint(y[i,j,k]))
-#     @disjunction(model, disj[i=I, j=J], y[i,j,:])
+function test_disjunciton_add_dense_axis()
+    model = GDPModel()
+    @variable(model, x)
+    I = ["a", "b", "c"]
+    J = [1, 2]
+    @variable(model, y[I, J, 1:4], LogicalVariable)
+    @constraint(model, con[i=I, j=J, k=1:4], x==k, DisjunctConstraint(y[i,j,k]))
+    @disjunction(model, disj[i=I, j=J], y[i,j,:])
 
-#     @test disj isa Containers.DenseAxisArray
-#     @test disj.axes[1] == ["a","b","c"]
-#     @test disj.axes[2] == [1,2]
-#     @test disj.data isa Matrix{DisjunctionRef}
-# end
+    @test disj isa Containers.DenseAxisArray
+    @test disj.axes[1] == ["a","b","c"]
+    @test disj.axes[2] == [1,2]
+    @test disj.data isa Matrix{DisjunctionRef}
+end
 
-# function test_disjunction_add_sparse_axis()
-#     model = GDPModel()
-#     @variable(model, y[1:3, 1:3, 1:4], LogicalVariable)
-#     @constraint(model, con[i=1:3, j=1:3, k=1:4; j > i], x==i+j+k, DisjunctConstraint(y[i,j,k]))
-#     @disjunction(model, disj[i=1:3, j=1:3; j > i], y[i,j,:])
+function test_disjunction_add_sparse_axis()
+    model = GDPModel()
+    @variable(model, x)
+    @variable(model, y[1:3, 1:3, 1:4], LogicalVariable)
+    @constraint(model, con[i=1:3, j=1:3, k=1:4; j > i], x==i+j+k, DisjunctConstraint(y[i,j,k]))
+    @disjunction(model, disj[i=1:3, j=1:3; j > i], y[i,j,:])
 
-#     @test disj isa Containers.SparseAxisArray
-#     @test length(disj) == 3
-#     @test disj.names == (:i, :j)
-#     @test Set(keys(disj.data)) == Set([(1,2),(1,3),(2,3)])
-# end
+    @test disj isa Containers.SparseAxisArray
+    @test length(disj) == 3
+    @test disj.names == (:i, :j)
+    @test Set(keys(disj.data)) == Set([(1,2),(1,3),(2,3)])
+end
 
 function test_disjunctions_add_success()
     model = GDPModel()
@@ -204,9 +206,9 @@ end
         test_disjunction_add_fail()
         test_disjunction_add_success()
         test_disjunction_add_nested()
-        # test_disjunction_add_array()
-        # test_disjunciton_add_dense_axis()
-        # test_disjunction_add_sparse_axis()
+        test_disjunction_add_array()
+        test_disjunciton_add_dense_axis()
+        test_disjunction_add_sparse_axis()
         test_disjunctions_add_success()
         test_disjunction_function()
         test_disjunction_function_nested()
