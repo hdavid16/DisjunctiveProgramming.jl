@@ -184,8 +184,12 @@ macro disjunction(model, args...)
         _error("Invalid syntax. Did you mean to use `@disjunctions`?")
     end
 
+# TODO: two cases lead to problems when julia variables are used for DisjunctConstraint tags
+# (1) @disjunction(m, Y[1, :], tag[1]) --> gets confused for @disjunction(m, name[...], Y[1, :])
+# (2) @disjunction(m, Y, tagref) --> gets confused for @disjunction(m, name, Y)
+
     # Determine if a reference/container argument was given by the user
-    # There are 7 cases to consider:
+    # There are 8 cases to consider:
     # y                                  | type of y | y.head
     # -----------------------------------+-----------+------------
     # name                               | Symbol    | NA
@@ -195,17 +199,22 @@ macro disjunction(model, args...)
     # [i = 1:2, j = 1:2; i + j >= 3]     | Expr      | :vcat
     # a disjunction expression           | Expr      | :vect or :comprehension
     # a disjunction expression           | Symbol    | NA
-     if isexpr(y, (:vcat, :ref, :typed_vcat))
+    # a disjunction expression           | Expr      | :ref 
+     if isexpr(y, :ref) && (isempty(extra) || isa(extra[1], Symbol) || isexpr(extra[1], :call)) 
+        c = gensym()
+        x = _esc_non_constant(y)
+        is_anon = true
+     elseif isexpr(y, (:vcat, :ref, :typed_vcat))
         length(extra) >= 1 || _error("No disjunction expression was given.")
         c = y
         x = _esc_non_constant(popfirst!(extra))
         is_anon = isexpr(y, :vcat)
     elseif (isa(y, Symbol) || isexpr(y, :vect)) && 
         !isempty(extra) && 
-        (isa(extra[1], Symbol) || isexpr(extra[1], (:vect, :comprehension)))
+        (isa(extra[1], Symbol) || isexpr(extra[1], (:vect, :comprehension, :ref)))
         c = y
         x = _esc_non_constant(popfirst!(extra))
-        is_anon = isexpr(y, :vcat)
+        is_anon = isexpr(y, :vcat) || isexpr(y, :vect)
     else
         c = gensym()
         x = _esc_non_constant(y)
@@ -238,8 +247,8 @@ macro disjunction(model, args...)
         end
         name_code = _name_call(base_name, idxvars)
         disjunction_call = :( _disjunction($_error, $esc_model, $x, $name_code) )
-        _add_positional_args(creation_code, extra)
-        _add_kwargs(creation_code, extra_kwargs)
+        _add_positional_args(disjunction_call, extra)
+        _add_kwargs(disjunction_call, extra_kwargs)
         creation_code = JuMP.Containers.container_code(idxvars, inds, disjunction_call,
                                                        container_type)
     end

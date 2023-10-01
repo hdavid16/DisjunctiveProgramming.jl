@@ -1,7 +1,10 @@
 module DisjunctiveProgramming
 
-# Import dependencies
-import JuMP
+# Import and export JuMP 
+import Reexport 
+Reexport.@reexport using JuMP
+
+# Use Meta for metaprogramming
 using Base.Meta
 
 # Create aliases
