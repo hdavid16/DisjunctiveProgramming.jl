@@ -182,41 +182,49 @@ macro disjunction(model, args...)
     end
 
 # TODO: three cases lead to problems when julia variables are used for DisjunctConstraint tags
-# (1) @disjunction(m, Y[1, :], tag[1]) --> gets confused for @disjunction(m, name[...], Y[1, :])
-# (2) @disjunction(m, Y, tagref) --> gets confused for @disjunction(m, name, Y)
-# (3) @disjunction(m, Y[1, :], tagref) --> gets confused for @disjunction(m, name[...], Y)
+# which violate the cases considered in the table further below. The three cases are
+# (i) @disjunction(m, Y[1, :], tag[1]) --> gets confused for @disjunction(m, name[...], Y[1, :]) (Case 2 below)
+# (ii) @disjunction(m, Y, tagref) --> gets confused for @disjunction(m, name, Y) (Case 1 below)
+# (iii) @disjunction(m, Y[1, :], tagref) --> gets confused for @disjunction(m, name[...], Y) (Case 2 below)
 
     # Determine if a reference/container argument was given by the user
-    # There are 8 cases to consider:
-    # y                                  | type of y | y.head
-    # -----------------------------------+-----------+------------
-    # name                               | Symbol    | NA
-    # name[1:2]                          | Expr      | :ref
-    # name[i = 1:2, j = 1:2; i + j >= 3] | Expr      | :typed_vcat
-    # [1:2]                              | Expr      | :vect
-    # [i = 1:2, j = 1:2; i + j >= 3]     | Expr      | :vcat
-    # [Y[1], Y[2]] or [Y[i] for i in I]  | Expr      | :vect or :comprehension
-    # Y                                  | Symbol    | NA
-    # Y[1, :]                            | Expr      | :ref 
-     if isexpr(y, :ref) && (isempty(extra) || isexpr(extra[1], :call)) 
+    # There are 9 cases to consider:
+    # Case | y                                  | type of y | y.head
+    # -----+------------------------------------+-----------+------------
+    #  1   | name                               | Symbol    | NA
+    #  2   | name[1:2]                          | Expr      | :ref
+    #  3   | name[i = 1:2, j = 1:2; i + j >= 3] | Expr      | :typed_vcat
+    #  4   | [1:2]                              | Expr      | :vect
+    #  5   | [i = 1:2, j = 1:2; i + j >= 3]     | Expr      | :vcat
+    #  6   | [Y[1], Y[2]] or [Y[i] for i in I]  | Expr      | :vect or :comprehension
+    #  7   | Y                                  | Symbol    | NA
+    #  8   | Y[1, :]                            | Expr      | :ref 
+    #  9   | some very wrong syntax             | Expr      | anything else
+
+    # Case 8
+    if isexpr(y, :ref) && (isempty(extra) || isexpr(extra[1], :call)) 
         c = gensym()
         x = _esc_non_constant(y)
         is_anon = true
-     elseif isexpr(y, (:vcat, :ref, :typed_vcat))
+    # Cases 2, 3, 5
+    elseif isexpr(y, (:vcat, :ref, :typed_vcat))
         length(extra) >= 1 || _error("No disjunction expression was given, please see docs for accepted `@disjunction` syntax..")
         c = y
         x = _esc_non_constant(popfirst!(extra))
-        is_anon = isexpr(y, :vcat)
+        is_anon = isexpr(y, :vcat) # check for Case 5
+    # Cases 1, 4
     elseif (isa(y, Symbol) || isexpr(y, :vect)) && 
         !isempty(extra) && 
         (isa(extra[1], Symbol) || isexpr(extra[1], (:vect, :comprehension, :ref)))
         c = y
         x = _esc_non_constant(popfirst!(extra))
-        is_anon = isexpr(y, :vcat) || isexpr(y, :vect)
-    elseif isa(y, Symbol) || isexpr(y, (:ref, :vect, :comprehension))
+        is_anon = isexpr(y, :vect) # check for Case 4
+    # Cases 6, 7
+    elseif isa(y, Symbol) || isexpr(y, (:vect, :comprehension))
         c = gensym()
         x = _esc_non_constant(y)
         is_anon = true
+    # Case 9
     else
         _error("Unrecognized syntax, please see docs for accepted `@disjunction` syntax.")
     end
