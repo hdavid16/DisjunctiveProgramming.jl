@@ -123,9 +123,6 @@ function _error_if_cannot_register(
     end
     return
 end
-function _error_if_cannot_register(_error::Function, model, name)
-    return _error("Invalid name $name.")
-end
 
 # Update the creation code to register and assign the object to the name
 # Inspired from https://github.com/jump-dev/JuMP.jl/blob/d9cd5fb16c2d0a7e1c06aa9941923492fc9a28b5/src/macros.jl#L88-L120
@@ -177,16 +174,17 @@ macro disjunction(model, args...)
     pos_args, extra_kwargs, container_type, base_name = _extract_kwargs(args)
 
     # initial processing of positional arguments
-    length(pos_args) >= 1 || _error("Not enough arguments.")
+    length(pos_args) >= 1 || _error("Not enough arguments, please see docs for accepted `@disjunction` syntax..")
     y = first(pos_args)
     extra = pos_args[2:end]
     if isexpr(args[1], :block)
         _error("Invalid syntax. Did you mean to use `@disjunctions`?")
     end
 
-# TODO: two cases lead to problems when julia variables are used for DisjunctConstraint tags
+# TODO: three cases lead to problems when julia variables are used for DisjunctConstraint tags
 # (1) @disjunction(m, Y[1, :], tag[1]) --> gets confused for @disjunction(m, name[...], Y[1, :])
 # (2) @disjunction(m, Y, tagref) --> gets confused for @disjunction(m, name, Y)
+# (3) @disjunction(m, Y[1, :], tagref) --> gets confused for @disjunction(m, name[...], Y)
 
     # Determine if a reference/container argument was given by the user
     # There are 8 cases to consider:
@@ -200,12 +198,12 @@ macro disjunction(model, args...)
     # a disjunction expression           | Expr      | :vect or :comprehension
     # a disjunction expression           | Symbol    | NA
     # a disjunction expression           | Expr      | :ref 
-     if isexpr(y, :ref) && (isempty(extra) || isa(extra[1], Symbol) || isexpr(extra[1], :call)) 
+     if isexpr(y, :ref) && (isempty(extra) || isexpr(extra[1], :call)) 
         c = gensym()
         x = _esc_non_constant(y)
         is_anon = true
      elseif isexpr(y, (:vcat, :ref, :typed_vcat))
-        length(extra) >= 1 || _error("No disjunction expression was given.")
+        length(extra) >= 1 || _error("No disjunction expression was given, please see docs for accepted `@disjunction` syntax..")
         c = y
         x = _esc_non_constant(popfirst!(extra))
         is_anon = isexpr(y, :vcat)
@@ -215,10 +213,12 @@ macro disjunction(model, args...)
         c = y
         x = _esc_non_constant(popfirst!(extra))
         is_anon = isexpr(y, :vcat) || isexpr(y, :vect)
-    else
+    elseif isa(y, Symbol) || isexpr(y, (:ref, :vect, :comprehension))
         c = gensym()
         x = _esc_non_constant(y)
         is_anon = true
+    else
+        _error("Unrecognized syntax, please see docs for accepted `@disjunction` syntax.")
     end
 
     # process the name
