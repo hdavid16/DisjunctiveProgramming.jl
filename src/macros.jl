@@ -195,9 +195,9 @@ macro disjunction(model, args...)
     # name[i = 1:2, j = 1:2; i + j >= 3] | Expr      | :typed_vcat
     # [1:2]                              | Expr      | :vect
     # [i = 1:2, j = 1:2; i + j >= 3]     | Expr      | :vcat
-    # a disjunction expression           | Expr      | :vect or :comprehension
-    # a disjunction expression           | Symbol    | NA
-    # a disjunction expression           | Expr      | :ref 
+    # [Y[1], Y[2]] or [Y[i] for i in I]  | Expr      | :vect or :comprehension
+    # Y                                  | Symbol    | NA
+    # Y[1, :]                            | Expr      | :ref 
      if isexpr(y, :ref) && (isempty(extra) || isexpr(extra[1], :call)) 
         c = gensym()
         x = _esc_non_constant(y)
