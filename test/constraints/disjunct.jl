@@ -41,17 +41,58 @@ function test_disjunct_add_array()
 end
 
 function test_disjunct_add_dense_axis()
+    model = GDPModel()
+    @variable(model, x)
+    I = ["a", "b", "c"]
+    J = [1, 2]
+    @variable(model, y[I, J], LogicalVariable)
+    @constraint(model, con[i=I, j=J], x == 1, DisjunctConstraint(y[i,j]))
     
+    @test con isa Containers.DenseAxisArray
+    @test con.axes[1] == ["a","b","c"]
+    @test con.axes[2] == [1,2]
+    @test con.data isa Matrix{DisjunctConstraintRef}
 end
 
 function test_disjunct_add_sparse_axis()
+    model = GDPModel()
+    @variable(model, x)
+    @variable(model, y[1:3, 1:3], LogicalVariable)
+    @constraint(model, con[i=1:3, j=1:3; j > i], x==i+j, DisjunctConstraint(y[i,j]))
 
+    @test con isa Containers.SparseAxisArray
+    @test length(con) == 3
+    @test con.names == (:i, :j)
+    @test Set(keys(con.data)) == Set([(1,2),(1,3),(2,3)])
 end
 
 function test_disjunct_set_name()
-
+    model = GDPModel()
+    @variable(model, x)
+    @variable(model, y, LogicalVariable)
+    c1 = @constraint(model, x == 1, DisjunctConstraint(y))
+    set_name(c1, "new name")
+    @test name(c1) == "new name"
 end
 
 function test_disjunct_delete()
+    model = GDPModel()
+    @variable(model, x)
+    @variable(model, y, LogicalVariable)
+    @constraint(model, c1, x == 1, DisjunctConstraint(y))
 
+    @test_throws AssertionError delete(GDPModel(), c1)
+    delete(model, c1)
+    @test !haskey(gdp_data(model).disjunct_constraints, index(c1))
+    @test !DP._ready_to_optimize(model)
+end
+
+@testset "Disjunct Constraints" begin
+    test_disjunct_add_fail()
+    test_disjunct_add_success()
+    test_disjunct_add_array()
+    test_disjunct_add_dense_axis()
+    test_disjunct_add_sparse_axis()
+    test_disjunct_set_name()
+    test_disjunct_delete()
 end
