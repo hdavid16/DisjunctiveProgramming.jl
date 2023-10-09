@@ -11,7 +11,7 @@ function test_disjunction_add_fail()
     @test_macro_throws UndefVarError @disjunction(model, [y[1], y[1]]) #duplicate indicator
     @test_macro_throws UndefVarError @disjunction(model, y[1]) #no disjunction expression
     @test_macro_throws UndefVarError @disjunction(model, y, "random_arg") #unrecognized extra argument
-    @test_macro_throws UndefVarError @disjunction(model, "ABC") #unrecognized structure
+    @test_macro_throws ErrorException @disjunction(model, "ABC") #unrecognized structure
     @test_macro_throws ErrorException @disjunction(model, begin y end) #@disjunctions (plural)
     @test_macro_throws UndefVarError @disjunction(model, x, y) #name x already exists
 
@@ -19,14 +19,8 @@ function test_disjunction_add_fail()
     @disjunction(model, disj, y)
     @test_macro_throws UndefVarError @disjunction(model, disj, y) #duplicate name
 
-    # "Invalid name $name"
-
-    # "Expression $name should not be used as a disjunction name. Use " *
-    #            "the \"anonymous\" syntax $name = @disjunction(model, " *
-    #            "...) instead."
+    @test_macro_throws ErrorException @disjunction(model, "bad"[i=1:2], y) #wrong expression for disjunction name
     @test_macro_throws ErrorException @disjunction(model, [model=1:2], y) #index name can't be same as model name
-    # "Index $(model) is the same symbol as the model. Use a ",
-    # "different name for the index."
 end
 
 function test_disjunction_add_success()

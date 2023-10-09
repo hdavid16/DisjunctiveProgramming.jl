@@ -2,11 +2,11 @@ function test_disjunct_add_fail()
     model = GDPModel()
     @variable(model, x)
     @variable(GDPModel(), y, LogicalVariable)
-    @test_macro_throws ErrorException @constraint(model, x == 1, DisjunctConstraint(y)) # logical variable from another model
+    @test_macro_throws UndefVarError @constraint(model, x == 1, DisjunctConstraint(y)) # logical variable from another model
     
     @variable(model, w, LogicalVariable)
     @variable(model, z, Bin)
-    @test_macro_throws ErrorException @constraint(model, z == 1, DisjunctConstraint(w)) # binary variable
+    @test_macro_throws UndefVarError @constraint(model, z == 1, DisjunctConstraint(w)) # binary variable
 end
 
 function test_disjunct_add_success()
