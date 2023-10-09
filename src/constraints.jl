@@ -184,7 +184,10 @@ function JuMP.build_constraint(
 end
 
 # Allows for building DisjunctConstraints for VectorConstraints since these get parsed differently by JuMP (JuMP changes the set to a MOI.AbstractScalarSet)
-for SetType in (JuMP.Nonnegatives, JuMP.Nonpositives, JuMP.Zeros)
+for SetType in (
+    JuMP.Nonnegatives, JuMP.Nonpositives, JuMP.Zeros,
+    MOI.Nonnegatives, MOI.Nonpositives, MOI.Zeros
+)
     @eval begin
         @doc """
             JuMP.build_constraint(

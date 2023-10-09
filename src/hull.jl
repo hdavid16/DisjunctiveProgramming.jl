@@ -1,13 +1,7 @@
 ################################################################################
 #                              VARIABLE DISAGGREGATION
 ################################################################################
-function _query_variable_bounds(model::JuMP.Model, method::Hull)
-    for var in JuMP.all_variables(model)
-        method.variable_bounds[var] = _update_variable_bounds(var)
-    end
-end
-
-function _update_variable_bounds(vref::JuMP.VariableRef)
+function _update_variable_bounds(vref::JuMP.VariableRef, method::Hull)
     if JuMP.is_binary(vref) #not used
         lb, ub = 0, 1
     elseif !JuMP.has_lower_bound(vref) || !JuMP.has_upper_bound(vref)
@@ -69,6 +63,14 @@ end
 ################################################################################
 #                              CONSTRAINT DISAGGREGATION
 ################################################################################
+# variable
+function _disaggregate_expression(model::JuMP.Model, vref::JuMP.VariableRef, bvref::JuMP.VariableRef, method::_Hull)
+    if JuMP.is_binary(vref) || !haskey(method.disjunct_variables, (vref, bvref)) #keep any binary variables or nested disaggregated variables unchanged 
+        return vref
+    else #replace with disaggregated form
+        return method.disjunct_variables[vref, bvref]
+    end
+end
 # affine expression
 function _disaggregate_expression(model::JuMP.Model, aff::JuMP.AffExpr, bvref::JuMP.VariableRef, method::_Hull)
     new_expr = JuMP.@expression(model, aff.constant*bvref) #multiply constant by binary indicator variable
@@ -153,7 +155,7 @@ function reformulate_disjunct_constraint(
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef, 
     method::_Hull
-) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
+) where {T <: Union{JuMP.VariableRef, JuMP.AffExpr, JuMP.QuadExpr}, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
     new_func = _disaggregate_expression(model, con.func, bvref, method)
     set_value = _set_value(con.set)
     new_func -= set_value*bvref
@@ -165,7 +167,7 @@ function reformulate_disjunct_constraint(
     con::JuMP.VectorConstraint{T, S, R}, 
     bvref::JuMP.VariableRef, 
     method::_Hull
-) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: Union{_MOI.Nonpositives, _MOI.Nonnegatives, _MOI.Zeros}, R}
+) where {T <: Union{JuMP.VariableRef, JuMP.AffExpr, JuMP.QuadExpr}, S <: Union{_MOI.Nonpositives, _MOI.Nonnegatives, _MOI.Zeros}, R}
     new_func = JuMP.@expression(model, [i=1:con.set.dimension],
         _disaggregate_expression(model, con.func[i], bvref, method)
     )
@@ -214,7 +216,7 @@ function reformulate_disjunct_constraint(
     con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.VariableRef,
     method::_Hull
-) where {T <: Union{JuMP.AffExpr, JuMP.QuadExpr}, S <: _MOI.Interval}
+) where {T <: Union{JuMP.VariableRef, JuMP.AffExpr, JuMP.QuadExpr}, S <: _MOI.Interval}
     new_func = _disaggregate_expression(model, con.func, bvref, method)
     new_func_gt = JuMP.@expression(model, new_func - con.set.lower*bvref)
     new_func_lt = JuMP.@expression(model, new_func - con.set.upper*bvref)

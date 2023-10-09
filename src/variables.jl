@@ -241,6 +241,12 @@ end
 ################################################################################
 #                              VARIABLE INTERROGATION
 ################################################################################
+function _query_variable_bounds(model::JuMP.Model, method::Union{Hull, BigM})
+    for var in JuMP.all_variables(model)
+        method.variable_bounds[var] = _update_variable_bounds(var, method)
+    end
+end
+
 function _get_disjunction_variables(model::JuMP.Model, disj::Disjunction)
     vars = Set{JuMP.VariableRef}()
     for lvref in disj.indicators

@@ -61,6 +61,10 @@ end
 function _reformulate_disjunctions(model::JuMP.Model, method::AbstractReformulationMethod)
     _reformulate_all_disjunctions(model, method)
 end
+function _reformulate_disjunctions(model::JuMP.Model, method::BigM)
+    method.tighten && _query_variable_bounds(model, method)
+    _reformulate_all_disjunctions(model, method)
+end
 function _reformulate_disjunctions(model::JuMP.Model, method::Hull)
     _query_variable_bounds(model, method)
     _reformulate_all_disjunctions(model, method)
@@ -121,6 +125,7 @@ _index_to_constraint(model::JuMP.Model, cidx::DisjunctConstraintIndex) = _disjun
 _index_to_constraint(model::JuMP.Model, cidx::DisjunctionIndex) = _disjunctions(model)[cidx]
 
 # reformulation for nested disjunction
+# NOTE: name of inner disjunction (if given) is currently lost (not passed upwards)
 function reformulate_disjunct_constraint(
     model::JuMP.Model,  
     con::Disjunction, 
@@ -142,7 +147,7 @@ function reformulate_disjunct_constraint(
     bvref::JuMP.VariableRef,
     method::AbstractReformulationMethod
 )
-    error("$method reformulation for constraint $con is not supported yet.")
+    error("$(typeof(method)) reformulation for constraint $con is not supported yet.")
 end
 
 ################################################################################
