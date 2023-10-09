@@ -323,8 +323,9 @@ A type for using the big-M reformulation approach for disjunctive constraints.
 struct BigM <: AbstractReformulationMethod
     value::Float64
     tighten::Bool
+    variable_bounds::Dict{JuMP.VariableRef, Tuple{Float64, Float64}} # TODO support other number types?
     function BigM(val = 1e9, tight = true)
-        new(val, tight)
+        new(val, tight, Dict{JuMP.VariableRef, Tuple{Float64, Float64}}())
     end
 end # TODO add fields if needed
 
