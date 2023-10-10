@@ -114,6 +114,7 @@ end
 function _reformulate_disjunct(model::JuMP.Model, ref_cons::Vector{JuMP.AbstractConstraint}, lvref::LogicalVariableRef, method::AbstractReformulationMethod)
     #reformulate each constraint and add to the model
     bvref = _indicator_to_binary(model)[lvref]
+    !haskey(_indicator_to_constraints(model), lvref) && return #skip if disjunct is empty
     for cref in _indicator_to_constraints(model)[lvref]
         con = JuMP.constraint_object(cref)
         append!(ref_cons, reformulate_disjunct_constraint(model, con, bvref, method))

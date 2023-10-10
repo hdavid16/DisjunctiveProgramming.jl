@@ -271,8 +271,6 @@ function _check_disjunction(_error, lvrefs::AbstractVector{LogicalVariableRef}, 
     for lvref in lvrefs
         if !JuMP.is_valid(model, lvref)
             _error("`$lvref` is not a valid logical variable reference.")
-        elseif !haskey(_indicator_to_constraints(model), lvref)
-            _error("`$lvref` is not associated with any constraints.")
         end
     end
     return lvrefs
