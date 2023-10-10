@@ -457,7 +457,7 @@ function JuMP.build_constraint(
     func::_LogicalExpr,
     set::IsTrue
     )
-    if !(func.head in _logical_operators)
+    if !(func.head in _LogicalOperatorHeads)
         _error("Unrecognized logical operator `$(func.head)`.")
     else
         return JuMP.ScalarConstraint(func, set)

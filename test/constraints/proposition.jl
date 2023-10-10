@@ -30,7 +30,7 @@ function test_negation_add_success()
     @test constraint_object(c1).func isa DP._LogicalExpr
     @test constraint_object(c2).func isa DP._LogicalExpr
     @test constraint_object(c1).func.head == 
-            constraint_object(c2).func.head == :¬
+            constraint_object(c2).func.head == :!
     @test constraint_object(c1).func.args ==
             constraint_object(c2).func.args == Any[y]
     @test constraint_object(c1).set == 
@@ -45,7 +45,7 @@ function test_implication_add_success()
     @constraint(model, c2, (y[1] ⟹ y[2]) in IsTrue())
     @test_macro_throws ErrorException @constraint(model, y[1] ⟹ y[2] in IsTrue())
     @test constraint_object(c1).func.head == 
-            constraint_object(c2).func.head == :⟹
+            constraint_object(c2).func.head == :(=>)
     @test constraint_object(c1).func.args ==
             constraint_object(c2).func.args == Vector{Any}(y)
     @test constraint_object(c1).set == 
@@ -59,7 +59,7 @@ function test_equivalence_add_success()
     @constraint(model, c2, (y[1] ⇔ y[2]) in IsTrue())
     @test_macro_throws ErrorException @constraint(model, y[1] ⇔ y[2] in IsTrue())
     @test constraint_object(c1).func.head == 
-            constraint_object(c2).func.head == :⇔
+            constraint_object(c2).func.head == :(==)
     @test constraint_object(c1).func.args ==
             constraint_object(c2).func.args == Vector{Any}(y)
     @test constraint_object(c1).set == 
@@ -77,7 +77,7 @@ function test_intersection_and_flatten_add_success()
     @test is_valid(model, c3)
     @test constraint_object(c1).func.head == 
             constraint_object(c2).func.head == 
-            constraint_object(c3).func.head == :∧
+            constraint_object(c3).func.head == :&&
     @test Set(constraint_object(c1).func.args) ==
             Set(constraint_object(c2).func.args) ==
             Set(DP._flatten(constraint_object(c3).func).args)
@@ -97,7 +97,7 @@ function test_union_and_flatten_add_success()
     @test is_valid(model, c3)
     @test constraint_object(c1).func.head == 
             constraint_object(c2).func.head == 
-            constraint_object(c3).func.head == :∨
+            constraint_object(c3).func.head == :||
     @test Set(constraint_object(c1).func.args) ==
             Set(constraint_object(c2).func.args) ==
             Set(DP._flatten(constraint_object(c3).func).args)
@@ -243,7 +243,7 @@ function test_lvar_cnf_functions()
     @test DP._eliminate_implication(y) == y
     @test DP._move_negations_inward(y) == y
     neg_y = DP._negate(y)
-    @test neg_y.head == :¬
+    @test neg_y.head == :!
     @test neg_y.args[1] == y
     @test DP._distribute_and_over_or(y) == y
     @test DP._flatten(y) == y
@@ -254,10 +254,10 @@ function test_eliminate_equivalence()
     @variable(model, y[1:2], LogicalVariable)
     ex = y[1] ⇔ y[2]
     new_ex = DP._eliminate_equivalence(ex)
-    @test new_ex.head == :∧
+    @test new_ex.head == :&&
     @test length(new_ex.args) == 2
-    @test new_ex.args[1].head == :⟹
-    @test new_ex.args[2].head == :⟹
+    @test new_ex.args[1].head == :(=>)
+    @test new_ex.args[2].head == :(=>)
     @test Set(new_ex.args[1].args) == Set{Any}(y)
     @test Set(new_ex.args[2].args) == Set{Any}(y)
 end
@@ -267,10 +267,10 @@ function test_eliminate_equivalence_flat()
     @variable(model, y[1:3], LogicalVariable)
     ex = iff(y...)
     new_ex = DP._eliminate_equivalence(ex)
-    @test new_ex.head == :∧
-    @test new_ex.args[1].head == :⟹
+    @test new_ex.head == :&&
+    @test new_ex.args[1].head == :(=>)
     @test new_ex.args[1].args[1] == y[1]
-    @test new_ex.args[1].args[2].head == :∧
+    @test new_ex.args[1].args[2].head == :&&
     @test y[2] in new_ex.args[1].args[2].args[1].args
     @test y[3] in new_ex.args[1].args[2].args[1].args
     @test y[2] in new_ex.args[1].args[2].args[2].args
@@ -284,10 +284,10 @@ function test_eliminate_equivalence_nested()
     @variable(model, y[1:3], LogicalVariable)
     ex = iff(y[1], iff(y[2],y[3]))
     new_ex = DP._eliminate_equivalence(ex)
-    @test new_ex.head == :∧
+    @test new_ex.head == :&&
     @test new_ex.args[1].head == :⟹
     @test new_ex.args[1].args[1] == y[1]
-    @test new_ex.args[1].args[2].head == :∧
+    @test new_ex.args[1].args[2].head == :&&
     @test y[2] in new_ex.args[1].args[2].args[1].args
     @test y[3] in new_ex.args[1].args[2].args[1].args
     @test y[2] in new_ex.args[1].args[2].args[2].args
@@ -301,8 +301,8 @@ function test_eliminate_implication()
     @variable(model, y[1:2], LogicalVariable)
     ex = y[1] ⟹ y[2]
     new_ex = DP._eliminate_implication(ex)
-    @test new_ex.head == :∨
-    @test new_ex.args[1].head == :¬
+    @test new_ex.head == :||
+    @test new_ex.args[1].head == :!
     @test new_ex.args[1].args[1] == y[1]
     @test new_ex.args[2] == y[2]
 end
@@ -319,10 +319,10 @@ function test_eliminate_implication_nested()
     @variable(model, y[1:3], LogicalVariable)
     ex = (y[1] ⟹ y[2]) ⟹ y[3]
     new_ex = DP._eliminate_implication(ex)
-    @test new_ex.head == :∨
-    @test new_ex.args[1].head == :¬
-    @test new_ex.args[1].args[1].head == :∨
-    @test new_ex.args[1].args[1].args[1].head == :¬
+    @test new_ex.head == :||
+    @test new_ex.args[1].head == :!
+    @test new_ex.args[1].args[1].head == :||
+    @test new_ex.args[1].args[1].args[1].head == :!
     @test new_ex.args[1].args[1].args[1].args[1] == y[1]
     @test new_ex.args[1].args[1].args[2] == y[2]
     @test new_ex.args[2] == y[3]
@@ -340,7 +340,7 @@ function test_move_negation_inward()
     @variable(model, y, LogicalVariable)
     ex = ¬y
     new_ex = DP._move_negations_inward(ex)
-    @test new_ex.head == :¬
+    @test new_ex.head == :!
     @test new_ex.args[1] == y
 end
 
@@ -362,10 +362,10 @@ function test_negate_or()
     @variable(model, y[1:2], LogicalVariable)
     ex = ∨(y...)
     new_ex = DP._negate_or(ex)
-    @test new_ex.head == :∧
-    @test new_ex.args[1].head == :¬
+    @test new_ex.head == :&&
+    @test new_ex.args[1].head == :!
     @test new_ex.args[1].args[1] == y[1]
-    @test new_ex.args[2].head == :¬
+    @test new_ex.args[2].head == :!
     @test new_ex.args[2].args[1] == y[2]
 end
 
@@ -380,10 +380,10 @@ function test_negate_and()
     @variable(model, y[1:2], LogicalVariable)
     ex = ∧(y...)
     new_ex = DP._negate_and(ex)
-    @test new_ex.head == :∨
-    @test new_ex.args[1].head == :¬
+    @test new_ex.head == :||
+    @test new_ex.args[1].head == :!
     @test new_ex.args[1].args[1] == y[1]
-    @test new_ex.args[2].head == :¬
+    @test new_ex.args[2].head == :!
     @test new_ex.args[2].args[1] == y[2]    
 end
 
@@ -412,7 +412,7 @@ function test_distribute_and_over_or()
     new_ex = DP._distribute_and_over_or(ex)
     @test new_ex.head == :∧
     @test new_ex.args[1].head == 
-            new_ex.args[2].head == :∨
+            new_ex.args[2].head == :||
     @test y[1] in new_ex.args[1].args
     @test y[1] in new_ex.args[2].args
     @test y[2] in new_ex.args[1].args || y[2] in new_ex.args[2].args
@@ -425,7 +425,7 @@ function test_distribute_and_over_or_nested()
     ex = (y[1] ∧ y[2]) ∨ (y[3] ∧ y[4])
     new_ex = DP._flatten(DP._distribute_and_over_or(ex))
     for arg in new_ex.args
-        @test arg.head == :∨
+        @test arg.head == :||
     end
     @test (y[1] in new_ex.args[1].args && y[3] in new_ex.args[1].args) ||
         (y[1] in new_ex.args[2].args && y[3] in new_ex.args[2].args) ||
@@ -453,9 +453,9 @@ function test_to_cnf()
     @variable(model, y[1:3], LogicalVariable)
     ex = iff(y...)
     new_ex = DP._to_cnf(ex)
-    @test new_ex.head == :∧
+    @test new_ex.head == :&&
     for arg in new_ex.args
-        @test arg.head == :∨
+        @test arg.head == :||
     end
     @test (y[1] in new_ex.args[1].args && y[2] in new_ex.args[1].args && y[3] in new_ex.args[1].args) ||
         (y[1] in new_ex.args[2].args && y[2] in new_ex.args[2].args && y[3] in new_ex.args[2].args) ||

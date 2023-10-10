@@ -6,32 +6,26 @@ function _op_fallback(name)
 end
 
 # Define all the logical operators
-const _logical_operators = (
-    :∨, :logical_or, # \vee + tab
-    :∧, :logical_and, # \wedge + tab
-    :¬, :logical_not, # \neg + tab
-    :⇔, :iff, :⇔, # \Leftrightarrow + tab
-    :⟹, :implies, :⟹ # Longrightarrow + tab
-)
-for (name, alt) in (
-    (:⇔, :iff), # \Leftrightarrow + tab
-    (:⟹, :implies) # Longrightarrow + tab
+const _LogicalOperatorHeads = (:(==), :(=>), :||, :&&, :!)
+for (name, alt, head) in (
+    (:⇔, :iff, :(==)), # \Leftrightarrow + tab
+    (:⟹, :implies, :(=>)) # Longrightarrow + tab
     )
     # make operators
     @eval begin 
-        const $name = JuMP.NonlinearOperator((vs...) -> _op_fallback($(Meta.quot(name))), $(Meta.quot(name)))
-        const $alt = JuMP.NonlinearOperator((vs...) -> _op_fallback($(Meta.quot(alt))), $(Meta.quot(name)))
+        const $name = JuMP.NonlinearOperator((vs...) -> _op_fallback($(Meta.quot(name))), $(Meta.quot(head)))
+        const $alt = JuMP.NonlinearOperator((vs...) -> _op_fallback($(Meta.quot(alt))), $(Meta.quot(head)))
     end
 end
-for (name, alt, func) in (
-    (:∨, :logical_or, :(|)), # \vee + tab
-    (:∧, :logical_and, :(&)), # \wedge + tab
-    (:¬, :logical_not, :(!)) # \neg + tab
+for (name, alt, head, func) in (
+    (:∨, :logical_or, :||, :(|)), # \vee + tab
+    (:∧, :logical_and, :&&, :(&)), # \wedge + tab
+    (:¬, :logical_not, :!, :(!)) # \neg + tab
     )
     # make operators
     @eval begin 
-        const $name = JuMP.NonlinearOperator($func, $(Meta.quot(name)))
-        const $alt = JuMP.NonlinearOperator($func, $(Meta.quot(name)))
+        const $name = JuMP.NonlinearOperator($func, $(Meta.quot(head)))
+        const $alt = JuMP.NonlinearOperator($func, $(Meta.quot(head)))
     end
 end
 
@@ -55,19 +49,19 @@ function _eliminate_equivalence(lvar::LogicalVariableRef)
     return lvar
 end
 function _eliminate_equivalence(lexpr::_LogicalExpr)
-    if lexpr.head == :⇔
+    if lexpr.head == :(==)
         A = _eliminate_equivalence(lexpr.args[1])
         if length(lexpr.args) > 2 
-            nested = _LogicalExpr(:⇔, Vector{Any}(lexpr.args[2:end]))
+            nested = _LogicalExpr(:(==), Vector{Any}(lexpr.args[2:end]))
             B = _eliminate_equivalence(nested)
         elseif length(lexpr.args) == 2
             B = _eliminate_equivalence(lexpr.args[2])
         else
             error("The equivalence logic operator `⇔` must have at least two arguments.")
         end
-        new_lexpr = _LogicalExpr(:∧, Any[
-            _LogicalExpr(:⟹, Any[A, B]),
-            _LogicalExpr(:⟹, Any[B, A])
+        new_lexpr = _LogicalExpr(:&&, Any[
+            _LogicalExpr(:(=>), Any[A, B]),
+            _LogicalExpr(:(=>), Any[B, A])
         ])
     else
         new_lexpr = _LogicalExpr(lexpr.head, Any[
@@ -82,14 +76,14 @@ function _eliminate_implication(lvar::LogicalVariableRef)
     return lvar
 end
 function _eliminate_implication(lexpr::_LogicalExpr)
-    if lexpr.head == :⟹
+    if lexpr.head == :(=>)
         if length(lexpr.args) != 2 
             error("The implication operator must have two clauses.")
         end
         A = _eliminate_implication(lexpr.args[1])
         B = _eliminate_implication(lexpr.args[2])
-        new_lexpr = _LogicalExpr(:∨, Any[
-            _LogicalExpr(:¬, Any[A]),
+        new_lexpr = _LogicalExpr(:||, Any[
+            _LogicalExpr(:!, Any[A]),
             B
         ])
     else
@@ -105,7 +99,7 @@ function _move_negations_inward(lvar::LogicalVariableRef)
     return lvar
 end
 function _move_negations_inward(lexpr::_LogicalExpr)
-    if lexpr.head == :¬
+    if lexpr.head == :!
         if length(lexpr.args) != 1
             error("The negation operator can only have 1 clause.")
         end
@@ -122,11 +116,11 @@ function _negate(lvar::LogicalVariableRef)
     return _LogicalExpr(:¬, Any[lvar])
 end
 function _negate(lexpr::_LogicalExpr)
-    if lexpr.head == :∨
+    if lexpr.head == :||
         return _negate_or(lexpr)
-    elseif lexpr.head == :∧
+    elseif lexpr.head == :&&
         return _negate_and(lexpr)
-    elseif lexpr.head == :¬
+    elseif lexpr.head == :!
         return _negate_negation(lexpr)
     else
         error("Unexpected operator `$(lexpr.head)`in logic expression.")
@@ -137,8 +131,8 @@ function _negate_or(lexpr::_LogicalExpr)
     if length(lexpr.args) < 2 
         error("The OR operator must have at least two clauses.")
     end
-    return _LogicalExpr(:∧, Any[ #flip OR to AND
-        _move_negations_inward(_LogicalExpr(:¬, Any[arg]))
+    return _LogicalExpr(:&&, Any[ #flip OR to AND
+        _move_negations_inward(_LogicalExpr(:!, Any[arg]))
         for arg in lexpr.args
     ])
 end
@@ -147,8 +141,8 @@ function _negate_and(lexpr::_LogicalExpr)
     if length(lexpr.args) < 2 
         error("The AND operator must have at least two clauses.")
     end
-    return _LogicalExpr(:∨, Any[ #flip AND to OR
-        _move_negations_inward(_LogicalExpr(:¬, Any[arg]))
+    return _LogicalExpr(:||, Any[ #flip AND to OR
+        _move_negations_inward(_LogicalExpr(:!, Any[arg]))
         for arg in lexpr.args
     ])
 end
@@ -165,15 +159,15 @@ function _distribute_and_over_or(lvar::LogicalVariableRef)
 end
 function _distribute_and_over_or(lexpr0::_LogicalExpr)
     lexpr = _flatten(lexpr0)
-    if lexpr.head == :∨
+    if lexpr.head == :||
         if length(lexpr.args) < 2 
             error("The OR operator must have at least two clauses.")
         end
-        loc = findfirst(arg -> arg isa _LogicalExpr ? arg.head == :∧ : false, lexpr.args)
+        loc = findfirst(arg -> arg isa _LogicalExpr ? arg.head == :&& : false, lexpr.args)
         if !isnothing(loc)
-            new_lexpr = _LogicalExpr(:∧, Any[
+            new_lexpr = _LogicalExpr(:&&, Any[
                 _distribute_and_over_or(
-                    _LogicalExpr(:∨, Any[arg_i, lexpr.args[setdiff(1:end,loc)]...])
+                    _LogicalExpr(:||, Any[arg_i, lexpr.args[setdiff(1:end,loc)]...])
                 )
                 for arg_i in lexpr.args[loc].args
             ])
@@ -194,7 +188,7 @@ function _flatten(lvar::LogicalVariableRef)
     return lvar
 end
 function _flatten(lexpr::_LogicalExpr)
-    if lexpr.head in (:∧, :∨)
+    if lexpr.head in (:&&, :||)
         nary_args = Set{Any}()
         for arg in lexpr.args
             if arg isa LogicalVariableRef
@@ -248,11 +242,11 @@ end
 ################################################################################
 function _reformulate_proposition(model::JuMP.Model, lexpr::_LogicalExpr)
     expr = _to_cnf(lexpr)
-    if expr.head == :∧
+    if expr.head == :&&
         for arg in expr.args
             _add_reformulated_proposition(model, arg)
         end
-    elseif expr.head in (:∨, :¬) && all(_isa_literal.(expr.args))
+    elseif expr.head in (:||, :!) && all(_isa_literal.(expr.args))
         _add_reformulated_proposition(model, expr)
     else
         error("Expression was not converted to proper Conjunctive Normal Form:\n$expr")
@@ -261,7 +255,7 @@ end
 
 # helper to determine if an object is a logic literal (i.e. a logic variable or its negation)
 _isa_literal(v::LogicalVariableRef) = true
-_isa_literal(v::_LogicalExpr) = (v.head == :¬) && (length(v.args) == 1) && _isa_literal(v.args[1])
+_isa_literal(v::_LogicalExpr) = (v.head == :!) && (length(v.args) == 1) && _isa_literal(v.args[1])
 _isa_literal(v) = false
 
 function _add_reformulated_proposition(model::JuMP.Model, arg::Union{LogicalVariableRef,_LogicalExpr})
@@ -283,7 +277,7 @@ function _reformulate_clause(model::JuMP.Model, lexpr::_LogicalExpr)
     func = zero(JuMP.AffExpr) #initialize func expression
     if _isa_literal(lexpr)
         JuMP.add_to_expression!(func, 1 - _reformulate_clause(model, lexpr.args[1]))
-    elseif lexpr.head == :∨
+    elseif lexpr.head == :||
         for literal in lexpr.args
             if literal isa LogicalVariableRef
                 JuMP.add_to_expression!(func, _reformulate_clause(model, literal))
