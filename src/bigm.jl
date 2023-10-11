@@ -1,81 +1,199 @@
-"""
-    big_m_reformulation!(constr::ConstraintRef, bin_var, M, i, j, k)
-
-Perform Big-M reformulation on a linear or quadratic constraint at index k of constraint j in disjunct i.
-
-    big_m_reformulation!(constr::NonlinearConstraintRef, bin_var, M, i, j, k)
-
-Perform Big-M reformulaiton on a nonlinear constraint at index k of constraint j in disjunct i.
-
-    big_m_reformulation!(constr::AbstractArray{<:ConstraintRef}, bin_var, M, i, j, k)
-
-Perform Big-M reformulation on a constraint at index k of constraint j in disjunct i.
-"""
-function big_m_reformulation!(constr::ConstraintRef, bin_var, M0, i, j, k)
-    M = get_reform_param(M0, i, j, k; constr)
-    if !ismissing(M0) && constraint_object(constr).set isa MOI.GreaterThan && M > 0
-        M = -M #if a positive bigM value was provided and constraint is GreaterThan, use the negative of this number (-M*(1-y) <= func)
+################################################################################
+#                              BIG-M VALUE
+################################################################################
+# Get Big-M value for a particular constraint
+function _get_M_value(func::JuMP.AbstractJuMPScalar, set::_MOI.AbstractSet, method::BigM)
+    if method.tighten
+        M = _get_tight_M(func, set, method)
+    else
+        M = _get_M(func, set, method)
     end
-    add_to_function_constant(constr, -M)
-    set_normalized_coefficient(constr, constr.model[bin_var][i], M)
-end
-function big_m_reformulation!(constr::NonlinearConstraintRef, bin_var, M0, i, j, k)
-    M = get_reform_param(M0, i, j, k; constr)
-    #create symbolic variables (using Symbolics.jl)
-    for var_ref in get_constraint_variables(constr)
-        symbolic_variable(var_ref)
-    end
-    bin_var_sym = Symbol("$bin_var[$i]")
-    λ = Num(Symbolics.Sym{Float64}(bin_var_sym))
-    
-    #parse constr
-    op, lhs, rhs = parse_constraint(constr)
-    replace_Symvars!(lhs, constr.model) #convert JuMP variables into Symbolic variables
-    gx = eval(lhs) #convert the LHS of the constraint into a Symbolic expression
-    gx = gx - M*(1-λ) #add bigM
-    
-    #update constraint
-    add_reformulated_constraint(constr, bin_var, gx, op, rhs)
-end
-big_m_reformulation!(constr::AbstractArray{<:ConstraintRef}, bin_var, M, i, j, k) =
-    big_m_reformulation(constr[k], bin_var, M, i, j, k)
-
-"""
-    calculate_tight_M(constr::ConstraintRef{<:AbstractModel, MOI.ConstraintIndex{MOI.ScalarAffineFunction{T},V}}) where {T,V}
-
-Apply interval arithmetic on a linear constraint to infer the tightest Big-M value from the bounds on the constraint.
-"""
-function calculate_tight_M(constr::ConstraintRef{<:AbstractModel, MOI.ConstraintIndex{MOI.ScalarAffineFunction{T},V}}) where {T,V}
-    constr_obj = constraint_object(constr)
-    constr_terms = constr_obj.func.terms
-    constr_set = constr_obj.set
-    #create a map of variables to their bounds
-    bounds_dict = :variable_bounds_dict in keys(constr.model.ext) ? constr.model.ext[:variable_bounds_dict] : Dict()
-    bounds_map = Dict(
-        var => is_binary(var) ? (0,0) : get_bounds(var, bounds_dict) #NOTE: ignore binaries in tight-M calculation
-        for var in get_constraint_variables(constr)
-    )
-    #apply interval arithmetic
-    if constr_set isa MOI.LessThan
-        M = -constr_set.upper
-        for (var,coeff) in constr_terms
-            if coeff > 0
-                M += coeff*bounds_map[var][2]
-            else
-                M += coeff*bounds_map[var][1]
-            end
-        end
-    elseif constr_set isa MOI.GreaterThan
-        M = -constr_set.lower
-        for (var,coeff) in constr_terms
-            if coeff < 0
-                M += coeff*bounds_map[var][2]
-            else
-                M += coeff*bounds_map[var][1]
-            end
-        end
-    end
-    isinf(M) && error("M parameter for $constr cannot be infered due to lack of variable bounds.")
     return M
 end
-calculate_tight_M(constr::ConstraintRef) = error("$constr is a nonlinear or quadratic constraint and a tight Big-M parameter cannot be inferred via interval arithmetic.")
+
+# Get the tightest Big-M value for a particular constraint
+function _get_tight_M(func::JuMP.AbstractJuMPScalar, set::_MOI.AbstractSet, method::BigM)
+    M = min.(method.value, _calculate_tight_M(func, set, method)) #broadcast for when S <: MOI.Interval or MOI.EqualTo or MOI.Zeros
+    if any(isinf.(M))
+        error("A finite Big-M value must be used. The value obtained was $M.")
+    end
+    return M
+end
+
+# Get user-specified Big-M value
+function _get_M(::JuMP.AbstractJuMPScalar, ::Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.Nonnegatives, _MOI.Nonpositives}, method::BigM)
+    M = method.value
+    if isinf(M)
+        error("A finite Big-M value must be used. The value given was $M.")
+    end
+    return M
+end
+function _get_M(::JuMP.AbstractJuMPScalar, ::Union{_MOI.Interval, _MOI.EqualTo, _MOI.Zeros}, method::BigM)
+    M = method.value
+    if isinf(M)
+        error("A finite Big-M value must be used. The value given was $M.")
+    end
+    return [M, M]
+end
+
+# Apply interval arithmetic on a linear constraint to infer the tightest Big-M value from the bounds on the constraint.
+function _calculate_tight_M(func::JuMP.AffExpr, set::_MOI.LessThan, method::BigM)
+    return _interval_arithmetic_LessThan(func, -set.upper, method)
+end
+function _calculate_tight_M(func::JuMP.AffExpr, set::_MOI.GreaterThan, method::BigM)
+    return _interval_arithmetic_GreaterThan(func, -set.lower, method)
+end
+function _calculate_tight_M(func::JuMP.AffExpr, ::_MOI.Nonpositives, method::BigM)
+    return _interval_arithmetic_LessThan(func, 0.0, method)
+end
+function _calculate_tight_M(func::JuMP.AffExpr, ::_MOI.Nonnegatives, method::BigM)
+    return _interval_arithmetic_GreaterThan(func, 0.0, method)
+end
+function _calculate_tight_M(func::JuMP.AffExpr, set::_MOI.Interval, method::BigM)
+    return (
+        _interval_arithmetic_GreaterThan(func, -set.lower, method),
+        _interval_arithmetic_LessThan(func, -set.upper, method)
+    )
+end
+function _calculate_tight_M(func::JuMP.AffExpr, set::_MOI.EqualTo, method::BigM)
+    return (
+        _interval_arithmetic_GreaterThan(func, -set.value, method),
+        _interval_arithmetic_LessThan(func, -set.value, method)
+    )
+end
+function _calculate_tight_M(func::JuMP.AffExpr, ::_MOI.Zeros, method::BigM)
+    return (
+        _interval_arithmetic_GreaterThan(func, 0.0, method),
+        _interval_arithmetic_LessThan(func, 0.0, method)
+    )
+end
+# fallbacks for other scalar constraints
+_calculate_tight_M(func::Union{JuMP.QuadExpr, JuMP.NonlinearExpr}, set::Union{_MOI.Interval, _MOI.EqualTo, _MOI.Zeros}, method::BigM) = (Inf, Inf)
+_calculate_tight_M(func::Union{JuMP.QuadExpr, JuMP.NonlinearExpr}, set::Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.Nonnegatives, _MOI.Nonpositives}, method::BigM) = Inf
+_calculate_tight_M(func, set, method::BigM) = error("BigM method not implemented for constraint type $(typeof(func)) in $(typeof(set))")
+
+# get variable bounds for interval arithmetic
+function _update_variable_bounds(vref::JuMP.VariableRef, method::BigM)
+    if JuMP.is_binary(vref)
+        lb = 0
+    elseif !JuMP.has_lower_bound(vref)
+        lb = -Inf
+    else
+        lb = JuMP.lower_bound(vref)
+    end
+    if JuMP.is_binary(vref)
+        ub = 1
+    elseif !JuMP.has_upper_bound(vref)
+        ub = Inf
+    else
+        ub = JuMP.upper_bound(vref)
+    end
+    return lb, ub
+end
+
+# perform interval arithmetic to update the initial M value
+function _interval_arithmetic_LessThan(func::JuMP.AffExpr, M::Float64, method::BigM)
+    for (var,coeff) in func.terms
+        JuMP.is_binary(var) && continue #skip binary variables
+        if coeff > 0
+            M += coeff*method.variable_bounds[var][2]
+        else
+            M += coeff*method.variable_bounds[var][1]
+        end
+    end
+    return M + func.constant
+end
+function _interval_arithmetic_GreaterThan(func::JuMP.AffExpr, M::Float64, method::BigM)
+    for (var,coeff) in func.terms
+        JuMP.is_binary(var) && continue #skip binary variables
+        if coeff < 0
+            M += coeff*method.variable_bounds[var][2]
+        else
+            M += coeff*method.variable_bounds[var][1]
+        end
+    end
+    return -(M + func.constant)
+end
+
+################################################################################
+#                              BIG-M REFORMULATION
+################################################################################
+function reformulate_disjunct_constraint(
+    model::JuMP.Model,
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::BigM
+) where {T, S <: _MOI.LessThan}
+    M = _get_M_value(con.func, con.set, method)
+    new_func = JuMP.@expression(model, con.func - M*(1-bvref))
+    reform_con = JuMP.build_constraint(error, new_func, con.set)    
+    return [reform_con]
+end
+function reformulate_disjunct_constraint(
+    model::JuMP.Model,
+    con::JuMP.VectorConstraint{T, S, R}, 
+    bvref::JuMP.VariableRef,
+    method::BigM
+) where {T, S <: _MOI.Nonpositives, R}
+    M = [_get_M_value(func, con.set, method) for func in con.func]
+    new_func = JuMP.@expression(model, [i=1:con.set.dimension], 
+        con.func[i] - M[i]*(1-bvref)
+    )
+    reform_con = JuMP.build_constraint(error, new_func, con.set)    
+    return [reform_con]
+end
+function reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::BigM
+) where {T, S <: _MOI.GreaterThan}
+    M = _get_M_value(con.func, con.set, method)
+    new_func = JuMP.@expression(model, con.func + M*(1-bvref))
+    reform_con = JuMP.build_constraint(error, new_func, con.set)
+    return [reform_con]
+end
+function reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.VectorConstraint{T, S, R}, 
+    bvref::JuMP.VariableRef,
+    method::BigM
+) where {T, S <: _MOI.Nonnegatives, R}
+    M = [_get_M_value(func, con.set, method) for func in con.func]
+    new_func = JuMP.@expression(model, [i=1:con.set.dimension], 
+        con.func[i] + M[i]*(1-bvref)
+    )
+    reform_con = JuMP.build_constraint(error, new_func, con.set)
+    return [reform_con]
+end
+function reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::BigM
+) where {T, S <: Union{_MOI.Interval, _MOI.EqualTo}}
+    M = _get_M_value(con.func, con.set, method)
+    new_func_gt = JuMP.@expression(model, con.func + M[1]*(1-bvref))
+    new_func_lt = JuMP.@expression(model, con.func - M[2]*(1-bvref))
+    set_values = _set_values(con.set)
+    reform_con_gt = JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(set_values[1]))
+    reform_con_lt = JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(set_values[2]))
+    return [reform_con_gt, reform_con_lt]
+end
+function reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.VectorConstraint{T, S, R}, 
+    bvref::JuMP.VariableRef,
+    method::BigM
+) where {T, S <: _MOI.Zeros, R}
+    M = [_get_M_value(func, con.set, method) for func in con.func]
+    new_func_nn = JuMP.@expression(model, [i=1:con.set.dimension], 
+        con.func[i] + M[i][1]*(1-bvref)
+    )
+    new_func_np = JuMP.@expression(model, [i=1:con.set.dimension], 
+        con.func[i] - M[i][2]*(1-bvref)
+    )
+    reform_con_nn = JuMP.build_constraint(error, new_func_nn, _MOI.Nonnegatives(con.set.dimension))
+    reform_con_np = JuMP.build_constraint(error, new_func_np, _MOI.Nonpositives(con.set.dimension))
+    return [reform_con_nn, reform_con_np]
+end

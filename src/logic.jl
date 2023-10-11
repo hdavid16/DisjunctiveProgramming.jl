@@ -1,59 +1,31 @@
-"""
-    choose!(m::Model, n::Union{Int,VariableRef}, vars::VariableRef...; mode::Symbol=:exactly, name::String="")
-
-Add constraint to select n elements from the list of variables. Options for mode
-are `:at_least`, `:at_most`, `:exactly`. Alternately, if `n` is a Binary variable, 
-it becomes the RHS of the constraint. If `name` is provided, it will be converted 
-to a Symbol and stored in the object dictionary.
-"""
-function choose!(m::Model, n::Int, vars::VariableRef...; mode::Symbol=:exactly, name::String="")
-    @assert length(vars) >= n "Not enough variables passed."
-    @assert all(is_valid.(m, vars)) "Invalid VariableRefs passed."
-    add_selection!(m, n, vars...; mode, name)
-end
-function choose!(m::Model, var::VariableRef, vars::VariableRef...; mode::Symbol=:exactly, name::String="")
-    @assert all(is_valid.(m, vcat(var,vars...))) "Invalid VariableRefs passed."
-    add_selection!(m, var, vars...; mode, name)
-end
-function add_selection!(m::Model, n, vars::VariableRef...; mode::Symbol, name::String)
-    if mode == :exactly
-        con = @constraint(m, sum(vars) == n)
-    elseif mode == :at_least
-        con = @constraint(m, sum(vars) ≥ n)
-    elseif mode == :at_most
-        con = @constraint(m, sum(vars) ≤ n)
-    end
-    if !isempty(name)
-        set_name(con, name)
-        m[Symbol(name)] = con
-    end
+################################################################################
+#                              LOGIC OPERATORS
+################################################################################
+function _op_fallback(name)
+    error("`$name` is only supported for logical expressions")
 end
 
-"""
-    add_proposition!(m::Model, expr::Expr; name::String = "")
-
-Convert logical proposition expression into conjunctive normal form.
-"""
-function add_proposition!(m::Model, expr::Expr; name::String = "")
-    if isempty(name)
-        name = "{$expr}" #get name to register reformulated logical proposition
+# Define all the logical operators
+const _LogicalOperatorHeads = (:(==), :(=>), :||, :&&, :!)
+for (name, alt, head) in (
+    (:⇔, :iff, :(==)), # \Leftrightarrow + tab
+    (:⟹, :implies, :(=>)) # Longrightarrow + tab
+    )
+    # make operators
+    @eval begin 
+        const $name = JuMP.NonlinearOperator((vs...) -> _op_fallback($(Meta.quot(name))), $(Meta.quot(head)))
+        const $alt = JuMP.NonlinearOperator((vs...) -> _op_fallback($(Meta.quot(alt))), $(Meta.quot(head)))
     end
-    replace_Symvars!(expr, m; logical_proposition = true) #replace all JuMP variables with Symbolic variables
-    clause_list = to_cnf!(expr)
-    #replace symbolic variables with JuMP variables and boolean operators with their algebraic counterparts
-    for clause in clause_list
-        replace_JuMPvars!(clause, m)
-        replace_logic_operators!(clause)
-    end
-    #generate and simplify JuMP expressions for the lhs of the algebraic constraints
-    lhs = eval.(clause_list)
-    drop_zeros!.(lhs)
-    unique!(lhs)
-    #generate JuMP constraints for the logical proposition
-    if length(lhs) == 1
-        m[Symbol(name)] = @constraint(m, lhs[1] >= 1, base_name = name)
-    else
-        m[Symbol(name)] = @constraint(m, [i = eachindex(lhs)], lhs[i] >= 1, base_name = name)
+end
+for (name, alt, head, func) in (
+    (:∨, :logical_or, :||, :(|)), # \vee + tab
+    (:∧, :logical_and, :&&, :(&)), # \wedge + tab
+    (:¬, :logical_not, :!, :(!)) # \neg + tab
+    )
+    # make operators
+    @eval begin 
+        const $name = JuMP.NonlinearOperator($func, $(Meta.quot(head)))
+        const $alt = JuMP.NonlinearOperator($func, $(Meta.quot(head)))
     end
 end
 
@@ -73,224 +45,266 @@ function to_cnf!(expr::Expr)
     return clause_list
 end
 
-"""
-    check_logical_proposition(expr::Expr)
-
-Validate logical proposition provided.
-"""
-function check_logical_proposition(expr::Expr)
-    #NOTE: this is quick and dirty (uses Suppressor.jl). A more robust approach should traverse the expression tree to verify that only valid boolean symbols and model variables are used.
-    dump_str = @capture_out dump(expr, maxdepth = typemax(Int)) #caputre dump
-    dump_arr = split(dump_str,"\n") #split by \n
-    filter!(i -> occursin("1:",i), dump_arr) #filter only first args in each subexpression
-    @assert all(occursin.("1: Symbol ",dump_arr)) "Logical expression does not use valid Boolean symbols: ∨, ∧, ¬, ⇒, ⇔."
-    operator_list = map(i -> split(i, "Symbol ")[2], dump_arr)
-    @assert isempty(setdiff(operator_list, ["∨", "∧", "¬", "⇒", "⇔", "variables"])) "Logical expression does not use valid model variables or allowed Boolean symbols (∨, ∧, ¬, ⇒, ⇔)."
+################################################################################
+#                            CONJUNCTIVE NORMAL FORM
+################################################################################
+function _to_cnf(lexpr::_LogicalExpr)
+    #NOTE: some redundant constraints may be created in the process.
+    #   For example A ∨ ¬B ∨ B is always true and is reformulated 
+    #   to the redundant constraint A ≥ 0.
+    lexpr |> 
+        _eliminate_equivalence |>  
+        _eliminate_implication |> 
+        _move_negations_inward |> 
+        _distribute_and_over_or |>
+        _flatten
 end
 
-"""
-    eliminate_equivalence!(expr)
-
-Eliminate equivalence logical operator.
-"""
-function eliminate_equivalence!(expr)
-    if expr isa Expr
-        if expr.args[1] == :⇔
-            @assert length(expr.args) == 3 "Double implication cannot have more than two clauses."
-            A1 = expr.args[2]
-            B1 = expr.args[3]
-            A2 = A1 isa Expr ? copy(A1) : A1
-            B2 = B1 isa Expr ? copy(B1) : B1
-            expr.args[1] = :∧
-            expr.args[2] = :($A1 ⇒ $B1)
-            expr.args[3] = :($B2 ⇒ $A2)
-        end
-        for i in eachindex(expr.args)
-            expr.args[i] = eliminate_equivalence!(expr.args[i])
-        end
-    end
-
-    return expr
+# Eliminate the equivalence operator `⇔` by replacing it with two implications.
+function _eliminate_equivalence(lvar::LogicalVariableRef)
+    return lvar
 end
-
-"""
-    eliminate_implication!(expr)
-
-Eliminate implication logical operator.
-"""
-function eliminate_implication!(expr)
-    if expr isa Expr
-        if expr.args[1] == :⇒
-            @assert length(expr.args) == 3 "Implication cannot have more than two clauses."
-            A = expr.args[2]
-            expr.args[1] = :∨
-            expr.args[2] = :(¬$A)
-        end
-        for i in eachindex(expr.args)
-            expr.args[i] = eliminate_implication!(expr.args[i])
-        end
-    end
-
-    return expr
-end
-
-"""
-    move_negations_inwards!(expr)
-
-Move negation inwards in logical proposition expression.
-"""
-function move_negations_inwards!(expr)
-    if expr isa Expr
-        if expr.args[1] == :¬
-            @assert length(expr.args) == 2 "Negation cannot have more than one clause."
-            A = expr.args[2]
-            if A isa Expr #only modify if an expression (not a Symbolic variable) is being negated
-                if A.args[1] == :∨
-                    expr.args = negate_or!(A).args
-                elseif A.args[1] == :∧
-                    expr.args = negate_and!(A).args
-                elseif A.args[1] == :¬
-                    expr = negate_negation!(A)
-                end
-            end
-        end
-        if expr isa Expr
-            for i in eachindex(expr.args)
-                expr.args[i] = move_negations_inwards!(expr.args[i])
-            end
-        end
-    end
-
-    return expr
-end
-
-"""
-    negate_or!(expr)
-
-Negate OR boolean operator.
-"""
-function negate_or!(expr)
-    @assert expr.args[1] == :∨ "Cannot call negate_or! unless the top operator is an OR operator."
-    expr.args[1] = :∧ #flip OR to AND
-    expr.args[2] = :(¬$(expr.args[2]))
-    expr.args[3] = :(¬$(expr.args[3]))
-    
-    return expr
-end
-
-"""
-    negate_and!(expr)
-
-Negate AND boolean operator.
-"""
-function negate_and!(expr)
-    @assert expr.args[1] == :∧ "Cannot call negate_and! unless the top operator is an AND operator."
-    expr.args[1] = :∨ #flip AND to OR
-    expr.args[2] = :(¬$(expr.args[2]))
-    expr.args[3] = :(¬$(expr.args[3]))
-    
-    return expr
-end
-
-"""
-    negate_negation!(expr)
-
-Negate negation boolean operator.
-"""
-function negate_negation!(expr)
-    @assert expr.args[1] == :¬ "Cannot call negate_negation! unless the top operator is a Negation operator."
-    @assert length(expr.args) == 2 "Negation cannot have more than one clause."
-    expr = expr.args[2] #remove negation
-    
-    return expr
-end
-
-"""
-    distribute_and_over_or!(expr)
-
-Distribute AND over OR boolean operators.
-"""
-function distribute_and_over_or!(expr)
-    if expr isa Expr
-        if expr.args[1] == :∨
-            # op = expr.args[1]
-            A = expr.args[2] #first clause
-            B = expr.args[3] #second clause
-            if A isa Expr && A.args[1] == :∧ #first clause has AND
-                C = A.args[2] #first subclause
-                D = A.args[3] #second subclause
-                expr.args[1] = :∧ #flip OR to AND in main expr
-                expr.args[2] = :($C ∨ $B)
-                expr.args[3] = :($D ∨ $B)
-            elseif B isa Expr && B.args[1] == :∧ #second clause has AND
-                C = B.args[2] #first subclause
-                D = B.args[3] #second subclause
-                expr.args[1] = :∧ #flip OR to AND in main expr
-                expr.args[2] = :($C ∨ $A)
-                expr.args[3] = :($D ∨ $A)
-            end
-        end
-        for i in eachindex(expr.args)
-            expr.args[i] = distribute_and_over_or!(expr.args[i])
-        end
-    end
-
-    return expr
-end
-
-"""
-    extract_clauses(expr)
-
-Extract clauses from conjunctive normal form.
-"""
-function extract_clauses(expr)
-    clauses = []
-    if expr isa Expr
-        if expr.args[1] == :∨
-            push!(clauses, expr)
+function _eliminate_equivalence(lexpr::_LogicalExpr)
+    if lexpr.head == :(==)
+        A = _eliminate_equivalence(lexpr.args[1])
+        if length(lexpr.args) > 2 
+            nested = _LogicalExpr(:(==), Vector{Any}(lexpr.args[2:end]))
+            B = _eliminate_equivalence(nested)
+        elseif length(lexpr.args) == 2
+            B = _eliminate_equivalence(lexpr.args[2])
         else
-            for i in 2:length(expr.args)
-                push!(clauses, extract_clauses(expr.args[i])...)
+            error("The equivalence logic operator must have at least two arguments.")
+        end
+        new_lexpr = _LogicalExpr(:&&, Any[
+            _LogicalExpr(:(=>), Any[A, B]),
+            _LogicalExpr(:(=>), Any[B, A])
+        ])
+    else
+        new_lexpr = _LogicalExpr(lexpr.head, Any[
+            _eliminate_equivalence(arg) for arg in lexpr.args
+        ])
+    end
+    return new_lexpr
+end
+
+# Eliminate the implication operator `⟹` by replacing it with a disjunction.
+function _eliminate_implication(lvar::LogicalVariableRef)
+    return lvar
+end
+function _eliminate_implication(lexpr::_LogicalExpr)
+    if lexpr.head == :(=>)
+        if length(lexpr.args) != 2 
+            error("The implication operator must have two clauses.")
+        end
+        A = _eliminate_implication(lexpr.args[1])
+        B = _eliminate_implication(lexpr.args[2])
+        new_lexpr = _LogicalExpr(:||, Any[
+            _LogicalExpr(:!, Any[A]),
+            B
+        ])
+    else
+        new_lexpr = _LogicalExpr(lexpr.head, Any[
+            _eliminate_implication(arg) for arg in lexpr.args
+        ])
+    end
+    return new_lexpr
+end
+
+# Move negations inward by applying De Morgan's laws.
+function _move_negations_inward(lvar::LogicalVariableRef)
+    return lvar
+end
+function _move_negations_inward(lexpr::_LogicalExpr)
+    if lexpr.head == :!
+        if length(lexpr.args) != 1
+            error("The negation operator can only have 1 clause.")
+        end
+        new_lexpr = _negate(lexpr.args[1])
+    else
+        new_lexpr = _LogicalExpr(lexpr.head, Any[
+            _move_negations_inward(arg) for arg in lexpr.args
+        ])
+    end
+    return new_lexpr
+end
+
+function _negate(lvar::LogicalVariableRef)
+    return _LogicalExpr(:!, Any[lvar])
+end
+function _negate(lexpr::_LogicalExpr)
+    if lexpr.head == :||
+        return _negate_or(lexpr)
+    elseif lexpr.head == :&&
+        return _negate_and(lexpr)
+    elseif lexpr.head == :!
+        return _negate_negation(lexpr)
+    else
+        error("Unexpected operator `$(lexpr.head)`in logic expression.")
+    end
+end
+
+function _negate_or(lexpr::_LogicalExpr)
+    if length(lexpr.args) < 2 
+        error("The OR operator must have at least two clauses.")
+    end
+    return _LogicalExpr(:&&, Any[ #flip OR to AND
+        _move_negations_inward(_LogicalExpr(:!, Any[arg]))
+        for arg in lexpr.args
+    ])
+end
+
+function _negate_and(lexpr::_LogicalExpr)
+    if length(lexpr.args) < 2 
+        error("The AND operator must have at least two clauses.")
+    end
+    return _LogicalExpr(:||, Any[ #flip AND to OR
+        _move_negations_inward(_LogicalExpr(:!, Any[arg]))
+        for arg in lexpr.args
+    ])
+end
+
+function _negate_negation(lexpr::_LogicalExpr)
+    if length(lexpr.args) != 1
+        error("The negation operator can only have 1 clause.")
+    end
+    return _move_negations_inward(lexpr.args[1])
+end
+
+function _distribute_and_over_or(lvar::LogicalVariableRef)
+    return lvar
+end
+function _distribute_and_over_or(lexpr0::_LogicalExpr)
+    lexpr = _flatten(lexpr0)
+    if lexpr.head == :||
+        if length(lexpr.args) < 2 
+            error("The OR operator must have at least two clauses.")
+        end
+        loc = findfirst(arg -> arg isa _LogicalExpr ? arg.head == :&& : false, lexpr.args)
+        if !isnothing(loc)
+            new_lexpr = _LogicalExpr(:&&, Any[
+                _distribute_and_over_or(
+                    _LogicalExpr(:||, Any[arg_i, lexpr.args[setdiff(1:end,loc)]...])
+                )
+                for arg_i in lexpr.args[loc].args
+            ])
+        else
+            new_lexpr = lexpr
+        end
+    else
+        new_lexpr = _LogicalExpr(lexpr.head, Any[
+            _distribute_and_over_or(arg) for arg in lexpr.args
+        ])
+    end
+    return new_lexpr
+end
+
+# Flatten netsed OR / AND operators and replace them with their n-ary form.
+#   For example, ∨(∨(A, B), C) is replaced with ∨(A, B, C).
+function _flatten(lvar::LogicalVariableRef)
+    return lvar
+end
+function _flatten(lexpr::_LogicalExpr)
+    if lexpr.head in (:&&, :||)
+        nary_args = Set{Any}()
+        for arg in lexpr.args
+            if arg isa LogicalVariableRef
+                push!(nary_args, arg)
+            elseif _isa_literal(arg)
+                push!(nary_args, arg)
+            elseif arg.head == lexpr.head
+                arg_flat = _flatten(arg)
+                for a in arg_flat.args
+                    push!(nary_args, _flatten(a))
+                end
+            else
+                arg_flat = _flatten(arg)
+                push!(nary_args, arg_flat)
             end
         end
+        new_lexpr = _LogicalExpr(lexpr.head, collect(nary_args))
+    else 
+        new_lexpr = _LogicalExpr(lexpr.head, Any[
+            _flatten(arg) for arg in lexpr.args
+        ])
     end
-
-    return clauses
+    return new_lexpr
 end
 
-"""
-    distribute_and_over_or_recursively!(expr)
-
-Distribute AND over OR boolean operators recursively throughout the expression tree.
-"""
-function distribute_and_over_or_recursively!(expr)
-    distribute_and_over_or!(expr)
-    clause_list = extract_clauses(expr)
-    wrong_clauses = filter(i -> occursin("∧",string(i)), clause_list)
-    if !isempty(wrong_clauses)
-        clause_list = distribute_and_over_or_recursively!(expr)
-    end
-
-    return unique!(clause_list)
+################################################################################
+#                              SELECTOR REFORMULATION
+################################################################################
+# cardinality constraint reformulation
+function _reformulate_selector(model::JuMP.Model, func, set::Union{_MOIAtLeast, _MOIAtMost, _MOIExactly})
+    dict = _indicator_to_binary(model)
+    bvrefs = [dict[lvref] for lvref in func[2:end]]
+    new_set = _vec_to_scalar_set(set)(func[1].constant)
+    cref = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), new_set)
+    )
+    push!(_reformulation_constraints(model), cref)
+end
+function _reformulate_selector(model::JuMP.Model, func::Vector{LogicalVariableRef}, set::Union{_MOIAtLeast, _MOIAtMost, _MOIExactly})
+    dict = _indicator_to_binary(model)
+    bvref, bvrefs... = [dict[lvref] for lvref in func]
+    new_set = _vec_to_scalar_set(set)(0)
+    cref = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), new_set)
+    )
+    push!(_reformulation_constraints(model), cref)
 end
 
-"""
-    replace_logic_operators!(expr)
-
-Replace ∨ for +; replace ¬ for 1 - var.
-"""
-function replace_logic_operators!(expr)
-    if expr isa Expr
-        if expr.args[1] == :∨
-            expr.args[1] = :(+)
-        elseif expr.args[1] == :¬
-            A = expr.args[2]
-            expr = :(1 - $A)
+################################################################################
+#                              PROPOSITION REFORMULATION
+################################################################################
+function _reformulate_proposition(model::JuMP.Model, lexpr::_LogicalExpr)
+    expr = _to_cnf(lexpr)
+    if expr.head == :&&
+        for arg in expr.args
+            _add_reformulated_proposition(model, arg)
         end
-        for i in 2:length(expr.args)
-            expr.args[i] = replace_logic_operators!(expr.args[i])
-        end
+    elseif expr.head in (:||, :!) && all(_isa_literal.(expr.args))
+        _add_reformulated_proposition(model, expr)
+    else
+        error("Expression $expr was not converted to proper Conjunctive Normal Form.")
     end
+end
 
-    return expr
+# helper to determine if an object is a logic literal (i.e. a logic variable or its negation)
+_isa_literal(v::LogicalVariableRef) = true
+_isa_literal(v::_LogicalExpr) = (v.head == :!) && (length(v.args) == 1) && _isa_literal(v.args[1])
+_isa_literal(v) = false
+
+function _add_reformulated_proposition(model::JuMP.Model, arg::Union{LogicalVariableRef,_LogicalExpr})
+    func = _reformulate_clause(model, arg)
+    if !isempty(func.terms) && !all(iszero.(values(func.terms)))
+        con = JuMP.build_constraint(error, func, _MOI.GreaterThan(1))
+        cref = JuMP.add_constraint(model, con)
+        push!(_reformulation_constraints(model), cref)
+    end
+    return
+end
+
+function _reformulate_clause(model::JuMP.Model, lvref::LogicalVariableRef)
+    func = 1 * _indicator_to_binary(model)[lvref]
+    return func
+end
+
+function _reformulate_clause(model::JuMP.Model, lexpr::_LogicalExpr)
+    func = zero(JuMP.AffExpr) #initialize func expression
+    if _isa_literal(lexpr)
+        JuMP.add_to_expression!(func, 1 - _reformulate_clause(model, lexpr.args[1]))
+    elseif lexpr.head == :||
+        for literal in lexpr.args
+            if literal isa LogicalVariableRef
+                JuMP.add_to_expression!(func, _reformulate_clause(model, literal))
+            elseif _isa_literal(literal)
+                JuMP.add_to_expression!(func, 1 - _reformulate_clause(model, literal.args[1]))
+            else
+                error("Expression was not converted to proper Conjunctive Normal Form:\n$literal is not a literal.")
+            end
+        end
+    else
+        error("Expression was not converted to proper Conjunctive Normal Form:\n$lexpr.")
+    end
+    return func
 end
