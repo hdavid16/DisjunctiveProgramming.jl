@@ -1,31 +1,77 @@
 using JuMP
 using DisjunctiveProgramming
+using HiGHS
 
-m = Model()
+## Example 1: Linear GDP 
+
+# Disjunction Method 1: Assign Logical Variables Explicitly
+m = GDPModel()
 @variable(m, -5 ≤ x ≤ 10)
-@disjunction(
-    m,
-    0 ≤ x ≤ 3,
-    5 ≤ x ≤ 9,
-    reformulation=:big_m,
-    name=:y
-)
-choose!(m, 1, m[:y]...; mode = :exactly, name = "XOR") #XOR constraint
-@proposition(m, y[1] ∨ y[2], name = "prop") #this is a redundant proposition
+@variable(m, Y[1:2], LogicalVariable)
+@constraint(m, 0 ≤ x ≤ 3, DisjunctConstraint(Y[1]))
+@constraint(m, 5 ≤ x, DisjunctConstraint(Y[2]))
+@constraint(m, x ≤ 9, DisjunctConstraint(Y[2]))
+@disjunction(m, [Y[1], Y[2]])
+@constraint(m, Y in Exactly(1)) 
+@objective(m, Max, x)
 
+# Reformulate logical variables and logical constraints
 print(m)
-
-# ┌ Warning: disj_y[1] : x in [0.0, 3.0] uses the `MOI.Interval` set. Each instance of the interval set has been split into two constraints, one for each bound.
-# ┌ Warning: disj_y[2] : x in [5.0, 9.0] uses the `MOI.Interval` set. Each instance of the interval set has been split into two constraints, one for each bound.
-# Feasibility
+# Max x
 # Subject to
-#  XOR : y[1] + y[2] == 1.0         <- XOR constraint
-#  prop : y[1] + y[2] >= 1.0         <- reformulated logical proposition (name is the proposition)
-#  disj_y[1,lb] : -x + 5 y[1] <= 5.0       <- left-side of constraint in 1st disjunct (name is assigned to disj_y[1][lb])
-#  disj_y[1,ub] : x + 7 y[1] <= 10.0       <- right-side of constraint in 1st disjunct (name is assigned to disj_y[1][ub])
-#  disj_y[2,lb] : -x + 10 y[2] <= 5.0      <- left-side of constraint in 2nd disjunct (name is assigned to disj_y[2][lb])
-#  disj_y[2,ub] : x + y[2] <= 10.0         <- right-side of constraint in 2nd disjunct (name is assigned to disj_y[2][ub])
-#  x >= -5.0                                <- variable lower bound
-#  x <= 10.0                                <- variable upper bound
-#  y[1] binary                              <- indicator variable (1st disjunct) is binary
-#  y[2] binary                              <- indicator variable (2nd disjunct) is binary
+#  x ≥ -5
+#  x ≤ 10
+
+## Indicator Constraints reformulation (NOTE: HiGHS doesn't support indicator constraints)
+reformulate_model(m, Indicator())
+print(m)
+# Max x
+# Subject to
+#  Y[1] + Y[2] = 1
+#  Y[2] => {-x ≤ -5}
+#  Y[2] => {x ≤ 9}
+#  x ≥ -5
+#  x ≤ 10
+#  Y[1] binary
+#  Y[2] binary
+#  Y[1] => {x ∈ [0, 3]}
+
+## BigM reformulation
+set_optimizer(m, HiGHS.Optimizer)
+optimize!(m, method = BigM())
+print(m)
+# Max x
+# Subject to
+#  Y[1] + Y[2] = 1
+#  x - 5 Y[1] ≥ -5
+#  x + 7 Y[1] ≤ 10
+#  -x + 10 Y[2] ≤ 5
+#  x + Y[2] ≤ 10
+#  x ≥ -5
+#  x ≤ 10
+#  Y[1] binary
+#  Y[2] binary
+
+## Hull reformulation
+optimize!(m, method = Hull())
+print(m)
+# Max x
+# Subject to
+#  -x + x_Y[1] + x_Y[2] = 0
+#  Y[1] + Y[2] = 1
+#  x_Y[1] ≥ 0
+#  x_Y[1]_lower_bound : -5 Y[1] - x_Y[1] ≤ 0
+#  x_Y[1]_upper_bound : -10 Y[1] + x_Y[1] ≤ 0
+#  x_Y[2]_lower_bound : -5 Y[2] - x_Y[2] ≤ 0
+#  x_Y[2]_upper_bound : -10 Y[2] + x_Y[2] ≤ 0
+#  -3 Y[1] + x_Y[1] ≤ 0
+#  5 Y[2] - x_Y[2] ≤ 0
+#  -9 Y[2] + x_Y[2] ≤ 0
+#  x ≥ -5
+#  x_Y[1] ≥ -5
+#  x_Y[2] ≥ -5
+#  x ≤ 10
+#  x_Y[1] ≤ 10
+#  x_Y[2] ≤ 10
+#  Y[1] binary
+#  Y[2] binary

@@ -1,172 +1,245 @@
-"""
-    hull_reformulation!(constr::ConstraintRef{<:AbstractModel, MOI.ConstraintIndex{MOI.ScalarAffineFunction{T},V}}, bin_var, args...) where {T,V}
-
-Apply the hull reformulation to a linear constraint.
-
-    hull_reformulation!(constr::ConstraintRef, bin_var, eps, i, j, k)
-
-Apply the hull reformulation to a nonlinear constraint (includes quadratic) at index k of constraint j in disjunct i.
-
-    hull_reformulation!(constr::AbstractArray{<:ConstraintRef}, bin_var, eps, i, j, k)
-
-Call the hull reformulation on a constraint at index k of constraint j in disjunct i.
-"""
-function hull_reformulation!(constr::ConstraintRef{<:AbstractModel, MOI.ConstraintIndex{MOI.ScalarAffineFunction{T},V}}, bin_var, args...) where {T,V}
-    #check constraint type
-    m = constr.model
-    i = args[2] #get disjunct index
-    bin_var_ref = m[bin_var][i]
-    #replace each variable with its disaggregated version (skip disaggregated vars and binaries)
-    for var_ref in filter!(v -> !in(v, values(m.ext[:disaggregated_variables])) && !is_binary(v), get_constraint_variables(constr))#setdiff(get_constraint_variables(constr), values(m.ext[:disaggregated_variables]))
-        # var_ref in values(m.ext[:disaggregated_variables]) && continue #disaggregated variables are not touched
-        #get disaggregated variable reference
-        var_name_i = name_disaggregated_variable(var_ref, bin_var, i)
-        var_i_ref = m.ext[:disaggregated_variables][var_name_i] #NOTE: currently containerized variables are disaggregated individually, which makes this work and does not require using variable_by_name(m, var_name_i)
-        #check var_ref is present in the constraint
-        coeff = normalized_coefficient(constr, var_ref)
-        iszero(coeff) && continue #if not present, skip
-        #swap variable for disaggregated variable
-        set_normalized_coefficient(constr, var_ref, 0) #remove original variable
-        set_normalized_coefficient(constr, var_i_ref, coeff) #add disaggregated variable
+################################################################################
+#                              VARIABLE DISAGGREGATION
+################################################################################
+function _update_variable_bounds(vref::JuMP.VariableRef, method::Hull)
+    if JuMP.is_binary(vref) #not used
+        lb, ub = 0, 1
+    elseif !JuMP.has_lower_bound(vref) || !JuMP.has_upper_bound(vref)
+        error("Variable $vref must have both lower and upper bounds defined when using the Hull reformulation.")
+    else
+        lb = min(0, JuMP.lower_bound(vref))
+        ub = max(0, JuMP.upper_bound(vref))
     end
-    #multiply RHS constant by binary variable
-    rhs = normalized_rhs(constr) #get rhs
-    set_normalized_rhs(constr, 0) #set rhs to 0
-    set_normalized_coefficient(constr, bin_var_ref, -rhs) #add binary variable (same as multiplying rhs constant by binary variable)
+    return lb, ub
 end
-function hull_reformulation!(constr::ConstraintRef, bin_var, eps, i, j, k)
-    m = constr.model #get model
-    if constr in values(m.ext[:perspective_functions]) #if constraint nested and was already reformulated, doesn't need to be reformulated again
-        push!(m.ext[bin_var], constr)
-        return
+function _disaggregate_variables(model::JuMP.Model, lvref::LogicalVariableRef, vrefs::Set{JuMP.VariableRef}, method::_Hull)
+    #create disaggregated variables for that disjunct
+    for vref in vrefs
+        JuMP.is_binary(vref) && continue #skip binary variables
+        _disaggregate_variable(model, lvref, vref, method) #create disaggregated var for that disjunct
     end
-    eps = get_reform_param(eps, i, j, k)
-    #create symbolic variables (using Symbolics.jl)
-    sym_vars = Dict(
-        symbolic_variable(var_ref) => 
-            symbolic_variable(m.ext[:disaggregated_variables][name_disaggregated_variable(var_ref, bin_var, i)])
-        for var_ref in filter!(v -> !in(v, values(m.ext[:disaggregated_variables])) && !is_binary(v), get_constraint_variables(constr))
+end
+function _disaggregate_variable(model::JuMP.Model, lvref::LogicalVariableRef, vref::JuMP.VariableRef, method::_Hull)
+    #create disaggregated vref
+    lb, ub = method.variable_bounds[vref]
+    dvref = JuMP.@variable(model, base_name = "$(vref)_$(lvref)", lower_bound = lb, upper_bound = ub)
+    push!(_reformulation_variables(model), dvref)
+    #get binary indicator variable
+    bvref = _indicator_to_binary(model)[lvref]
+    #temp storage
+    if !haskey(method.disjunction_variables, vref)
+        method.disjunction_variables[vref] = Vector{JuMP.VariableRef}()
+    end
+    push!(method.disjunction_variables[vref], dvref)
+    method.disjunct_variables[vref, bvref] = dvref
+    #create bounding constraints
+    dvname = JuMP.name(dvref)
+    lbname = isempty(dvname) ? "" : "$(dvname)_lower_bound"
+    ubname = isempty(dvname) ? "" : "$(dvname)_upper_bound"
+    new_con_lb_ref = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, lb*bvref - dvref, _MOI.LessThan(0)),
+        lbname
     )
-    ϵ = eps #epsilon parameter for perspective function (See Furman, Sawaya, Grossmann [2020] perspecive function)
-    bin_var_sym = Symbol("$bin_var[$i]")
-    λ = Num(Symbolics.Sym{Float64}(bin_var_sym))
-    FSG1 = Num(Symbolics.Sym{Float64}(gensym())) #this will become: [(1-ϵ)⋅λ + ϵ] (See Furman, Sawaya, Grossmann [2020] perspecive function)
-    FSG2 = Num(Symbolics.Sym{Float64}(gensym())) #this will become: ϵ⋅(1-λ) (See Furman, Sawaya, Grossmann [2020] perspecive function)
-
-    #parse constr
-    op, lhs, rhs = parse_constraint(constr)
-    replace_Symvars!(lhs, constr.model) #convert JuMP variables into Symbolic variables
-    gx = eval(lhs) #convert the LHS of the constraint into a Symbolic expression
-    #use symbolic substitution to obtain the following expression:
-    #[(1-ϵ)⋅λ + ϵ]⋅g(v/[(1-ϵ)⋅λ + ϵ]) - ϵ⋅g(0)⋅(1-λ) <= 0
-    #first term
-    g1 = FSG1*substitute(gx, Dict(var => var_i/FSG1 for (var,var_i) in sym_vars))
-    #second term
-    g0 = substitute(gx, Dict(var => 0 for var in keys(sym_vars)))
-    @assert !isinf(g0.val) "Hull reformulation has failed for non-linear constraint $constr: $gx is not defined at 0. Perspective function is undetermined."
-    g2 = FSG2*g0
-    #create perspective function and simplify
-    pers_func = simplify(g1 - g2, expand = true)
-    #replace FSG expressions & simplify
-    pers_func = substitute(pers_func, Dict(FSG1 => (1-ϵ)*λ+ϵ,
-                                           FSG2 => ϵ*(1-λ)))
-    pers_func = simplify(pers_func)
-    constr_str = string(constr)
-    m.ext[:perspective_functions][constr_str] = add_reformulated_constraint(constr, bin_var, pers_func, op, rhs)
+    new_con_ub_ref = JuMP.add_constraint(model,
+        JuMP.build_constraint(error, dvref - ub*bvref, _MOI.LessThan(0)),
+        ubname
+    )
+    push!(_reformulation_constraints(model), new_con_lb_ref, new_con_ub_ref)
+    return dvref
 end
-hull_reformulation!(constr::AbstractArray{<:ConstraintRef}, bin_var, eps, i, j, k) = 
-    hull_reformulation!(constr[k], bin_var, eps, i, j, k)
 
-"""
-    disaggregate_variables(m::Model, disj, bin_var)
+################################################################################
+#                              VARIABLE AGGREGATION
+################################################################################
+function _aggregate_variable(model::JuMP.Model, ref_cons::Vector{JuMP.AbstractConstraint}, vref::JuMP.VariableRef, method::_Hull)
+    JuMP.is_binary(vref) && return #skip binary variables
+    con_expr = JuMP.@expression(model, -vref + sum(method.disjunction_variables[vref]))
+    push!(ref_cons,
+        JuMP.build_constraint(error, con_expr, _MOI.EqualTo(0))
+    )
+    return 
+end
 
-Disaggregate all variables in the model and tag them with the disjunction name.
-"""
-function disaggregate_variables(m::Model, disj, bin_var)
-    #check that variables are bounded
-    var_refs = get_constraint_variables(disj)
-    @assert all((has_upper_bound.(var_refs) .&& has_lower_bound.(var_refs)) .|| is_binary.(var_refs)) "All variables must be bounded to perform the Hull reformulation."
-    #reformulate variables
-    obj_dict = object_dictionary(m)
-    bounds_dict = :variable_bounds_dict in keys(obj_dict) ? obj_dict[:variable_bounds_dict] : Dict() #NOTE: should pass as an keyword argument
-    for var in filter!(!in(values(m.ext[:disaggregated_variables])), var_refs) #skip already disaggregated variables
-        is_binary(var) && continue #NOTE: don't disaggregate binary variables (comes up when nesting disjunctions)
-        # var in values(m.ext[:disaggregated_variables]) && continue #skip already disaggregated variables
-        #define UB and LB
-        LB, UB = get_bounds(var, bounds_dict)
-        #disaggregate variable and add bounding constraints
-        sum_vars = AffExpr(0) #initialize sum of disaggregated variables
-        for i in eachindex(disj)
-            var_name_i_str = name_disaggregated_variable(var, bin_var, i)
-            var_name_i = Symbol(var_name_i_str)
-            #create disaggregated variable
-            var_i = add_disaggregated_variable(m, var, LB, UB, var_name_i_str)
-            m.ext[:disaggregated_variables][var_name_i_str] = var_i
-            #apply bounding constraints on disaggregated variable
-            var_i_lb = "$(var_name_i)_lb" 
-            var_i_ub = "$(var_name_i)_ub" 
-            push!(
-                m.ext[bin_var], 
-                @constraint(m, LB * m[bin_var][i] .- var_i .<= 0, base_name = var_i_lb),
-                @constraint(m, var_i .- UB * m[bin_var][i] .<= 0, base_name = var_i_ub)
-            )
-            #update disaggregated sum expression
-            add_to_expression!(sum_vars, 1, var_i)
+################################################################################
+#                              CONSTRAINT DISAGGREGATION
+################################################################################
+# variable
+function _disaggregate_expression(model::JuMP.Model, vref::JuMP.VariableRef, bvref::JuMP.VariableRef, method::_Hull)
+    if JuMP.is_binary(vref) || !haskey(method.disjunct_variables, (vref, bvref)) #keep any binary variables or nested disaggregated variables unchanged 
+        return vref
+    else #replace with disaggregated form
+        return method.disjunct_variables[vref, bvref]
+    end
+end
+# affine expression
+function _disaggregate_expression(model::JuMP.Model, aff::JuMP.AffExpr, bvref::JuMP.VariableRef, method::_Hull)
+    new_expr = JuMP.@expression(model, aff.constant*bvref) #multiply constant by binary indicator variable
+    for (vref, coeff) in aff.terms
+        if JuMP.is_binary(vref) || !haskey(method.disjunct_variables, (vref, bvref)) #keep any binary variables or nested disaggregated variables unchanged 
+            JuMP.add_to_expression!(new_expr, coeff*vref)
+        else #replace other vars with disaggregated form
+            dvref = method.disjunct_variables[vref, bvref]
+            JuMP.add_to_expression!(new_expr, coeff*dvref)
         end
-        #sum disaggregated variables
-        aggr_con = "$(var)_$(bin_var)_aggregation"
-        push!(
-            m.ext[bin_var],
-            @constraint(m, var == sum_vars, base_name = aggr_con)
-        )
     end
+    return new_expr
+end
+# quadratic expression
+# TODO review what happens when there are bilinear terms with binary variables involved since these are not being disaggregated 
+#   (e.g., complementarity constraints; though likely irrelevant)...
+function _disaggregate_expression(model::JuMP.Model, quad::JuMP.QuadExpr, bvref::JuMP.VariableRef, method::_Hull)
+    #get affine part
+    new_expr = _disaggregate_expression(model, quad.aff, bvref, method)
+    #get nonlinear part
+    ϵ = method.value
+    for (pair, coeff) in quad.terms
+        da_ref = method.disjunct_variables[pair.a, bvref]
+        db_ref = method.disjunct_variables[pair.b, bvref]
+         new_expr += coeff * da_ref * db_ref / ((1-ϵ)*bvref+ϵ)
+    end
+    return new_expr
+end
+# constant in NonlinearExpr
+function _disaggregate_nl_expression(model::JuMP.Model, c::Number, ::JuMP.VariableRef, method::_Hull)
+    return c
+end
+# variable in NonlinearExpr
+function _disaggregate_nl_expression(model::JuMP.Model, vref::JuMP.VariableRef, bvref::JuMP.VariableRef, method::_Hull)
+    ϵ = method.value
+    dvref = method.disjunct_variables[vref, bvref]
+    new_var = dvref / ((1-ϵ)*bvref+ϵ)
+    return new_var
+end
+# affine expression in NonlinearExpr
+function _disaggregate_nl_expression(model::JuMP.Model, aff::JuMP.AffExpr, bvref::JuMP.VariableRef, method::_Hull)
+    new_expr = aff.constant
+    ϵ = method.value
+    for (vref, coeff) in aff.terms
+        if JuMP.is_binary(vref) #keep any binary variables undisaggregated
+            dvref = vref
+        else #replace other vars with disaggregated form
+            dvref = method.disjunct_variables[vref, bvref]
+        end
+         new_expr += coeff * dvref / ((1-ϵ)*bvref+ϵ)
+    end
+    return new_expr
+end
+# quadratic expression in NonlinearExpr
+function _disaggregate_nl_expression(model::JuMP.Model, quad::JuMP.QuadExpr, bvref::JuMP.VariableRef, method::_Hull)
+    #get affine part
+    new_expr = _disaggregate_nl_expression(model, quad.aff, bvref, method)
+    #get quadratic part
+    ϵ = method.value
+    for (pair, coeff) in quad.terms
+        da_ref = method.disjunct_variables[pair.a, bvref]
+        db_ref = method.disjunct_variables[pair.b, bvref]
+        new_expr += coeff * da_ref * db_ref / ((1-ϵ)*bvref+ϵ)^2
+    end
+    return new_expr
+end
+# nonlinear expression in NonlinearExpr
+function _disaggregate_nl_expression(model::JuMP.Model, nlp::JuMP.NonlinearExpr, bvref::JuMP.VariableRef, method::_Hull)
+    new_args = Vector{Any}(undef, length(nlp.args))
+    for (i,arg) in enumerate(nlp.args)
+        new_args[i] = _disaggregate_nl_expression(model, arg, bvref, method)
+    end
+    new_expr = JuMP.NonlinearExpr(nlp.head, new_args)
+    return new_expr
 end
 
-"""
-    add_disaggregated_variable(m::Model, var::VariableRef, LB, UB, base_name)
-
-Disaggreagate a variable with lower bound `LB`, upper bound `UB`, and name `base_name`.
-
-    add_disaggregated_variable(m::Model, var::AbstractArray{VariableRef}, LB, UB, base_name)
-
-Disaggregate a variable block stored in an Array or DenseAxisArray.
-
-    add_disaggregated_variable(m::Model, var::Containers.SparseAxisArray, LB, UB, base_name)
-
-Disaggregate a variable block stored in a SparseAxisArray.
-
-NOTE: Because of the way variables are currently disaggregated (a list is made of all associated VariableRefs in the disjunction), 
-only the first function is used (not the containered ones).
-"""
-function add_disaggregated_variable(m::Model, var::VariableRef, LB, UB, base_name)
-    @variable(
-        m, 
-        lower_bound = min(LB,0), 
-        upper_bound = max(UB,0), 
-        binary = is_binary(var), 
-        integer = is_integer(var),
-        base_name = base_name
+################################################################################
+#                              HULL REFORMULATION
+################################################################################
+function reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef, 
+    method::_Hull
+) where {T <: Union{JuMP.VariableRef, JuMP.AffExpr, JuMP.QuadExpr}, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
+    new_func = _disaggregate_expression(model, con.func, bvref, method)
+    set_value = _set_value(con.set)
+    new_func -= set_value*bvref
+    reform_con = JuMP.build_constraint(error, new_func, S(0))
+    return [reform_con]
+end
+function reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.VectorConstraint{T, S, R}, 
+    bvref::JuMP.VariableRef, 
+    method::_Hull
+) where {T <: Union{JuMP.VariableRef, JuMP.AffExpr, JuMP.QuadExpr}, S <: Union{_MOI.Nonpositives, _MOI.Nonnegatives, _MOI.Zeros}, R}
+    new_func = JuMP.@expression(model, [i=1:con.set.dimension],
+        _disaggregate_expression(model, con.func[i], bvref, method)
     )
+    reform_con = JuMP.build_constraint(error, new_func, con.set)
+    return [reform_con]
 end
-#################################################################################################
-#           NOT USED CURRENTLY
-#################################################################################################
-function add_disaggregated_variable(m::Model, var::AbstractArray{VariableRef}, LB, UB, base_name)
-    idxs = Iterators.product(axes(var)...)
-    var_i_array = [
-        add_disaggregated_variable(m, var[idx...], LB[idx...], UB[idx...], "$base_name[$(join(idx,","))]")
-        for idx in idxs
-    ]
-    return containerize(var, var_i_array)
+function reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::_Hull
+) where {T <: JuMP.GenericNonlinearExpr, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
+    con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
+    con_func0 = JuMP.value(v -> 0.0, con.func)
+    if isinf(con_func0)
+        error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
+    end
+    ϵ = method.value
+    set_value = _set_value(con.set)
+    new_func = JuMP.@expression(model, ((1-ϵ)*bvref+ϵ)*con_func - ϵ*(1-bvref)*con_func0 - set_value*bvref)
+    reform_con = JuMP.build_constraint(error, new_func, S(0))
+    return [reform_con]
 end
-function add_disaggregated_variable(m::Model, var::Containers.SparseAxisArray, LB, UB, base_name)
-    idxs = keys(var.data)
-    var_i_dict = Dict(
-        idx => add_disaggregated_variable(m, var[idx], LB[idx], UB[idx], "$base_name[$(join(idx,","))]")
-        for idx in idxs
+function reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.VectorConstraint{T, S, R}, 
+    bvref::JuMP.VariableRef,
+    method::_Hull
+) where {T <: JuMP.GenericNonlinearExpr, S <: Union{_MOI.Nonpositives, _MOI.Nonnegatives, _MOI.Zeros}, R}
+    con_func = JuMP.@expression(model, [i=1:con.set.dimension],
+        _disaggregate_nl_expression(model, con.func[i], bvref, method)
     )
-    return containerize(var, var_i_dict)
+    con_func0 = JuMP.value.(v -> 0.0, con.func)
+    if any(isinf.(con_func0))
+        error("At least of of the operators `$([func.head for func in con.func])` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
+    end
+    ϵ = method.value
+    new_func = JuMP.@expression(model, [i=1:con.set.dimension], 
+        ((1-ϵ)*bvref+ϵ)*con_func[i] - ϵ*(1-bvref)*con_func0[i]
+    )
+    reform_con = JuMP.build_constraint(error, new_func, con.set)
+    return [reform_con]
 end
-containerize(var::Array, arr) = arr
-containerize(var::Containers.DenseAxisArray, arr) = Containers.DenseAxisArray(arr, axes(var)...)
-containerize(var::Containers.SparseAxisArray, arr::Dict) = Containers.SparseAxisArray(var)
+function reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::_Hull
+) where {T <: Union{JuMP.VariableRef, JuMP.AffExpr, JuMP.QuadExpr}, S <: _MOI.Interval}
+    new_func = _disaggregate_expression(model, con.func, bvref, method)
+    new_func_gt = JuMP.@expression(model, new_func - con.set.lower*bvref)
+    new_func_lt = JuMP.@expression(model, new_func - con.set.upper*bvref)
+    reform_con_gt = JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(0))
+    reform_con_lt = JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
+    return [reform_con_gt, reform_con_lt]
+end
+function reformulate_disjunct_constraint(
+    model::JuMP.Model, 
+    con::JuMP.ScalarConstraint{T, S}, 
+    bvref::JuMP.VariableRef,
+    method::_Hull
+) where {T <: JuMP.GenericNonlinearExpr, S <: _MOI.Interval}
+    con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
+    con_func0 = JuMP.value(v -> 0.0, con.func)
+    if isinf(con_func0)
+        error("Operator `$(con.func.head)` is not defined at 0, causing the perspective function on the Hull reformulation to fail.")
+    end
+    ϵ = method.value
+    new_func = JuMP.@expression(model, ((1-ϵ)*bvref+ϵ) * con_func - ϵ*(1-bvref)*con_func0)
+    new_func_gt = JuMP.@expression(model, new_func - con.set.lower*bvref)
+    new_func_lt = JuMP.@expression(model, new_func - con.set.upper*bvref)
+    reform_con_gt = JuMP.build_constraint(error, new_func_gt, _MOI.GreaterThan(0))
+    reform_con_lt = JuMP.build_constraint(error, new_func_lt, _MOI.LessThan(0))
+    return [reform_con_gt, reform_con_lt]
+end

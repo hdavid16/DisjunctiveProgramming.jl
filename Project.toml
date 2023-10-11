@@ -1,21 +1,21 @@
 name = "DisjunctiveProgramming"
 uuid = "0d27d021-0159-4c7d-b4a7-9ccb5d9366cf"
 authors = ["hdavid16 <hperez16@gmail.com>"]
-version = "0.3.6"
+version = "0.4.0"
 
 [deps]
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
-Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
-Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 
 [compat]
-JuMP = "1.2"
-Suppressor = "0.2"
-Symbolics = "4"
+JuMP = "1.15"
+Reexport = "0.2, 1"
 julia = "1.6"
 
 [extras]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test"]
+test = ["Aqua", "HiGHS", "Test"]
