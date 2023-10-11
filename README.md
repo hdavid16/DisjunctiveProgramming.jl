@@ -1,6 +1,8 @@
 # DisjunctiveProgramming.jl
 Generalized Disjunctive Programming (GDP) extension to JuMP, based on the GDP modeling paradigm described in [Perez and Grossmann, 2023](https://arxiv.org/abs/2303.04375).
 
+![](logo.png)
+
 ## Installation
 
 ```julia
