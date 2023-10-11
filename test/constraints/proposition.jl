@@ -285,7 +285,7 @@ function test_eliminate_equivalence_nested()
     ex = iff(y[1], iff(y[2],y[3]))
     new_ex = DP._eliminate_equivalence(ex)
     @test new_ex.head == :&&
-    @test new_ex.args[1].head == :⟹
+    @test new_ex.args[1].head == :(=>)
     @test new_ex.args[1].args[1] == y[1]
     @test new_ex.args[1].args[2].head == :&&
     @test y[2] in new_ex.args[1].args[2].args[1].args
@@ -410,7 +410,7 @@ function test_distribute_and_over_or()
     @variable(model, y[1:3], LogicalVariable)
     ex = y[1] ∨ (y[2] ∧ y[3])
     new_ex = DP._distribute_and_over_or(ex)
-    @test new_ex.head == :∧
+    @test new_ex.head == :&&
     @test new_ex.args[1].head == 
             new_ex.args[2].head == :||
     @test y[1] in new_ex.args[1].args

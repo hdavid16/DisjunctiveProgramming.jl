@@ -57,7 +57,7 @@ function _eliminate_equivalence(lexpr::_LogicalExpr)
         elseif length(lexpr.args) == 2
             B = _eliminate_equivalence(lexpr.args[2])
         else
-            error("The equivalence logic operator `⇔` must have at least two arguments.")
+            error("The equivalence logic operator must have at least two arguments.")
         end
         new_lexpr = _LogicalExpr(:&&, Any[
             _LogicalExpr(:(=>), Any[A, B]),
@@ -113,7 +113,7 @@ function _move_negations_inward(lexpr::_LogicalExpr)
 end
 
 function _negate(lvar::LogicalVariableRef)
-    return _LogicalExpr(:¬, Any[lvar])
+    return _LogicalExpr(:!, Any[lvar])
 end
 function _negate(lexpr::_LogicalExpr)
     if lexpr.head == :||
@@ -249,7 +249,7 @@ function _reformulate_proposition(model::JuMP.Model, lexpr::_LogicalExpr)
     elseif expr.head in (:||, :!) && all(_isa_literal.(expr.args))
         _add_reformulated_proposition(model, expr)
     else
-        error("Expression was not converted to proper Conjunctive Normal Form:\n$expr")
+        error("Expression $expr was not converted to proper Conjunctive Normal Form.")
     end
 end
 
