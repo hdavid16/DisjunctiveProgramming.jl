@@ -417,10 +417,11 @@ cardinality sets: `AtLeast(n)`, `AtMost(n)`, or `Exactly(n)`.
 To select exactly 1 logical variable `Y` to be `true`, do 
 (the same can be done with `AtLeast(n)` and `AtMost(n)`):
 
-```jldoctest
-julia> model = GDPModel();
-julia> @variable(model, Y[i = 1:2], LogicalVariable);
-julia> @constraint(model, [Y[1], Y[2]] in Exactly(1));
+```julia
+using DisjunctiveProgramming
+model = GDPModel();
+@variable(model, Y[i = 1:2], LogicalVariable);
+@constraint(model, [Y[1], Y[2]] in Exactly(1));
 ```
 
     JuMP.build_constraint(

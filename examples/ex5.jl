@@ -1,6 +1,4 @@
 # https://arxiv.org/pdf/2303.04375.pdf
-
-using JuMP
 using DisjunctiveProgramming
 
 ##

@@ -1,5 +1,4 @@
 using DisjunctiveProgramming
-using JuMP
 using Test
 
 const DP = DisjunctiveProgramming

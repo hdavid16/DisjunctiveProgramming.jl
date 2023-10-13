@@ -1,5 +1,4 @@
 # https://optimization.cbe.cornell.edu/index.php?title=Disjunctive_inequalities#Big-M_Reformulation[1][2]
-using JuMP
 using DisjunctiveProgramming
 using HiGHS
 

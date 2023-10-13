@@ -1,4 +1,3 @@
-using JuMP
 using DisjunctiveProgramming
 
 # Example with proposition reformulation

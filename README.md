@@ -129,7 +129,6 @@ Prior to `v0.4.0`, the package did not leverage the JuMP extension capabilities 
 The example below is from the [Cornell University Computational Optimization Open Textbook](https://optimization.cbe.cornell.edu/index.php?title=Disjunctive_inequalities#Big-M_Reformulation[1][2]).
 
 ```julia
-using JuMP
 using DisjunctiveProgramming
 
 m = GDPModel()
