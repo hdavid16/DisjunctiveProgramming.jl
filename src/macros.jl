@@ -292,7 +292,7 @@ julia> @variable(model, w);
 
 julia> @variable(model, x);
 
-julia> @variable(model, Y[1:4], LogicalVariable);
+julia> @variable(model, Y[1:4], Logical);
 
 julia> @constraint(model, [i=1:2], w == i, DisjunctConstraint(Y[i]));
 

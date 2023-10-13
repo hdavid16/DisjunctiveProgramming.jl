@@ -40,7 +40,7 @@ end
                       name::String = "")::LogicalVariableRef
                 
 Extend `JuMP.add_variable` for [`LogicalVariable`](@ref)s. This 
-helps enable `@variable(model, [var_expr], LogicalVariable)`.
+helps enable `@variable(model, [var_expr], Logical)`.
 """
 function JuMP.add_variable(
     model::JuMP.Model, 

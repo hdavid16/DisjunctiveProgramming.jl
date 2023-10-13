@@ -1,6 +1,6 @@
 function test_proposition_add_fail()
     m = GDPModel()
-    @variable(m, y[1:3], LogicalVariable)
+    @variable(m, y[1:3], Logical)
     @test_throws ErrorException @constraint(Model(), logical_or(y...) in IsTrue())
     @test_throws ErrorException @constraint(m, logical_or(y...) == 2)
     @test_throws ErrorException @constraint(m, logical_or(y...) <= 1)
@@ -13,7 +13,7 @@ end
 
 function test_negation_add_success()
     model = GDPModel()
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     c1 = @constraint(model, logical_not(y) in IsTrue())
     @constraint(model, c2, ¬y in IsTrue())
     @test is_valid(model, c1)
@@ -40,7 +40,7 @@ end
 
 function test_implication_add_success()
     model = GDPModel()
-    @variable(model, y[1:2], LogicalVariable)
+    @variable(model, y[1:2], Logical)
     @constraint(model, c1, implies(y...) in IsTrue())
     @constraint(model, c2, (y[1] ⟹ y[2]) in IsTrue())
     @test_macro_throws ErrorException @constraint(model, y[1] ⟹ y[2] in IsTrue())
@@ -54,7 +54,7 @@ end
 
 function test_equivalence_add_success()
     model = GDPModel()
-    @variable(model, y[1:2], LogicalVariable)
+    @variable(model, y[1:2], Logical)
     @constraint(model, c1, iff(y...) in IsTrue())
     @constraint(model, c2, (y[1] ⇔ y[2]) in IsTrue())
     @test_macro_throws ErrorException @constraint(model, y[1] ⇔ y[2] in IsTrue())
@@ -68,7 +68,7 @@ end
 
 function test_intersection_and_flatten_add_success()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     @constraint(model, c1, logical_and(y...) in IsTrue())
     @constraint(model, c2, ∧(y...) in IsTrue())
     @constraint(model, c3, y[1] ∧ y[2] ∧ y[3] in IsTrue())
@@ -88,7 +88,7 @@ end
 
 function test_union_and_flatten_add_success()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     @constraint(model, c1, logical_or(y...) in IsTrue())
     @constraint(model, c2, ∨(y...) in IsTrue())
     @constraint(model, c3, y[1] ∨ y[2] ∨ y[3] in IsTrue())
@@ -108,7 +108,7 @@ end
 
 function test_proposition_add_array()
     model = GDPModel()
-    @variable(model, y[1:2, 1:3, 1:4], LogicalVariable)
+    @variable(model, y[1:2, 1:3, 1:4], Logical)
     @constraint(model, con[i=1:2,j=1:3], ∨(y[i,j,:]...) in IsTrue())
     @test con isa Matrix{LogicalConstraintRef}
     @test length(con) == 6
@@ -118,7 +118,7 @@ function test_proposition_add_dense_axis()
     model = GDPModel()
     I = ["a", "b", "c"]
     J = [1, 2]
-    @variable(model, y[I, J, 1:4], LogicalVariable)
+    @variable(model, y[I, J, 1:4], Logical)
     @constraint(model, con[i=I,j=J], ∨(y[i,j,:]...) in IsTrue())
     @test con isa Containers.DenseAxisArray
     @test con.axes[1] == ["a","b","c"]
@@ -128,7 +128,7 @@ end
 
 function test_proposition_add_sparse_axis()
     model = GDPModel()
-    @variable(model, y[1:3, 1:3, 1:4], LogicalVariable)
+    @variable(model, y[1:3, 1:3, 1:4], Logical)
     @constraint(model, con[i=1:3,j=1:3; j > i], ∨(y[i,j,:]...) in IsTrue())
     @test con isa Containers.SparseAxisArray
     @test length(con) == 3
@@ -138,7 +138,7 @@ end
 
 function test_proposition_set_name()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     c1 = @constraint(model, logical_not(y...) in IsTrue())
     set_name(c1, "proposition")
     @test name(c1) == "proposition"
@@ -146,7 +146,7 @@ end
 
 function test_proposition_delete()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     c1 = @constraint(model, logical_not(y...) in IsTrue())
 
     @test_throws AssertionError delete(GDPModel(), c1)
@@ -157,7 +157,7 @@ end
 
 function test_negation_reformulation()
     model = GDPModel()
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @constraint(model, ¬y in IsTrue()) 
     reformulate_model(model, DummyReformulation())
     ref_con = DP._reformulation_constraints(model)[1]
@@ -169,7 +169,7 @@ end
 
 function test_implication_reformulation()
     model = GDPModel()
-    @variable(model, y[1:2], LogicalVariable)
+    @variable(model, y[1:2], Logical)
     @constraint(model, implies(y[1], y[2]) in IsTrue())
     reformulate_model(model, DummyReformulation())
     ref_con = DP._reformulation_constraints(model)[1]
@@ -183,14 +183,14 @@ end
 
 function test_implication_reformulation_fail()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     @constraint(model, implies(y...) in IsTrue())
     @test_throws ErrorException reformulate_model(model, DummyReformulation())
 end
 
 function test_equivalence_reformulation()
     model = GDPModel()
-    @variable(model, y[1:2], LogicalVariable)
+    @variable(model, y[1:2], Logical)
     @constraint(model, iff(y[1], y[2]) in IsTrue())
     reformulate_model(model, DummyReformulation())
     ref_cons = DP._reformulation_constraints(model)
@@ -208,7 +208,7 @@ end
 
 function test_intersection_reformulation()
     model = GDPModel()
-    @variable(model, y[1:2], LogicalVariable)
+    @variable(model, y[1:2], Logical)
     @constraint(model, ∧(y[1], y[2]) in IsTrue())
     reformulate_model(model, DummyReformulation())
     ref_cons = DP._reformulation_constraints(model)
@@ -224,7 +224,7 @@ end
 
 function test_implication_reformulation()
     model = GDPModel()
-    @variable(model, y[1:2], LogicalVariable)
+    @variable(model, y[1:2], Logical)
     @constraint(model, ∨(y[1], y[2]) in IsTrue())
     reformulate_model(model, DummyReformulation())
     ref_con = DP._reformulation_constraints(model)[1]
@@ -238,7 +238,7 @@ end
 
 function test_lvar_cnf_functions()
     model = GDPModel()
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @test DP._eliminate_equivalence(y) == y
     @test DP._eliminate_implication(y) == y
     @test DP._move_negations_inward(y) == y
@@ -251,7 +251,7 @@ end
 
 function test_eliminate_equivalence()
     model = GDPModel()
-    @variable(model, y[1:2], LogicalVariable)
+    @variable(model, y[1:2], Logical)
     ex = y[1] ⇔ y[2]
     new_ex = DP._eliminate_equivalence(ex)
     @test new_ex.head == :&&
@@ -264,7 +264,7 @@ end
 
 function test_eliminate_equivalence_flat()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     ex = iff(y...)
     new_ex = DP._eliminate_equivalence(ex)
     @test new_ex.head == :&&
@@ -281,7 +281,7 @@ end
 
 function test_eliminate_equivalence_nested()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     ex = iff(y[1], iff(y[2],y[3]))
     new_ex = DP._eliminate_equivalence(ex)
     @test new_ex.head == :&&
@@ -298,7 +298,7 @@ end
 
 function test_eliminate_implication()
     model = GDPModel()
-    @variable(model, y[1:2], LogicalVariable)
+    @variable(model, y[1:2], Logical)
     ex = y[1] ⟹ y[2]
     new_ex = DP._eliminate_implication(ex)
     @test new_ex.head == :||
@@ -309,14 +309,14 @@ end
 
 function test_eliminate_implication_error()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     ex = implies(y...)
     @test_throws ErrorException DP._eliminate_implication(ex)
 end
 
 function test_eliminate_implication_nested()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     ex = (y[1] ⟹ y[2]) ⟹ y[3]
     new_ex = DP._eliminate_implication(ex)
     @test new_ex.head == :||
@@ -330,14 +330,14 @@ end
 
 function test_move_negation_inward_error()
     model = GDPModel()
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     ex = ¬(y, y)
     @test_throws ErrorException DP._move_negations_inward(ex)
 end
 
 function test_move_negation_inward()
     model = GDPModel()
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     ex = ¬y
     new_ex = DP._move_negations_inward(ex)
     @test new_ex.head == :!
@@ -346,20 +346,20 @@ end
 
 function test_move_negation_inward_nested()
     model = GDPModel()
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     ex = ¬¬y
     @test DP._move_negations_inward(ex) == y
 end
 
 function test_negate_error()
     model = GDPModel()
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @test_throws ErrorException DP._negate(iff(y,y))
 end
 
 function test_negate_or()
     model = GDPModel()
-    @variable(model, y[1:2], LogicalVariable)
+    @variable(model, y[1:2], Logical)
     ex = ∨(y...)
     new_ex = DP._negate_or(ex)
     @test new_ex.head == :&&
@@ -371,13 +371,13 @@ end
 
 function test_negate_or_error()
     model = GDPModel()
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @test_throws ErrorException DP._negate_or(∨(y))
 end
 
 function test_negate_and()
     model = GDPModel()
-    @variable(model, y[1:2], LogicalVariable)
+    @variable(model, y[1:2], Logical)
     ex = ∧(y...)
     new_ex = DP._negate_and(ex)
     @test new_ex.head == :||
@@ -389,25 +389,25 @@ end
 
 function test_negate_and_error()
     model = GDPModel()
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @test_throws ErrorException DP._negate_or(∧(y))
 end
 
 function test_negate_negation()
     model = GDPModel()
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @test DP._negate_negation(¬y) == y
 end
 
 function test_negate_negation_error()
     model = GDPModel()
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @test_throws ErrorException DP._negate_negation(¬(y,y))
 end
 
 function test_distribute_and_over_or()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     ex = y[1] ∨ (y[2] ∧ y[3])
     new_ex = DP._distribute_and_over_or(ex)
     @test new_ex.head == :&&
@@ -421,7 +421,7 @@ end
 
 function test_distribute_and_over_or_nested()
     model = GDPModel()
-    @variable(model, y[1:4], LogicalVariable)
+    @variable(model, y[1:4], Logical)
     ex = (y[1] ∧ y[2]) ∨ (y[3] ∧ y[4])
     new_ex = DP._flatten(DP._distribute_and_over_or(ex))
     for arg in new_ex.args
@@ -450,7 +450,7 @@ end
 
 function test_to_cnf()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     ex = iff(y...)
     new_ex = DP._to_cnf(ex)
     @test new_ex.head == :&&
