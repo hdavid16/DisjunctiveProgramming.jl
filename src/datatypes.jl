@@ -16,6 +16,8 @@ struct LogicalVariable <: JuMP.AbstractVariable
     start_value::Union{Nothing, Bool}
 end
 
+const Logical = LogicalVariable
+
 """
     LogicalVariableData
 

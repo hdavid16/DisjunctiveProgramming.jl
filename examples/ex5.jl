@@ -4,8 +4,8 @@ using DisjunctiveProgramming
 ##
 m = GDPModel()
 @variable(m, 1 ≤ x[1:2] ≤ 9)
-@variable(m, Y[1:2], LogicalVariable)
-@variable(m, W[1:2], LogicalVariable)
+@variable(m, Y[1:2], Logical)
+@variable(m, W[1:2], Logical)
 @objective(m, Max, sum(x))
 @constraint(m, y1[i=1:2], [1,4][i] ≤ x[i] ≤ [3,6][i], DisjunctConstraint(Y[1]))
 @constraint(m, w1[i=1:2], [1,5][i] ≤ x[i] ≤ [2,6][i], DisjunctConstraint(W[1]))

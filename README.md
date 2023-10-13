@@ -45,10 +45,10 @@ data = gdp_data(model)
 
 ## Logical Variables
 
-Logical variables are JuMP `AbstractVariable`s with two fields: `fix_value` and `start_value`. These can be optionally specified at variable creation. Logical variables are created with the `@variable` JuMP macro by adding the tag `LogicalVariable` as the last keyword argument. As with the regular `@variable` macro, variables can be named and indexed: 
+Logical variables are JuMP `AbstractVariable`s with two fields: `fix_value` and `start_value`. These can be optionally specified at variable creation. Logical variables are created with the `@variable` JuMP macro by adding the tag `Logical` as the last keyword argument. As with the regular `@variable` macro, variables can be named and indexed: 
 
 ```julia
-@variable(model, Y[1:3], LogicalVariable)
+@variable(model, Y[1:3], Logical)
 ```
 
 ## Logical Constraints
@@ -133,7 +133,7 @@ using DisjunctiveProgramming
 
 m = GDPModel()
 @variable(m, 0 ≤ x[1:2] ≤ 20)
-@variable(m, Y[1:2], LogicalVariable)
+@variable(m, Y[1:2], Logical)
 @constraint(m, [i = 1:2], [2,5][i] ≤ x[i] ≤ [6,9][i], DisjunctConstraint(Y[1]))
 @constraint(m, [i = 1:2], [8,10][i] ≤ x[i] ≤ [11,15][i], DisjunctConstraint(Y[2]))
 @disjunction(m, Y)

@@ -2,7 +2,7 @@ using DisjunctiveProgramming
 
 m = GDPModel()
 @variable(m, -5 ≤ x ≤ 10)
-@variable(m, Y[1:2], LogicalVariable)
+@variable(m, Y[1:2], Logical)
 @constraint(m, exp(x) <= 2, DisjunctConstraint(Y[1]))
 @constraint(m, x >= -3, DisjunctConstraint(Y[1]))
 @constraint(m, exp(x) >= 3, DisjunctConstraint(Y[2]))
