@@ -3,6 +3,10 @@ Generalized Disjunctive Programming (GDP) extension to JuMP, based on the GDP mo
 
 ![](logo.png)
 
+[![codecov](https://codecov.io/gh/hdavid16/DisjunctiveProgramming.jl/graph/badge.svg?token=3FRPGMWF0J)](https://codecov.io/gh/hdavid16/DisjunctiveProgramming.jl)
+[![Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://hdavid16.github.io/InventoryManagement.jl/stable/)
+[![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://hdavid16.github.io/InventoryManagement.jl/dev/)
+
 ## Installation
 
 ```julia
