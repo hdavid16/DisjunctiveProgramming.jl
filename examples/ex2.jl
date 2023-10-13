@@ -5,7 +5,7 @@ using HiGHS
 
 m = GDPModel(HiGHS.Optimizer)
 @variable(m, 0 ≤ x[1:2] ≤ 20)
-@variable(m, Y[1:2], LogicalVariable)
+@variable(m, Y[1:2], Logical)
 @constraint(m, [i = 1:2], [2,5][i] ≤ x[i] ≤ [6,9][i], DisjunctConstraint(Y[1]))
 @constraint(m, [i = 1:2], [8,10][i] ≤ x[i] ≤ [11,15][i], DisjunctConstraint(Y[2]))
 @disjunction(m, Y)

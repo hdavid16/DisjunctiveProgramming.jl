@@ -419,7 +419,7 @@ To select exactly 1 logical variable `Y` to be `true`, do
 
 ```jldoctest
 julia> model = GDPModel();
-julia> @variable(model, Y[i = 1:2], LogicalVariable);
+julia> @variable(model, Y[i = 1:2], Logical);
 julia> @constraint(model, [Y[1], Y[2]] in Exactly(1));
 ```
 

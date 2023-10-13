@@ -19,7 +19,7 @@ end
 function test_get_M_1sided()
     model = GDPModel()
     @variable(model, x)
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @constraint(model, con, 3*x <= 1, DisjunctConstraint(y))
     cobj = constraint_object(con)
     M = DP._get_M(cobj.func, cobj.set, BigM(100, false))
@@ -30,7 +30,7 @@ end
 function test_get_tight_M_1sided()
     model = GDPModel()
     @variable(model, x)
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @constraint(model, con, 3*x <= 1, DisjunctConstraint(y))
     cobj = constraint_object(con)
 
@@ -53,7 +53,7 @@ end
 function test_get_M_2sided()
     model = GDPModel()
     @variable(model, x)
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @constraint(model, con, 3*x == 1, DisjunctConstraint(y))
     cobj = constraint_object(con)
 
@@ -69,7 +69,7 @@ end
 function test_get_tight_M_2sided()
     model = GDPModel()
     @variable(model, x)
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @constraint(model, con, 3*x == 1, DisjunctConstraint(y))
     cobj = constraint_object(con)
     
@@ -176,7 +176,7 @@ end
 function test_lessthan_bigm()
     model = GDPModel()
     @variable(model, x)
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @constraint(model, con, x <= 5, DisjunctConstraint(y))
 
     DP._reformulate_logical_variables(model)
@@ -190,7 +190,7 @@ end
 function test_nonpositives_bigm()
     model = GDPModel()
     @variable(model, x)
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @constraint(model, con, [x; x] <= [5; 5], DisjunctConstraint(y))
 
     DP._reformulate_logical_variables(model)
@@ -205,7 +205,7 @@ end
 function test_greaterhan_bigm()
     model = GDPModel()
     @variable(model, x)
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @constraint(model, con, x >= 5, DisjunctConstraint(y))
 
     DP._reformulate_logical_variables(model)
@@ -219,7 +219,7 @@ end
 function test_nonnegatives_bigm()
     model = GDPModel()
     @variable(model, x)
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @constraint(model, con, [x; x] >= [5; 5], DisjunctConstraint(y))
 
     DP._reformulate_logical_variables(model)
@@ -234,7 +234,7 @@ end
 function test_greaterhan_bigm()
     model = GDPModel()
     @variable(model, x)
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @constraint(model, con, x == 5, DisjunctConstraint(y))
 
     DP._reformulate_logical_variables(model)
@@ -250,7 +250,7 @@ end
 function test_greaterhan_bigm()
     model = GDPModel()
     @variable(model, x)
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @constraint(model, con, 5 <= x <= 5, DisjunctConstraint(y))
 
     DP._reformulate_logical_variables(model)
@@ -266,7 +266,7 @@ end
 function test_zeros_bigm()
     model = GDPModel()
     @variable(model, x)
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @constraint(model, con, [x; x] == [5; 5], DisjunctConstraint(y))
 
     DP._reformulate_logical_variables(model)
@@ -284,8 +284,8 @@ end
 function test_nested_bigm()
     model = GDPModel()
     @variable(model, -100 <= x <= 100)
-    @variable(model, y[1:2], LogicalVariable)
-    @variable(model, z[1:2], LogicalVariable)
+    @variable(model, y[1:2], Logical)
+    @variable(model, z[1:2], Logical)
     @constraint(model, x <= 5, DisjunctConstraint(y[1]))
     @constraint(model, x >= 5, DisjunctConstraint(y[2]))
     @disjunction(model, inner, y, DisjunctConstraint(z[1]))
