@@ -1,4 +1,3 @@
-using JuMP
 using DisjunctiveProgramming
 using HiGHS
 

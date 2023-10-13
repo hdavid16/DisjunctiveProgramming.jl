@@ -285,23 +285,17 @@ The macro returns a tuple containing the disjunctions that were defined.
 
 ## Example
 
-```jldoctest
-julia> model = GDPModel();
-
-julia> @variable(model, w);
-
-julia> @variable(model, x);
-
-julia> @variable(model, Y[1:4], Logical);
-
-julia> @constraint(model, [i=1:2], w == i, DisjunctConstraint(Y[i]));
-
-julia> @constraint(model, [i=3:4], x == i, DisjunctConstraint(Y[i]));
-
-julia> @disjunctions(model, begin
-           [Y[1], Y[2]]
-           [Y[3], Y[4]]
-       end);
+```julia
+model = GDPModel();
+@variable(model, w);
+@variable(model, x);
+@variable(model, Y[1:4], LogicalVariable);
+@constraint(model, [i=1:2], w == i, DisjunctConstraint(Y[i]));
+@constraint(model, [i=3:4], x == i, DisjunctConstraint(Y[i]));
+@disjunctions(model, begin
+    [Y[1], Y[2]]
+    [Y[3], Y[4]]
+end);
 ````
 """
 macro disjunctions(m, x)
