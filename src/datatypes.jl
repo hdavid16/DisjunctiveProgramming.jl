@@ -376,7 +376,7 @@ struct Indicator <: AbstractReformulationMethod end
 """
     MOIDisjunction <: AbstractReformulationMethod
 A reformulation type for reformulating disjunctions into their MathOptInterface 
-set representations [`DisjucntionSet`](@ref) which are then added to the model.
+set representations [`DisjunctionSet`](@ref) which are then added to the model.
 """
 struct MOIDisjunction <: AbstractReformulationMethod end
 
