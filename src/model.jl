@@ -49,16 +49,6 @@ function is_gdp_model(model::JuMP.Model)
     return haskey(model.ext, :GDP)
 end
 
-"""
-    disjunction_indicators(disjunction::DisjunctionRef) 
-
-Return LogicalVariableRefs associated with a disjunction.
-"""
-function disjunction_indicators(disjunction::DisjunctionRef) 
-    model, idx = disjunction.model, disjunction.index
-    return _disjunctions(model)[idx].constraint.indicators
-end
-
 # Create accessors for GDP data fields
 _logical_variables(model::JuMP.Model) = gdp_data(model).logical_variables
 _logical_constraints(model::JuMP.Model) = gdp_data(model).logical_constraints
