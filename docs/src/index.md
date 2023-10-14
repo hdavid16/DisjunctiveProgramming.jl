@@ -212,3 +212,7 @@ print(m)
 #  Y[1] binary
 #  Y[2] binary
 ```
+
+## Contributing
+`DisjunctiveProgramming` is being actively developed and suggestions or other forms of contribution are encouraged.
+There are many ways to contribute to this package. Feel free to create an issue to address questions or provide feedback.

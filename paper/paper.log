@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018/W32TeX) (preloaded format=pdflatex 2018.7.27)  13 OCT 2023 22:35
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018/W32TeX) (preloaded format=pdflatex 2018.7.27)  13 OCT 2023 23:00
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -590,14 +590,14 @@ Non-PDF special ignored!
 
 
  <c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/logojuliacon.pdf>]
-<solnspace.png, id=152, 462.528pt x 346.896pt>
+<solnspace.png, id=150, 462.528pt x 346.896pt>
 File: solnspace.png Graphic file (type png)
 <use solnspace.png>
 Package pdftex.def Info: solnspace.png  used on input line 103.
 (pdftex.def)             Requested size: 231.26343pt x 173.44757pt.
 LaTeX Font Info:    Font shape `U/lasy/b/n' in size <8> not available
 (Font)              Font shape `U/lasy/m/n' tried instead on input line 104.
-<bigm.png, id=159, 462.528pt x 346.896pt>
+<bigm.png, id=157, 462.528pt x 346.896pt>
 File: bigm.png Graphic file (type png)
 <use bigm.png>
 Package pdftex.def Info: bigm.png  used on input line 135.
@@ -621,7 +621,7 @@ l.146 \end{equation}
                                                   \fi \fi 
 l.146 \end{equation}
                      <c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/solnspace.png> <c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/bigm.png>]
-<chr.png, id=192, 462.528pt x 346.896pt>
+<chr.png, id=190, 462.528pt x 346.896pt>
 File: chr.png Graphic file (type png)
 <use chr.png>
 Package pdftex.def Info: chr.png  used on input line 174.
@@ -649,7 +649,7 @@ Underfull \hbox (badness 10000) in paragraph at lines 224--225
 [][]\T1/cmtt/m/n/9 DisjunctiveProgramming.jl []\T1/ptm/m/n/9 pack-age and il-lus-trates its
  []
 
-<superstructure_pfd.png, id=220, 600.2425pt x 190.7125pt>
+<superstructure_pfd.png, id=218, 600.2425pt x 190.7125pt>
 File: superstructure_pfd.png Graphic file (type png)
 <use superstructure_pfd.png>
 Package pdftex.def Info: superstructure_pfd.png  used on input line 241.
@@ -701,8 +701,33 @@ Underfull \hbox (badness 10000) in paragraph at lines 350--351
 Underfull \vbox (badness 2828) has occurred while \output is active []
 
  (c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/bib.tex (c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.bbl
-Underfull \hbox (badness 6842) in paragraph at lines 35--39
+Underfull \hbox (badness 10000) in paragraph at lines 4--9
+[]\T1/ptm/m/n/9 Anshul Agar-wal. A novel minlp re-for-mu-la-tion for
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 4--9
+\T1/ptm/m/n/9 non-lin-ear gen-er-al-ized dis-junc-tive pro-gram-ming (gdp)
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 4--9
+\T1/ptm/m/n/9 prob-lems. \T1/ptm/m/it/9 arXiv preprint arXiv:1510.01791\T1/ptm/m/n/9 , 2015.
+ []
+
+
+Underfull \hbox (badness 3758) in paragraph at lines 18--22
+[]\T1/ptm/m/n/9 Egon Balas. \T1/ptm/m/it/9 Dis-junc-tive pro-gram-ming\T1/ptm/m/n/9 . Springer, 2018.
+ []
+
+
+Underfull \hbox (badness 6842) in paragraph at lines 38--42
 []\T1/ptm/m/n/9 Qi Chen and Ig-na-cio Gross-mann. Mod-ern mod-el-ing
+ []
+
+
+Underfull \hbox (badness 1168) in paragraph at lines 44--49
+\T1/ptm/m/n/9 Sun-jeev Kale, Johnny Bates, John D Si-irola, and Ig-na-
  []
 
 
@@ -714,97 +739,107 @@ Underfull \hbox (badness 10000) has occurred while \output is active
  []
 
 [5]
-Underfull \hbox (badness 5802) in paragraph at lines 69--73
+Underfull \hbox (badness 5802) in paragraph at lines 73--77
 []\T1/ptm/m/n/9 Ignacio E. Gross-mann. \T1/ptm/m/it/9 Logic-based outer ap-prox-i-ma-
  []
 
 
-Underfull \hbox (badness 1590) in paragraph at lines 75--80
+Underfull \hbox (badness 1590) in paragraph at lines 79--84
 []\T1/ptm/m/n/9 Kevin C. Fur-man, Nico-las W. Sawaya, and Ig-na-cio E.
  []
 
 
-Underfull \hbox (badness 6978) in paragraph at lines 82--87
+Underfull \hbox (badness 6978) in paragraph at lines 86--91
 []\T1/ptm/m/n/9 Shashi Gowda, Yingbo Ma, Alessan-dro Cheli, Maja
  []
 
 
-Underfull \hbox (badness 2512) in paragraph at lines 82--87
+Underfull \hbox (badness 2512) in paragraph at lines 86--91
 \T1/ptm/m/n/9 Gwó¹zd¹, Vi-ral B. Shah, Alan Edel-man, and Christo-
  []
 
 
-Underfull \hbox (badness 7308) in paragraph at lines 82--87
+Underfull \hbox (badness 7308) in paragraph at lines 86--91
 \T1/ptm/m/n/9 pher Rack-auckas. High-performance symbolic-numerics
  []
 
 
-Underfull \hbox (badness 1168) in paragraph at lines 82--87
+Underfull \hbox (badness 1168) in paragraph at lines 86--91
 \T1/ptm/m/n/9 via mul-ti-ple dis-patch. \T1/ptm/m/it/9 ACM Com-mun. Com-put. Al-ge-bra\T1/ptm/m/n/9 ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 139--144
+Underfull \hbox (badness 10000) in paragraph at lines 137--142
 []\T1/ptm/m/n/9 Fahad Ma-tovu, Shuhaimi Ma-hadzir, Rasel Ahmed,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 139--144
+Underfull \hbox (badness 10000) in paragraph at lines 137--142
 \T1/ptm/m/n/9 and Nor Erniza Mo-ham-mad Rozali. Syn-the-sis and
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 139--144
+Underfull \hbox (badness 10000) in paragraph at lines 137--142
 \T1/ptm/m/n/9 op-ti-miza-tion of mul-ti-level re-frig-er-a-tion sys-tems us-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 139--144
+Underfull \hbox (badness 10000) in paragraph at lines 137--142
 \T1/ptm/m/n/9 ing gen-er-al-ized dis-junc-tive pro-gram-ming. \T1/ptm/m/it/9 Com-put-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 139--144
+Underfull \hbox (badness 10000) in paragraph at lines 137--142
 \T1/ptm/m/it/9 ers & Chem-i-cal En-gi-neer-ing\T1/ptm/m/n/9 , 163:107856, 2022.
  []
 
 
-Underfull \hbox (badness 3148) in paragraph at lines 146--151
+Underfull \hbox (badness 3148) in paragraph at lines 144--149
 []\T1/ptm/m/n/9 Miguel A. Navarro-Amorós, Rubén Ruiz-Femenia, and
  []
 
 
-Underfull \hbox (badness 1496) in paragraph at lines 146--151
+Underfull \hbox (badness 1496) in paragraph at lines 144--149
 \T1/ptm/m/n/9 José A. Ca-ballero. In-te-gra-tion of mod-u-lar pro-cess sim-
  []
 
 
-Underfull \hbox (badness 4229) in paragraph at lines 146--151
+Underfull \hbox (badness 4229) in paragraph at lines 144--149
 \T1/ptm/m/n/9 u-la-tors un-der the gen-er-al-ized dis-junc-tive pro-gram-ming
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 146--151
+Underfull \hbox (badness 10000) in paragraph at lines 144--149
 \T1/ptm/m/n/9 frame-work for the struc-tural flow-sheet op-ti-miza-tion.
  []
 
 
-Underfull \hbox (badness 5050) in paragraph at lines 146--151
+Underfull \hbox (badness 5050) in paragraph at lines 144--149
 \T1/ptm/m/it/9 Com-put-ers & Chem-i-cal En-gi-neer-ing\T1/ptm/m/n/9 , 67:13--25, 2014.
  []
 
 
-Underfull \hbox (badness 2205) in paragraph at lines 158--162
+Underfull \hbox (badness 10000) in paragraph at lines 151--155
+[]\T1/ptm/m/n/9 George L. Nemhauser. \T1/ptm/m/it/9 In-te-ger and com-bi-na-to-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 151--155
+\T1/ptm/m/it/9 rial op-ti-miza-tion\T1/ptm/m/n/9 . John Wi-ley and Sons, 1999.
+ []
+
+
+Underfull \hbox (badness 2205) in paragraph at lines 157--161
 []\T1/ptm/m/n/9 Francisco Tres-pala-cios and Ig-na-cio E. Gross-mann. Im-
  []
 
 
-Underfull \hbox (badness 1454) in paragraph at lines 158--162
+Underfull \hbox (badness 1454) in paragraph at lines 157--161
 \T1/ptm/m/n/9 grams. \T1/ptm/m/it/9 Com-put-ers & Chem-i-cal En-gi-neer-ing\T1/ptm/m/n/9 , 76:98--103,
  []
 
 
-Underfull \hbox (badness 1237) in paragraph at lines 164--168
+Underfull \hbox (badness 1237) in paragraph at lines 163--167
 \T1/ptm/m/it/9 IN-FORMS Jour-nal on Com-put-ing\T1/ptm/m/n/9 , 28(2):209^^U222, 2016.
  []
 
@@ -828,18 +863,18 @@ Package rerunfilecheck Info: File `paper.out' has not changed.
 Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 380.
  ) 
 Here is how much of TeX's memory you used:
- 10234 strings out of 492646
- 140001 string characters out of 6133325
- 359730 words of memory out of 5000000
- 13801 multiletter control sequences out of 15000+600000
+ 10232 strings out of 492646
+ 139958 string characters out of 6133325
+ 359689 words of memory out of 5000000
+ 13800 multiletter control sequences out of 15000+600000
  49036 words of font info for 110 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  40i,14n,44p,1244b,2610s stack positions out of 5000i,500n,10000p,200000b,80000s
 {c:/texlive/2018/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}{c:/texlive/2018/texmf-dist/fonts/enc/dvips/base/8r.enc}<c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmex9.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi9.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/latxfont/lcircle1.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/cm-super/sftt0800.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/cm-super/sftt0900.pfb><c:/texlive/2018/texmf-dist/fonts/type1/urw/times/utmb8a.pfb><c:/texlive/2018/texmf-dist/fonts/type1/urw/times/utmr8a.pfb><c:/texlive/2018/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.pdf (6 pages, 349541 bytes).
+Output written on c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.pdf (6 pages, 349606 bytes).
 PDF statistics:
- 431 PDF objects out of 1000 (max. 8388607)
- 394 compressed objects within 4 object streams
- 150 named destinations out of 1000 (max. 500000)
+ 436 PDF objects out of 1000 (max. 8388607)
+ 399 compressed objects within 4 object streams
+ 149 named destinations out of 1000 (max. 500000)
  186 words of extra memory for PDF output out of 10000 (max. 10000000)
 

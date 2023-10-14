@@ -5,6 +5,7 @@ Anshul Agarwal.
 A novel minlp reformulation for nonlinear generalized disjunctive programming
   (gdp) problems.
 {\em arXiv preprint arXiv:1510.01791}, 2015.
+\href{http://dx.doi.org/10.48550/arXiv.1510.01791}{doi:10.48550/arXiv.1510.01791}.
 
 \bibitem{agarwal2010automating}
 Ashish Agarwal, Sooraj Bhat, Alexander Gray, and Ignacio~E Grossmann.
@@ -17,6 +18,7 @@ In {\em International Symposium on Practical Aspects of Declarative Languages},
 Egon Balas.
 {\em Disjunctive programming}.
 Springer, 2018.
+\href{http://dx.doi.org/10.1007/978-3-030-00148-3}{doi:10.1007/978-3-030-00148-3}.
 
 \bibitem{Bussieck2004}
 Michael~R. Bussieck and Alex Meeraus.
@@ -30,6 +32,7 @@ Michael~L. Bynum, Gabriel~A. Hackebeil, William~E. Hart, Carl~D. Laird,
   Woodruff.
 {\em Pyomo--optimization modeling in python}, volume~67.
 Springer Science \& Business Media, third edition, 2021.
+\href{http://dx.doi.org/10.1007/978-3-030-68928-5}{doi:10.1007/978-3-030-68928-5}.
 
 \bibitem{chen_grossmann_2019}
 Qi~Chen and Ignacio Grossmann.
@@ -42,6 +45,7 @@ Qi~Chen, Emma~S Johnson, David~E Bernal, Romeo Valentin, Sunjeev Kale, Johnny
   Bates, John~D Siirola, and Ignacio~E Grossmann.
 Pyomo. gdp: an ecosystem for logic based modeling and optimization development.
 {\em Optimization and Engineering}, 23(1):607--642, 2022.
+\href{http://dx.doi.org/10.1007/978-3-030-00148-3}{doi:10.1007/978-3-030-00148-3}.
 
 \bibitem{CHEN2022107616}
 Ying Chen, Yixin Ye, Zhihong Yuan, Ignacio~E. Grossmann, and Bingzhen Chen.
@@ -116,18 +120,12 @@ Clause form conversions for boolean circuits.
 {\em Theory and Applications of Satisfiability Testing}, page 183–198, 2005.
 \href{http://dx.doi.org/10.1007/11527695\_15}{doi:10.1007/11527695\_15}.
 
-\bibitem{kim2022generalized}
-Donghun Kim.
-Generalized disjunctive programming-based, mixed integer linear mpc formulation
-  for optimal operation of a district energy system for pv self-consumption and
-  grid decarbonization: Field implementation.
-{\em International High Performance Buildings Conference}, 2022.
-
 \bibitem{kronqvist2022p}
 Jan Kronqvist, Ruth Misener, and Calvin Tsay.
 P-split formulations: A class of intermediate formulations between big-m and
   convex hull for disjunctive constraints.
 {\em arXiv preprint arXiv:2202.05198}, 2022.
+\href{http://dx.doi.org/10.48550/arXiv.2202.05198}{doi:10.48550/arXiv.2202.05198}.
 
 \bibitem{LEE20002125}
 Sangbum Lee and Ignacio~E. Grossmann.
@@ -153,6 +151,7 @@ Integration of modular process simulators under the generalized disjunctive
 George~L. Nemhauser.
 {\em Integer and combinatorial optimization}.
 John Wiley and Sons, 1999.
+\href{http://dx.doi.org/10.1002/9781118627372}{doi:10.1002/9781118627372}.
 
 \bibitem{TRESPALACIOS201598}
 Francisco Trespalacios and Ignacio~E. Grossmann.

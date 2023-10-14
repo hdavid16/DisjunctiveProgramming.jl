@@ -3,44 +3,44 @@ Capacity: max_strings=100000, hash_size=100000, hash_prime=85009
 The top-level auxiliary file: paper.aux
 The style file: juliacon.bst
 Database file #1: ref.bib
-You've used 28 entries,
+You've used 27 entries,
             2314 wiz_defined-function locations,
-            722 strings with 10223 characters,
-and the built_in function-call counts, 10922 in all, are:
-= -- 1084
-> -- 512
+            723 strings with 10063 characters,
+and the built_in function-call counts, 10799 in all, are:
+= -- 1074
+> -- 505
 < -- 7
-+ -- 203
-- -- 172
-* -- 828
-:= -- 1790
-add.period$ -- 107
-call.type$ -- 28
-change.case$ -- 165
++ -- 200
+- -- 170
+* -- 844
+:= -- 1761
+add.period$ -- 110
+call.type$ -- 27
+change.case$ -- 161
 chr.to.int$ -- 0
-cite$ -- 28
-duplicate$ -- 422
-empty$ -- 858
-format.name$ -- 172
-if$ -- 2324
+cite$ -- 27
+duplicate$ -- 417
+empty$ -- 844
+format.name$ -- 170
+if$ -- 2296
 int.to.chr$ -- 0
-int.to.str$ -- 28
-missing$ -- 33
-newline$ -- 164
-num.names$ -- 58
-pop$ -- 184
+int.to.str$ -- 27
+missing$ -- 32
+newline$ -- 165
+num.names$ -- 56
+pop$ -- 179
 preamble$ -- 1
-purify$ -- 141
+purify$ -- 138
 quote$ -- 0
-skip$ -- 286
+skip$ -- 272
 stack$ -- 0
-substring$ -- 657
-swap$ -- 89
+substring$ -- 652
+swap$ -- 88
 text.length$ -- 7
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 102
+type$ -- 98
 warning$ -- 0
-while$ -- 89
-width$ -- 30
-write$ -- 353
+while$ -- 87
+width$ -- 29
+write$ -- 355
