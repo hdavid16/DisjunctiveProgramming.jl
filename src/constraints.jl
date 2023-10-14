@@ -234,7 +234,7 @@ end
         name::String = ""
     )::DisjunctConstraintRef
 
-Extend `JuMP.add_constraint` to add a [`_DisjunctConstraint`](@ref) to a [`GDPModel`](@ref). 
+Extend `JuMP.add_constraint` to add a [`DisjunctConstraint`](@ref) to a [`GDPModel`](@ref). 
 The constraint is added to the `GDPData` in the `.ext` dictionary of the `GDPModel`.
 """
 function JuMP.add_constraint(

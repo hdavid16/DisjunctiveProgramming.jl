@@ -134,19 +134,28 @@ The example below is from the [Cornell University Computational Optimization Ope
 
 ```julia
 using DisjunctiveProgramming
+using HiGHS
 
-m = GDPModel()
+m = GDPModel(HiGHS.Optimizer)
 @variable(m, 0 ≤ x[1:2] ≤ 20)
 @variable(m, Y[1:2], Logical)
 @constraint(m, [i = 1:2], [2,5][i] ≤ x[i] ≤ [6,9][i], DisjunctConstraint(Y[1]))
 @constraint(m, [i = 1:2], [8,10][i] ≤ x[i] ≤ [11,15][i], DisjunctConstraint(Y[2]))
 @disjunction(m, Y)
 @constraint(m, Y in Exactly(1)) #logical constraint
-
-## Big-M
-reformulate_model(m, BigM(100, false)) #specify M value and disable M-tightening
+@objective(m, Max, sum(x))
 print(m)
-# Feasibility
+# Max x[1] + x[2]
+# Subject to
+#  x[1] ≥ 0
+#  x[2] ≥ 0
+#  x[1] ≤ 20
+#  x[2] ≤ 20
+
+##
+optimize!(m, method = BigM(100, false)) #specify M value and disable M-tightening
+print(m)
+# Max x[1] + x[2]
 # Subject to
 #  Y[1] + Y[2] = 1
 #  x[1] - 100 Y[1] ≥ -98
@@ -164,10 +173,10 @@ print(m)
 #  Y[1] binary
 #  Y[2] binary
 
-## Hull
-reformulate_model(m, Hull())
+##
+optimize!(m, method = Hull())
 print(m)
-# Feasibility
+# Max x[1] + x[2]
 # Subject to
 #  -x[2] + x[2]_Y[1] + x[2]_Y[2] = 0
 #  -x[1] + x[1]_Y[1] + x[1]_Y[2] = 0
@@ -202,21 +211,8 @@ print(m)
 #  x[1]_Y[2] ≤ 20
 #  Y[1] binary
 #  Y[2] binary
-
-## Indicator
-reformulate_model(m, Indicator())
-print(m)
-# Feasibility
-# Subject to
-#  Y[1] + Y[2] = 1
-#  x[1] ≥ 0
-#  x[2] ≥ 0
-#  x[1] ≤ 20
-#  x[2] ≤ 20
-#  Y[1] binary
-#  Y[2] binary
-#  Y[1] => {x[1] ∈ [2, 6]}
-#  Y[1] => {x[2] ∈ [5, 9]}
-#  Y[2] => {x[1] ∈ [8, 11]}
-#  Y[2] => {x[2] ∈ [10, 15]}
 ```
+
+## Contributing
+`DisjunctiveProgramming` is being actively developed and suggestions or other forms of contribution are encouraged.
+There are many ways to contribute to this package. Feel free to create an issue to address questions or provide feedback.
