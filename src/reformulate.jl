@@ -122,9 +122,6 @@ function _reformulate_disjunct(model::JuMP.Model, ref_cons::Vector{JuMP.Abstract
     return
 end
 
-_index_to_constraint(model::JuMP.Model, cidx::DisjunctConstraintIndex) = _disjunct_constraints(model)[cidx]
-_index_to_constraint(model::JuMP.Model, cidx::DisjunctionIndex) = _disjunctions(model)[cidx]
-
 # reformulation for nested disjunction
 # NOTE: name of inner disjunction (if given) is currently lost (not passed upwards)
 function reformulate_disjunct_constraint(
