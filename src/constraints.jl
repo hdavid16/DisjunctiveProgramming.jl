@@ -379,7 +379,7 @@ function disjunction(
     model::JuMP.Model, 
     disjunct_indicators, 
     nested_tag::DisjunctConstraint,
-    name::String = "",
+    name::String = ""
 ) # TODO add kw argument to build exactly 1 constraint
     return _disjunction(error, model, disjunct_indicators, name, nested_tag)
 end

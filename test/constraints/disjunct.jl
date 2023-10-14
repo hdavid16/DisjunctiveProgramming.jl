@@ -7,6 +7,7 @@ function test_disjunct_add_fail()
     @variable(model, w, Logical)
     @variable(model, z, Bin)
     @test_macro_throws UndefVarError @constraint(model, z == 1, DisjunctConstraint(w)) # binary variable
+    @test_throws ErrorException build_constraint(error, 1z, MOI.EqualTo(1), DisjunctConstraint(w)) # binary variable
 end
 
 function test_disjunct_add_success()

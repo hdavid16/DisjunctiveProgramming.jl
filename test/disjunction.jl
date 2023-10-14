@@ -3,14 +3,17 @@ function test_disjunction_add_fail()
     @variable(model, x)
     @variable(model, y[1:2], Logical)
     @constraint(model, x == 5, DisjunctConstraint(y[1]))
-
+    
     @test_macro_throws ErrorException @disjunction(model) #not enough arguments
     @test_macro_throws UndefVarError @disjunction(model, y) #unassociated indicator
     @test_macro_throws UndefVarError @disjunction(GDPModel(), y) #wrong model
     @test_macro_throws ErrorException @disjunction(Model(), y) #not a GDPModel
     @test_macro_throws UndefVarError @disjunction(model, [y[1], y[1]]) #duplicate indicator
-    @test_macro_throws UndefVarError @disjunction(model, y[1]) #no disjunction expression
+    @test_macro_throws UndefVarError @disjunction(model, y[1]) #unrecognized disjunction expression
+    @test_throws ErrorException disjunction(model, y[1]) #unrecognized disjunction expression
+    @test_throws ErrorException disjunction(model, [1]) #unrecognized disjunction expression
     @test_macro_throws UndefVarError @disjunction(model, y, "random_arg") #unrecognized extra argument
+    @test_throws ErrorException DP._disjunction(error, model, y, "y", "random_arg") #unrecognized extra argument
     @test_macro_throws ErrorException @disjunction(model, "ABC") #unrecognized structure
     @test_macro_throws ErrorException @disjunction(model, begin y end) #@disjunctions (plural)
     @test_macro_throws UndefVarError @disjunction(model, x, y) #name x already exists
@@ -104,6 +107,16 @@ function test_disjunction_add_sparse_axis()
     @test length(disj) == 3
     @test disj.names == (:i, :j)
     @test Set(keys(disj.data)) == Set([(1,2),(1,3),(2,3)])
+end
+
+function test_disjunctions_add_fail()
+    model = GDPModel()
+    @variable(model, x)
+    @variable(model, y[1:2], Logical)
+    @variable(model, z[1:2], Logical)
+    @constraint(model, x <= 5, DisjunctConstraint(y[1]))
+    @constraint(model, x >= 5, DisjunctConstraint(y[2]))
+    @test_macro_throws ErrorException @disjunctions(model, y)
 end
 
 function test_disjunctions_add_success()
@@ -203,6 +216,7 @@ end
         test_disjunction_add_array()
         test_disjunciton_add_dense_axis()
         test_disjunction_add_sparse_axis()
+        test_disjunctions_add_fail()
         test_disjunctions_add_success()
         test_disjunction_function()
         test_disjunction_function_nested()

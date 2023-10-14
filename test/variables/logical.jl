@@ -1,7 +1,21 @@
 # test creating, modifying, and reformulating logical variables
+
+function test_base()
+    model = GDPModel()
+    @variable(model, y, Logical)
+    @test Base.broadcastable(y) isa Base.RefValue{LogicalVariableRef}
+    @test length(y) == 1
+end
+
 function test_lvar_add_fail()
    model = Model()
    @test_throws ErrorException @variable(model, y, Logical)
+   @test_throws ErrorException @variable(model, y, Logical; kwarg=true)
+   @test_throws ErrorException @variable(model, 0 <= y, Logical)
+   @test_throws ErrorException @variable(model, y <= 1, Logical)
+   @test_throws ErrorException @variable(model, y, Logical, integer=true)
+   @test_throws ErrorException @variable(model, y, Logical, start=2)
+   @test_throws ErrorException @variable(model, y == 2, Logical)
 end
 
 function test_lvar_add_success()
@@ -75,6 +89,12 @@ function test_lvar_set_start_value()
     test_lvar_reformulation(model, y)
 end
 
+function test_lvar_creation_fix_value()
+    model = GDPModel()
+    @variable(model, y == true, Logical)
+    @test fix_value(y)
+end
+
 function test_lvar_fix_value()
     model = GDPModel()
     @variable(model, y, Logical)
@@ -146,6 +166,9 @@ function test_lvar_reformulation(model::Model, lvref::LogicalVariableRef)
 end
 
 @testset "Logical Variables" begin
+    @testset "Base Methods" begin
+        test_base()
+    end
     @testset "Add Logical Variables" begin
         test_lvar_add_fail()
         test_lvar_add_success()
@@ -157,6 +180,7 @@ end
         test_lvar_set_name()
         test_lvar_creation_start_value()
         test_lvar_set_start_value()
+        test_lvar_creation_fix_value()
         test_lvar_fix_value()
     end
     @testset "Delete Logical Variables" begin
