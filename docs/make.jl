@@ -4,7 +4,8 @@ makedocs(
     sitename = "DisjunctiveProgramming.jl",
     modules  = [DisjunctiveProgramming],
     pages=[
-        "Home" => "index.md"
+        "Home" => "index.md",
+        "API" => "api.md"
     ],
     checkdocs = :none
 )
