@@ -1,16 +1,16 @@
 # Fdb version 3
-["bibtex paper"] 1697252440 "paper.aux" "paper.bbl" "paper" 1697252443
+["bibtex paper"] 1697252440 "paper.aux" "paper.bbl" "paper" 1697252664
   "./juliacon.bst" 1683852295 22186 2eaa317b2b3889daf19a84ad3db6071a ""
-  "paper.aux" 1697252442 7715 822ea37fa57aa053d638df6ec355f458 ""
+  "paper.aux" 1697252663 7715 822ea37fa57aa053d638df6ec355f458 ""
   "ref.bib" 1697252439 27978 dce8ad984b85ef4eb1e3d1e6c104f8d5 ""
   (generated)
-  "paper.bbl"
   "paper.blg"
-["pdflatex"] 1697252440 "c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.tex" "c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.pdf" "paper" 1697252443
+  "paper.bbl"
+["pdflatex"] 1697252662 "c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.tex" "c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.pdf" "paper" 1697252664
   "bib.tex" 1683852295 115 fb8dcbd9d4481bde59a06a28ec8a83ca ""
   "bigm.png" 1683852295 16157 24bd6e3bc27d995ac037e601c6fb5268 ""
-  "c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.aux" 1697252442 7715 822ea37fa57aa053d638df6ec355f458 ""
-  "c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.tex" 1697252330 26527 6c90a7dae99ca500cb129e96fcdce6c8 ""
+  "c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.aux" 1697252663 7715 822ea37fa57aa053d638df6ec355f458 ""
+  "c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.tex" 1697252661 26527 fd78089a63a54012af545feb9ae77edf ""
   "c:/texlive/2018/texmf-dist/fonts/enc/dvips/base/8r.enc" 1532704159 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "c:/texlive/2018/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1532703951 2971 def0b6c1f0b107b3b936def894055589 ""
   "c:/texlive/2018/texmf-dist/fonts/map/fontname/texfonts.map" 1532704303 3332 103109f5612ad95229751940c61aada0 ""
@@ -148,16 +148,16 @@
   "journal_dat.tex" 1683852295 156 e6e783a18daee23542a412a50a5ce4b0 ""
   "juliacon.cls" 1683852295 31320 600c1d13c17d8cd54504ceeaf65a3e1c ""
   "logojuliacon.pdf" 1683852295 4937 0cb75c4e65b0cf72a69c7716f140efe5 ""
-  "paper.aux" 1697252442 7715 822ea37fa57aa053d638df6ec355f458 ""
+  "paper.aux" 1697252663 7715 822ea37fa57aa053d638df6ec355f458 ""
   "paper.bbl" 1697252440 8412 c5f25008db6df29972edfc95473a9694 "bibtex paper"
-  "paper.out" 1697252442 1369 1f68aa287eaf7868c2396c35550b552d ""
-  "paper.tex" 1697252330 26527 6c90a7dae99ca500cb129e96fcdce6c8 ""
+  "paper.out" 1697252663 1369 1f68aa287eaf7868c2396c35550b552d ""
+  "paper.tex" 1697252661 26527 fd78089a63a54012af545feb9ae77edf ""
   "solnspace.png" 1683852295 8537 21548aa816215210a45ef0cf5bc6a4c7 ""
   "superstructure_pfd.png" 1683852295 71484 ccb9c3d50ea30611d678638f05ee9cf0 ""
   (generated)
-  "paper.aux"
-  "c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.pdf"
   "paper.log"
-  "paper.out"
   "paper.pdf"
+  "c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.pdf"
+  "paper.aux"
   "c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.log"
+  "paper.out"
