@@ -341,6 +341,18 @@ function test_vector_quadratic_hull_1sided(moiset)
     @test ref[1].set == moiset(2)
 end
 #less than, greater than, equalto
+function test_scalar_nonlinear_hull_1sided_error()
+    model = GDPModel()
+    @variable(model, 10 <= x <= 100)
+    @variable(model, z, Logical)
+    @constraint(model, con, log(x) <= 10, DisjunctConstraint(z))
+    DP._reformulate_logical_variables(model)
+    zbin = variable_by_name(model, "z")
+    ϵ = 1e-3
+    method = DP._Hull(Hull(ϵ, Dict(x => (0., 100.))), Set([x]))
+    DP._disaggregate_variables(model, z, Set([x]), method)
+    @test_throws ErrorException reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
+end
 function test_scalar_nonlinear_hull_1sided(moiset)
     model = GDPModel()
     @variable(model, 10 <= x <= 100)
@@ -371,6 +383,18 @@ function test_scalar_nonlinear_hull_1sided(moiset)
     @test DP._set_value(ref[1].set) == 0
 end
 #nonpositives, nonnegatives, zeros
+function test_vector_nonlinear_hull_1sided_error()
+    model = GDPModel()
+    @variable(model, 10 <= x <= 100)
+    @variable(model, z, Logical)
+    @constraint(model, con, [log(x),log(x)] <= [10,10], DisjunctConstraint(z))
+    DP._reformulate_logical_variables(model)
+    zbin = variable_by_name(model, "z")
+    ϵ = 1e-3
+    method = DP._Hull(Hull(ϵ, Dict(x => (0., 100.))), Set([x]))
+    DP._disaggregate_variables(model, z, Set([x]), method)
+    @test_throws ErrorException reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
+end
 function test_vector_nonlinear_hull_1sided(moiset)
     model = GDPModel()
     @variable(model, 10 <= x <= 100)
@@ -471,6 +495,18 @@ function test_scalar_quadratic_hull_2sided()
         @test DP._set_value(ref[i].set) == 0
     end
 end
+function test_scalar_nonlinear_hull_2sided_error()
+    model = GDPModel()
+    @variable(model, 10 <= x <= 100)
+    @variable(model, z, Logical)
+    @constraint(model, con, 0 <= log(x) <= 10, DisjunctConstraint(z))
+    DP._reformulate_logical_variables(model)
+    zbin = variable_by_name(model, "z")
+    ϵ = 1e-3
+    method = DP._Hull(Hull(ϵ, Dict(x => (0., 100.))), Set([x]))
+    DP._disaggregate_variables(model, z, Set([x]), method)
+    @test_throws ErrorException reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
+end
 function test_scalar_nonlinear_hull_2sided()
     model = GDPModel()
     @variable(model, 10 <= x <= 100)
@@ -525,14 +561,17 @@ end
         test_scalar_quadratic_hull_1sided(s)        
         test_scalar_nonlinear_hull_1sided(s)
     end
+    test_scalar_nonlinear_hull_1sided_error()
     for s in (MOI.Nonpositives, MOI.Nonnegatives, MOI.Zeros)
         test_vector_var_hull_1sided(s)
         test_vector_affine_hull_1sided(s)
         test_vector_quadratic_hull_1sided(s)        
         test_vector_nonlinear_hull_1sided(s)
     end
+    test_vector_nonlinear_hull_1sided_error()
     test_scalar_var_hull_2sided()
     test_scalar_affine_hull_2sided()
     test_scalar_quadratic_hull_2sided()
     test_scalar_nonlinear_hull_2sided()
+    test_scalar_nonlinear_hull_2sided_error()
 end

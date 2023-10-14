@@ -1,5 +1,21 @@
 using HiGHS
 
+function test_GDPData()
+    gdpdata = GDPData(
+        DP._MOIUC.CleverDict{LogicalVariableIndex, LogicalVariableData}(),
+        DP._MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData}(),
+        DP._MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}(),
+        DP._MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}(),
+        Dict{LogicalVariableRef, JuMP.VariableRef}(),
+        Dict{LogicalVariableRef, Vector{Union{DisjunctConstraintRef, DisjunctionRef}}}(),
+        Vector{JuMP.VariableRef}(),
+        Vector{JuMP.ConstraintRef}(),
+        nothing,
+        false
+    )
+    gdpdata isa GDPData
+end
+
 function test_empty_model()
     model = GDPModel()
     @test gdp_data(model) isa GDPData
@@ -32,6 +48,7 @@ function test_set_optimizer()
 end
 
 @testset "GDP Model" begin
+    test_GDPData()
     test_empty_model()
     test_non_gdp_model()
     test_creation_optimizer()

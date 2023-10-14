@@ -23,15 +23,16 @@ function test_indicator_vector_constraints()
     model = GDPModel()
     A = [1 0; 0 1]
     @variable(model, x)
-    @variable(model, y[1:2], Logical)
+    @variable(model, y[1:3], Logical)
     @constraint(model, A*[x,x] == [5,5], DisjunctConstraint(y[1]))
-    @constraint(model, A*[x,x] == [10,10], DisjunctConstraint(y[2]))
+    @constraint(model, A*[x,x] <= [0,0], DisjunctConstraint(y[2]))
+    @constraint(model, A*[x,x] >= [10,10], DisjunctConstraint(y[3]))
     @disjunction(model, y)
     reformulate_model(model, Indicator())
     
     ref_cons = DP._reformulation_constraints(model)
     ref_cons_obj = constraint_object.(ref_cons)
-    @test length(ref_cons) == 4
+    @test length(ref_cons) == 6
     @test all(is_valid.(model, ref_cons))
     @test all(isa.(ref_cons_obj, VectorConstraint))
     @test all([cobj.set isa MOI.Indicator for cobj in ref_cons_obj])

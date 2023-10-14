@@ -1,6 +1,14 @@
+function test_op_fallback()
+    @test_throws ErrorException iff(1,1)
+    @test_throws ErrorException implies(1,1)
+    @test_throws ErrorException 1 ⇔ 1
+    @test_throws ErrorException 1 ⟹ 1
+end
+
 function test_proposition_add_fail()
     m = GDPModel()
     @variable(m, y[1:3], Logical)
+    @test_throws ErrorException @constraint(m, y[1] in IsTrue())
     @test_throws ErrorException @constraint(Model(), logical_or(y...) in IsTrue())
     @test_throws ErrorException @constraint(m, logical_or(y...) == 2)
     @test_throws ErrorException @constraint(m, logical_or(y...) <= 1)
@@ -262,6 +270,13 @@ function test_eliminate_equivalence()
     @test Set(new_ex.args[2].args) == Set{Any}(y)
 end
 
+function test_eliminate_equivalence_error()
+    model = GDPModel()
+    @variable(model, y, Logical)
+    ex = iff(y)
+    @test_throws ErrorException DP._eliminate_equivalence(ex)
+end
+
 function test_eliminate_equivalence_flat()
     model = GDPModel()
     @variable(model, y[1:3], Logical)
@@ -390,7 +405,7 @@ end
 function test_negate_and_error()
     model = GDPModel()
     @variable(model, y, Logical)
-    @test_throws ErrorException DP._negate_or(∧(y))
+    @test_throws ErrorException DP._negate_and(∧(y))
 end
 
 function test_negate_negation()
@@ -417,6 +432,13 @@ function test_distribute_and_over_or()
     @test y[1] in new_ex.args[2].args
     @test y[2] in new_ex.args[1].args || y[2] in new_ex.args[2].args
     @test y[3] in new_ex.args[1].args || y[3] in new_ex.args[2].args
+end
+
+function test_distribute_and_over_or_error()
+    model = GDPModel()
+    @variable(model, y[1:2], Logical)
+    ex = ∨(y[1] ∧ y[2])
+    @test_throws ErrorException DP._distribute_and_over_or(ex)
 end
 
 function test_distribute_and_over_or_nested()
@@ -486,7 +508,21 @@ function test_to_cnf()
         (!(y[1] in new_ex.args[6].args) && !(y[2] in new_ex.args[6].args) && y[3] in new_ex.args[6].args)
 end
 
+function test_isa_literal_other()
+    @test !DP._isa_literal(1)
+end
+
+function test_reformulate_clause_error()
+    model = GDPModel()
+    @variable(model, y[1:2], Logical)
+    ex = y[1] ∧ y[2]
+    @test_throws ErrorException DP._reformulate_clause(model, ex)
+end
+
 @testset "Logical Proposition Constraints" begin
+    @testset "Logical Operators" begin
+        test_op_fallback()
+    end
     @testset "Add Proposition" begin
         test_proposition_add_fail()
         test_negation_add_success()
@@ -505,10 +541,13 @@ end
         test_equivalence_reformulation()
         test_intersection_reformulation()
         test_implication_reformulation()
+        test_reformulate_clause_error()
     end
     @testset "Conjunctive Normal Form" begin
+        test_isa_literal_other()
         test_lvar_cnf_functions()
         test_eliminate_equivalence()
+        test_eliminate_equivalence_error()
         test_eliminate_equivalence_flat()
         test_eliminate_equivalence_nested()
         test_eliminate_implication()
@@ -525,6 +564,7 @@ end
         test_negate_negation()
         test_negate_negation_error()
         test_distribute_and_over_or()
+        test_distribute_and_over_or_error()
         test_distribute_and_over_or_nested()
         test_to_cnf()
     end

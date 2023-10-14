@@ -202,7 +202,7 @@ function test_nonpositives_bigm()
     @test ref[1].set == MOI.Nonpositives(2)
 end
 
-function test_greaterhan_bigm()
+function test_greaterthan_bigm()
     model = GDPModel()
     @variable(model, x)
     @variable(model, y, Logical)
@@ -231,7 +231,7 @@ function test_nonnegatives_bigm()
     @test ref[1].set == MOI.Nonnegatives(2)
 end
 
-function test_greaterhan_bigm()
+function test_equalto_bigm()
     model = GDPModel()
     @variable(model, x)
     @variable(model, y, Logical)
@@ -247,7 +247,7 @@ function test_greaterhan_bigm()
     @test ref[2].set == MOI.LessThan(5.0 + 100)
 end
 
-function test_greaterhan_bigm()
+function test_interval_bigm()
     model = GDPModel()
     @variable(model, x)
     @variable(model, y, Logical)
@@ -320,10 +320,10 @@ end
     test_calculate_tight_M()
     test_lessthan_bigm()
     test_nonpositives_bigm()
-    test_greaterhan_bigm()
+    test_greaterthan_bigm()
     test_nonnegatives_bigm()
-    test_greaterhan_bigm()
-    test_greaterhan_bigm()
+    test_equalto_bigm()
+    test_interval_bigm()
     test_zeros_bigm()
     test_nested_bigm()
 end

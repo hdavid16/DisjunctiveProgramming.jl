@@ -57,7 +57,7 @@ function _eliminate_equivalence(lexpr::_LogicalExpr)
         elseif length(lexpr.args) == 2
             B = _eliminate_equivalence(lexpr.args[2])
         else
-            error("The equivalence logic operator must have at least two arguments.")
+            error("The equivalence logic operator must have at least two clauses.")
         end
         new_lexpr = _LogicalExpr(:&&, Any[
             _LogicalExpr(:(=>), Any[A, B]),
@@ -101,7 +101,7 @@ end
 function _move_negations_inward(lexpr::_LogicalExpr)
     if lexpr.head == :!
         if length(lexpr.args) != 1
-            error("The negation operator can only have 1 clause.")
+            error("The negation operator can only have one clause.")
         end
         new_lexpr = _negate(lexpr.args[1])
     else
