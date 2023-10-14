@@ -192,7 +192,7 @@ The logic propositions within the set of decision selection relationships, $\Ome
 Once the logic propositions are converted to CNF, each clause can be converted into an algebraic constraint with the following equivalence, where the set $I$ represents the subset boolean variables present in the clause, and the set $J$ represents the subset of boolean variables present in the clause in negated form,
 
 \begin{align*}
-    \bigvee_{i \in I} Y_i \bigvee_{j \in J} (\neg Y_j) & \ \ \text{becomes} \ \ \sum_{i \in I} y_i + \sum_{j \in J} (1-y_j) \geq 1 \\
+    \left(\bigvee_{i \in I} Y_i\right) \vee \left(\bigvee_{j \in J} \neg Y_j\right) & \ \ \text{becomes} \ \ \sum_{i \in I} y_i + \sum_{j \in J} (1-y_j) \geq 1 \\
 \end{align*}
 
 Alternate approaches exist for converting propositional logic statements into CNF, which involve preserving clause satisfiability rather than clause equivalence. These approaches prevent exponential size increase in clauses and yield logically consistent results \cite{jackson_sheridan_2005}.
@@ -208,7 +208,7 @@ Selection constraints analogous to those used in Constraint Programming (CP) can
 
 Exclusive-OR constraints as the one given in Eq. \eqref{eq:simple_xor} are more generally modeled as $exactly(1,\{Y_1,Y_2\})$.
 
-\subsection{Solution Techniques}
+\subsection{Other Solution Techniques} \label{other_techniques}
 
 \subsubsection{Disjunctive branch and bound}
 The disjunctive branch and bound method closely mirrors the standard branch and bound approach for the solution of mixed-integer programming problems \cite{grossmann_lee_2003}. A search tree is initialized by solving the continuous relaxation of the Big-M or Hull reformulation of the original GDP to obtain a lower bound on the optimum. Branching is then done on the disjunction with an indicator binary variable closest to 1. Two nodes are created at this point: one where the respective indicator Boolean variable is fixed to $true$ (the disjunct is enforced) and another where it is fixed to $false$ (the disjunct is removed from the disjunction). Each node is reformulated and solved to obtain a candidate lower bound. If the solution to a node results in a feasible solution that satisfies all integrality constraints, the solution is an upper bound on the optimum. Any non-integral solutions that exceed an upper bound are pruned from the search tree. The process is repeated until the lower and upper bounds are within the desired tolerance.
@@ -233,7 +233,7 @@ Logical propositions can be added to JuMP models using expressions involving the
 Nesting of disjunctions is also supported.
 
 \subsection{Example}
-To illustrate the syntax in \verb|DisjunctiveProgramming.jl| (Version 0.3.3), consider the simple superstructure optimization problem for the chemical process given in Figure \ref{fig:superstruct_opt_diagram}. In this problem a chemical plant with two candidate reactor technologies ($R_1$ and $R_2$) must be designed. If the second reactor technology is chosen, a separation system must also be installed, for which two separation technologies ($S_1$ and $S_2$) are available. The GDP model seeks to maximize the product flow ($F_7$), while discounting for reactor ($C_R$) and separator ($C_S$) installation costs as given in \eqref{eq:example_obj}, subject to the nested disjunction in \eqref{eq:example_gdp} and the global mass balances in \eqref{eq:example_global}
+To illustrate the syntax in \verb|DisjunctiveProgramming.jl| (Version 0.4.0), consider the simple superstructure optimization problem for the chemical process given in Figure \ref{fig:superstruct_opt_diagram}. In this problem a chemical plant with two candidate reactor technologies ($R_1$ and $R_2$) must be designed. If the second reactor technology is chosen, a separation system must also be installed, for which two separation technologies ($S_1$ and $S_2$) are available. The GDP model seeks to maximize the product flow ($F_7$), while discounting for reactor ($C_R$) and separator ($C_S$) installation costs as given in \eqref{eq:example_obj}, subject to the nested disjunction in \eqref{eq:example_gdp} and the global mass balances in \eqref{eq:example_global}
 - \eqref{eq:example_global1}. The system variables are the flows on each stream $i$ ($F_i$) and the installation costs, with their respective bounds given in \eqref{eq:example_var1} - \eqref{eq:example_var3}. The fixed cost and process yield parameters are given by $\gamma$ and $\beta$, respectively.
 
 \begin{figure}
@@ -327,24 +327,28 @@ m = GDPModel(HiGHS.Optimizer)
     \item Define the inner (nested) disjunction for the separation technologies in the superstructure using the \verb|@disjunction| macro.   
 \begin{lstlisting}[language = Julia]
 # define constraints in left YS disjunct
-@constraint(m, F[5] == β[:S1]*F[4], DisjunctConstraint(YS[1]))
-@constraint(m, CS == γ[:S1], DisjunctConstraint(YS[1]))
+YS1_disjunct = DisjunctConstraint(YS[1])
+@constraint(m, F[5] == β[:S1]*F[4], YS1_disjunct)
+@constraint(m, CS == γ[:S1], YS1_disjunct)
 # define constraints in right YS disjunct
-@constraint(m, F[5] == β[:S2]*F[4], DisjunctConstraint(YS[2]))
-@constraint(m, CS == γ[:S2], DisjunctConstraint(YS[2]))
+YS2_disjunct = DisjunctConstraint(YS[2])
+@constraint(m, F[5] == β[:S2]*F[4], YS2_disjunct)
+@constraint(m, CS == γ[:S2], YS2_disjunct)
 # define disjunction (specify parent disjunct)
-@disjunction(m, YS, DisjunctConstraint(YR[2]))
+@disjunction(m, YS, YS2_disjunct)
 \end{lstlisting}
     \item Define the outer disjunctions.
 \begin{lstlisting}[language = Julia]
 # define constraints in left YR disjunct
-@constraint(m, F[6] == β[:R1]*F[2], DisjunctConstraint(YR[1]))
-@constraint(m, [i = 3:5], F[i] == 0, DisjunctConstraint(YR[1]))
-@constraint(m, CR == γ[:R1], DisjunctConstraint(YR[1]))
-@constraint(m, CS == 0, DisjunctConstraint(YR[1]))
+YR1_disjunct = DisjunctConstraint(YR[1])
+@constraint(m, F[6] == β[:R1]*F[2], YR1_disjunct)
+@constraint(m, [i = 3:5], F[i] == 0, YR1_disjunct)
+@constraint(m, CR == γ[:R1], YR1_disjunct)
+@constraint(m, CS == 0, YR1_disjunct)
 # define constraints in right YR disjunct
-@constraint(m, F[6] == β[:R2]*F[3], DisjunctConstraint(YR[2]))
-@constraint(m, CR == γ[:R2], DisjunctConstraint(YR[2]))  
+YR2_disjunct = DisjunctConstraint(YR[2])
+@constraint(m, F[6] == β[:R2]*F[3], YR2_disjunct)
+@constraint(m, CR == γ[:R2], YR2_disjunct)  
 # define disjunction
 @disjunction(m, YR)    
 \end{lstlisting}
@@ -361,7 +365,7 @@ optimize!(m)
 \end{enumerate}
 
 \section{Future Work}
-The next steps for the \verb|DisjunctivePrograming.jl| package rely on extending \verb|JuMP.jl| further to allow creating GDP models that are not necessarily reformulated at model creation. Such models will allow using the different GDP solution strategies, such as direct reformulation to MI(N)LP, disjunctive branch and bound, logic-based outer approximation, hybrid cutting planes, and basic steps. The updated package will leverage existing JuMP extension infrastructure and make it possible to define indexing notation for disjunctions, a new Boolean variable type, and a new disjunciton constraint type. These improvements are expected to make the package more usable, flexible, and performant for advanced applications of GDP in JuMP.
+Since the package is currently limited to reformulating GDP models into Mixed-Integer Programming JuMP models, future work includes developing logic-based solvers to allow optimizing GDP models directly. This will include GDP solvers that implement the other solution techniques described in Section \ref{other_techniques}. Future work also involves extending the list of suported reformulation techniques to include the \textit{P-Split} \cite{kronqvist2022p} and \textit{True-False} \cite{agarwal2015novel} reformulations.
 
 \section{Related Work}
 The popular Python package \verb|Pyomo| \cite{bynum2021pyomo, hart2011pyomo} is widely used for optimization development and includes an extension for generalized disjunctive programming \cite{chen2022pyomo}. \verb|GAMS| \cite{Bussieck2004} is a widely used optimization modeling language with support for GDP under the \verb|GAMS EMP| solver that uses \verb|LogMIP| \cite{vecchietti1999logmip}. Research is also being conducted to integrate modern process simulation technology, such as \verb|Aspen|, within the GDP paradigm \cite{NAVARROAMOROS201413}.
