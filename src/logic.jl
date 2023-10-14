@@ -29,22 +29,6 @@ for (name, alt, head, func) in (
     end
 end
 
-"""
-    to_cnf!(expr::Expr)
-
-Convert an expression of symbolic Boolean variables and operators to CNF.
-"""
-function to_cnf!(expr::Expr)
-    check_logical_proposition(expr) #check that valid boolean symbols and variables are used in the logical proposition
-    eliminate_equivalence!(expr) #eliminate ⇔
-    eliminate_implication!(expr) #eliminmate ⇒
-    move_negations_inwards!(expr) #expand ¬
-    clause_list = distribute_and_over_or_recursively!(expr) #distribute ∧ over ∨ recursively
-    @assert !isempty(clause_list) "Conversion to CNF failed."
-
-    return clause_list
-end
-
 ################################################################################
 #                            CONJUNCTIVE NORMAL FORM
 ################################################################################
