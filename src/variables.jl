@@ -23,14 +23,14 @@ function JuMP.build_variable(
         _error("Logical variables cannot have bounds.")
     elseif info.integer
         _error("Logical variables cannot be integer valued.")
-    elseif info.has_fix && !isone(info.fix) && !iszero(info.fix)
-        _error("Invalid fix value, must be 0 or 1.")
+    elseif info.has_fix && !isone(info.fixed_value) && !iszero(info.fixed_value)
+        _error("Invalid fix value, must be false or true.")
     elseif info.has_start && !isone(info.start) && !iszero(info.start)
-        _error("Invalid start value, must be 0 or 1.")
+        _error("Invalid start value, must be false or true.")
     end
 
     # create the variable
-    fix = info.has_fix ? Bool(info.fix) : nothing
+    fix = info.has_fix ? Bool(info.fixed_value) : nothing
     start = info.has_start ? Bool(info.start) : nothing
     return LogicalVariable(fix, start)
 end
