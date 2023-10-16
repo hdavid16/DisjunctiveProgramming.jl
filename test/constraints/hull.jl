@@ -77,22 +77,6 @@ function test_aggregate_variable()
     @test refcons[1].set == MOI.EqualTo(0.)
 end
 
-function test_disaggregate_expression_var_binary()
-    model = GDPModel()
-    @variable(model, x, Bin)
-    @variable(model, z, Logical)
-    DP._reformulate_logical_variables(model)
-    bvrefs = DP._indicator_to_binary(model)
-
-    vrefs = Set([x])
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 1.))), vrefs)
-    DP._disaggregate_variables(model, z, vrefs, method)
-    @test isnothing(variable_by_name(model, "x_z"))
-    
-    refexpr = DP._disaggregate_expression(model, x, bvrefs[z], method)
-    @test refexpr == x
-end
-
 function test_disaggregate_expression_var()
     model = GDPModel()
     @variable(model, 10 <= x <= 100)
@@ -107,6 +91,22 @@ function test_disaggregate_expression_var()
     refexpr = DP._disaggregate_expression(model, x, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
     @test refexpr == x_z
+end
+
+function test_disaggregate_expression_var_binary()
+    model = GDPModel()
+    @variable(model, x, Bin)
+    @variable(model, z, Logical)
+    DP._reformulate_logical_variables(model)
+    bvrefs = DP._indicator_to_binary(model)
+
+    vrefs = Set([x])
+    method = DP._Hull(Hull(1e-3, Dict(x => (0., 1.))), vrefs)
+    DP._disaggregate_variables(model, z, vrefs, method)
+    @test isnothing(variable_by_name(model, "x_z"))
+    
+    refexpr = DP._disaggregate_expression(model, x, bvrefs[z], method)
+    @test refexpr == x
 end
 
 function test_disaggregate_expression_affine()
@@ -124,6 +124,24 @@ function test_disaggregate_expression_affine()
     x_z = variable_by_name(model, "x_z")
     zbin = variable_by_name(model, "z")
     @test refexpr == 2x_z + 1zbin
+end
+
+function test_disaggregate_expression_affine_mip()
+    model = GDPModel()
+    @variable(model, 10 <= x <= 100)
+    @variable(model, y, Bin)
+    @variable(model, z, Logical)
+    DP._reformulate_logical_variables(model)
+    bvrefs = DP._indicator_to_binary(model)
+
+    vrefs = Set([x, y])
+    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.), y => (0., 1.))), vrefs)
+    DP._disaggregate_variables(model, z, vrefs, method)
+    
+    refexpr = DP._disaggregate_expression(model, 2x + y + 1, bvrefs[z], method)
+    x_z = variable_by_name(model, "x_z")
+    zbin = variable_by_name(model, "z")
+    @test refexpr == 2x_z + y + 1zbin
 end
 
 function test_disaggregate_expression_quadratic()
@@ -176,7 +194,10 @@ function test_disaggregate_nl_expression_var_binary()
     DP._disaggregate_variables(model, z, vrefs, method)
     
     refexpr = DP._disaggregate_nl_expression(model, x, bvrefs[z], method)
-    @test refexpr == x
+    ϵ = method.value
+    @test refexpr.head == :/
+    @test x in refexpr.args
+    @test (1-ϵ)*bvrefs[z]+ϵ in refexpr.args
 end
 
 function test_disaggregate_nl_expression_var()
@@ -220,6 +241,33 @@ function test_disaggregate_nl_expression_aff()
     @test arg2.head == :/
     @test 2x_z in arg2.args
     @test (1-ϵ)*zbin+ϵ in arg2.args
+end
+
+function test_disaggregate_nl_expression_aff_mip()
+    model = GDPModel()
+    @variable(model, 10 <= x <= 100)
+    @variable(model, y, Bin)
+    @variable(model, z, Logical)
+    DP._reformulate_logical_variables(model)
+    bvrefs = DP._indicator_to_binary(model)
+
+    vrefs = Set([x,y])
+    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.), y => (0., 1.))), vrefs)
+    DP._disaggregate_variables(model, z, vrefs, method)
+    
+    refexpr = DP._disaggregate_nl_expression(model, 2x + y + 1, bvrefs[z], method)
+    flatten!(refexpr)
+    x_z = variable_by_name(model, "x_z")
+    zbin = variable_by_name(model, "z")
+    ϵ = method.value
+    @test refexpr.head == :+
+    @test 1 in refexpr.args
+    args2 = setdiff(refexpr.args, [1])
+    for arg in args2
+        @test arg.head == :/
+        @test 2x_z in arg.args || 1y in arg.args
+        @test (1-ϵ)*zbin+ϵ in arg.args
+    end
 end
 
 function test_disaggregate_nl_expression_quad()
@@ -596,14 +644,16 @@ end
     test_query_variable_bounds_error2()
     test_disaggregate_variables()
     test_aggregate_variable()
-    test_disaggregate_expression_var_binary()
     test_disaggregate_expression_var()
+    test_disaggregate_expression_var_binary()
     test_disaggregate_expression_affine()
+    test_disaggregate_expression_affine_mip()
     test_disaggregate_expression_quadratic()
     test_disaggregate_nl_expression_c()
-    test_disaggregate_nl_expression_var_binary()
     test_disaggregate_nl_expression_var()
+    test_disaggregate_nl_expression_var_binary()
     test_disaggregate_nl_expression_aff()
+    test_disaggregate_nl_expression_aff_mip()
     test_disaggregate_nl_expression_quad()
     test_disaggregate_nl_expession()
     for s in (MOI.LessThan, MOI.GreaterThan, MOI.EqualTo)

@@ -105,13 +105,13 @@ function _disaggregate_nl_expression(model::Model, c::Number, ::VariableRef, met
 end
 # variable in NonlinearExpr
 function _disaggregate_nl_expression(model::Model, vref::VariableRef, bvref::VariableRef, method::_Hull)
+    ϵ = method.value
     if is_binary(vref) || !haskey(method.disjunct_variables, (vref, bvref)) #keep any binary variables or nested disaggregated variables unchanged 
-        return vref
+        dvref = vref
     else #replace with disaggregated form
-        ϵ = method.value
         dvref = method.disjunct_variables[vref, bvref]
-        return dvref / ((1-ϵ)*bvref+ϵ)
     end
+    return dvref / ((1-ϵ)*bvref+ϵ)
 end
 # affine expression in NonlinearExpr
 function _disaggregate_nl_expression(model::Model, aff::AffExpr, bvref::VariableRef, method::_Hull)
@@ -123,7 +123,7 @@ function _disaggregate_nl_expression(model::Model, aff::AffExpr, bvref::Variable
         else #replace other vars with disaggregated form
             dvref = method.disjunct_variables[vref, bvref]
         end
-         new_expr += coeff * dvref / ((1-ϵ)*bvref+ϵ)
+        new_expr += coeff * dvref / ((1-ϵ)*bvref+ϵ)
     end
     return new_expr
 end
