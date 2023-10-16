@@ -1,4 +1,4 @@
-# https://arxiv.org/pdf/2303.04375.pdf
+# Nested GDP: https://arxiv.org/pdf/2303.04375.pdf
 using DisjunctiveProgramming
 
 ##
