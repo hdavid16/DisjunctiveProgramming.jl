@@ -111,7 +111,7 @@ function _error_if_cannot_register(
     model, 
     name::Symbol
     )
-    if haskey(JuMP.object_dictionary(model), name)
+    if haskey(object_dictionary(model), name)
         _error("An object of name $name is already attached to this model. If ",
                "this is intended, consider using the anonymous construction ",
                "syntax, e.g., `x = @macro_name(model, ...)` where the name ",
@@ -248,7 +248,7 @@ macro disjunction(model, args...)
         _add_kwargs(creation_code, extra_kwargs)
     else
         # we have a container of parameters
-        idxvars, inds = JuMP.Containers.build_ref_sets(_error, c)
+        idxvars, inds = Containers.build_ref_sets(_error, c)
         if model in idxvars
             _error("Index $(model) is the same symbol as the model. Use a ",
                    "different name for the index.")
@@ -257,7 +257,7 @@ macro disjunction(model, args...)
         disjunction_call = :( _disjunction($_error, $esc_model, $x, $name_code) )
         _add_positional_args(disjunction_call, extra)
         _add_kwargs(disjunction_call, extra_kwargs)
-        creation_code = JuMP.Containers.container_code(idxvars, inds, disjunction_call,
+        creation_code = Containers.container_code(idxvars, inds, disjunction_call,
                                                        container_type)
     end
 

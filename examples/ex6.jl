@@ -1,6 +1,6 @@
 using DisjunctiveProgramming
 
-##
+## Multi-level Nested GDP
 m = GDPModel()
 @variable(m, -5 <= x[1:3] <= 5)
 
