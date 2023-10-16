@@ -1,3 +1,12 @@
+function test_macro_helpers()
+    @test DP._esc_non_constant(1) == 1
+    @test DP._get_name(:x) == :x
+    @test DP._get_name("x") == "x"
+    @test DP._get_name(Expr(:string,"x")) == Expr(:string,"x")
+    @test DP._name_call("",[]) == ""
+    @test DP._name_call("name",[]) == "name"
+end
+
 function test_disjunction_add_fail()
     model = GDPModel()
     @variable(model, x)
@@ -21,6 +30,7 @@ function test_disjunction_add_fail()
     @constraint(model, x == 10, DisjunctConstraint(y[2]))
     @disjunction(model, disj, y)
     @test_macro_throws UndefVarError @disjunction(model, disj, y) #duplicate name
+    @test_throws ErrorException DP._error_if_cannot_register(error, model, :disj) #duplicate name
 
     @test_macro_throws ErrorException @disjunction(model, "bad"[i=1:2], y) #wrong expression for disjunction name
     @test_macro_throws ErrorException @disjunction(model, [model=1:2], y) #index name can't be same as model name
@@ -209,6 +219,9 @@ function test_disjunction_function_nested()
 end
 
 @testset "Disjunction" begin
+    @testset "Macro Helpers" begin
+        test_macro_helpers()
+    end
     @testset "Add Disjunction" begin
         test_disjunction_add_fail()
         test_disjunction_add_success()

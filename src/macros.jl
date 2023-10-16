@@ -46,7 +46,7 @@ function _name_call(base_name, idxvars)
     return ex
 end
 
-# Process macro arugments 
+# Process macro arguments 
 function _extract_kwargs(args)
     arg_list = collect(args)
     if !isempty(args) && isexpr(args[1], :parameters)
@@ -87,15 +87,6 @@ function _add_positional_args(call, args)
     end
     append!(call.args, kw_args)
     return
-end
-
-# Determine if an expression contains any index variable symbols
-function _has_idxvars(expr, idxvars)
-    expr in idxvars && return true
-    if expr isa Expr
-        return any(_has_idxvars(a, idxvars) for a in expr.args)
-    end
-    return false
 end
 
 # Ensure a model argument is valid
