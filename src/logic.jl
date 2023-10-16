@@ -248,7 +248,7 @@ function _reformulate_proposition(model::Model, lexpr::_LogicalExpr)
         end
     elseif expr.head in (:||, :!) && all(_isa_literal.(expr.args))
         _add_reformulated_proposition(model, expr)
-    else
+    else #NOTE: should never enter the `else` section
         error("Expression $expr was not converted to proper Conjunctive Normal Form.")
     end
 end

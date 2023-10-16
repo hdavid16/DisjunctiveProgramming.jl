@@ -27,7 +27,7 @@ function _disaggregate_variable(model::Model, lvref::LogicalVariableRef, vref::V
     #get binary indicator variable
     bvref = _indicator_to_binary(model)[lvref]
     #temp storage
-    if !haskey(method.disjunction_variables, vref)
+    if !haskey(method.disjunction_variables, vref) #NOTE: not needed because _Hull disjunction_variables is initialized with all the variables in the disjunction
         method.disjunction_variables[vref] = Vector{VariableRef}()
     end
     push!(method.disjunction_variables[vref], dvref)
@@ -66,7 +66,7 @@ end
 # variable
 function _disaggregate_expression(model::Model, vref::VariableRef, bvref::VariableRef, method::_Hull)
     if is_binary(vref) || !haskey(method.disjunct_variables, (vref, bvref)) #keep any binary variables or nested disaggregated variables unchanged 
-        return vref
+        return vref #NOTE: not needed because nested constraint of the form `vref in MOI.AbstractScalarSet` gets reformulated to an affine expression.
     else #replace with disaggregated form
         return method.disjunct_variables[vref, bvref]
     end
@@ -105,17 +105,20 @@ function _disaggregate_nl_expression(model::Model, c::Number, ::VariableRef, met
 end
 # variable in NonlinearExpr
 function _disaggregate_nl_expression(model::Model, vref::VariableRef, bvref::VariableRef, method::_Hull)
-    ϵ = method.value
-    dvref = method.disjunct_variables[vref, bvref]
-    new_var = dvref / ((1-ϵ)*bvref+ϵ)
-    return new_var
+    if is_binary(vref) || !haskey(method.disjunct_variables, (vref, bvref)) #keep any binary variables or nested disaggregated variables unchanged 
+        return vref
+    else #replace with disaggregated form
+        ϵ = method.value
+        dvref = method.disjunct_variables[vref, bvref]
+        return dvref / ((1-ϵ)*bvref+ϵ)
+    end
 end
 # affine expression in NonlinearExpr
 function _disaggregate_nl_expression(model::Model, aff::AffExpr, bvref::VariableRef, method::_Hull)
     new_expr = aff.constant
     ϵ = method.value
     for (vref, coeff) in aff.terms
-        if is_binary(vref) #keep any binary variables undisaggregated
+        if is_binary(vref) || !haskey(method.disjunct_variables, (vref, bvref)) #keep any binary variables or nested disaggregated variables unchanged 
             dvref = vref
         else #replace other vars with disaggregated form
             dvref = method.disjunct_variables[vref, bvref]
@@ -125,6 +128,8 @@ function _disaggregate_nl_expression(model::Model, aff::AffExpr, bvref::Variable
     return new_expr
 end
 # quadratic expression in NonlinearExpr
+# TODO review what happens when there are bilinear terms with binary variables involved since these are not being disaggregated 
+#   (e.g., complementarity constraints; though likely irrelevant)...
 function _disaggregate_nl_expression(model::Model, quad::QuadExpr, bvref::VariableRef, method::_Hull)
     #get affine part
     new_expr = _disaggregate_nl_expression(model, quad.aff, bvref, method)
