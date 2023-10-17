@@ -176,20 +176,20 @@ end
 #                              DISJUNCT CONSTRAINTS
 ################################################################################
 """
-    DisjunctConstraint
+    Disjunct
 
 Used as a tag for constraints that will be used in disjunctions. This is done via 
 the following syntax:
 ```julia-repl
-julia> @constraint(model, [constr_expr], DisjunctConstraint)
+julia> @constraint(model, [constr_expr], Disjunct)
 
-julia> @constraint(model, [constr_expr], DisjunctConstraint(lvref))
+julia> @constraint(model, [constr_expr], Disjunct(lvref))
 ```
 where `lvref` is a [`LogicalVariableRef`](@ref) that will ultimately be associated 
 with the disjunct the constraint is added to. If no `lvref` is given, then one is 
 generated when the disjunction is created.
 """
-struct DisjunctConstraint
+struct Disjunct
     indicator::LogicalVariableRef
 end
 
@@ -202,7 +202,7 @@ end
 """
     DisjunctConstraintIndex
 
-A type for storing the index of a [`DisjunctConstraint`](@ref).
+A type for storing the index of a [`Disjunct`](@ref).
 
 **Fields**
 - `value::Int64`: The index value.

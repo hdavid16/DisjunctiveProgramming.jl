@@ -2,20 +2,20 @@ function test_disjunct_add_fail()
     model = GDPModel()
     @variable(model, x)
     @variable(GDPModel(), y, Logical)
-    @test_macro_throws UndefVarError @constraint(model, x == 1, DisjunctConstraint(y)) # logical variable from another model
+    @test_macro_throws UndefVarError @constraint(model, x == 1, Disjunct(y)) # logical variable from another model
     
     @variable(model, w, Logical)
     @variable(model, z, Bin)
-    @test_macro_throws UndefVarError @constraint(model, z == 1, DisjunctConstraint(w)) # binary variable
-    @test_throws ErrorException build_constraint(error, 1z, MOI.EqualTo(1), DisjunctConstraint(w)) # binary variable
+    @test_macro_throws UndefVarError @constraint(model, z == 1, Disjunct(w)) # binary variable
+    @test_throws ErrorException build_constraint(error, 1z, MOI.EqualTo(1), Disjunct(w)) # binary variable
 end
 
 function test_disjunct_add_success()
     model = GDPModel()
     @variable(model, x)
     @variable(model, y, Logical)
-    c1 = @constraint(model, x == 1, DisjunctConstraint(y))
-    @constraint(model, c2, x == 1, DisjunctConstraint(y))
+    c1 = @constraint(model, x == 1, Disjunct(y))
+    @constraint(model, c2, x == 1, Disjunct(y))
     @test owner_model(c1) == model
     @test is_valid(model, c1)
     @test index(c1) == DisjunctConstraintIndex(1)
@@ -36,7 +36,7 @@ function test_disjunct_add_array()
     model = GDPModel()
     @variable(model, x)
     @variable(model, y[1:2, 1:3], Logical)
-    @constraint(model, con[i=1:2, j=1:3], x == 1, DisjunctConstraint(y[i,j]))
+    @constraint(model, con[i=1:2, j=1:3], x == 1, Disjunct(y[i,j]))
     @test con isa Matrix{DisjunctConstraintRef}
     @test length(con) == 6
 end
@@ -47,7 +47,7 @@ function test_disjunct_add_dense_axis()
     I = ["a", "b", "c"]
     J = [1, 2]
     @variable(model, y[I, J], Logical)
-    @constraint(model, con[i=I, j=J], x == 1, DisjunctConstraint(y[i,j]))
+    @constraint(model, con[i=I, j=J], x == 1, Disjunct(y[i,j]))
     
     @test con isa Containers.DenseAxisArray
     @test con.axes[1] == ["a","b","c"]
@@ -59,7 +59,7 @@ function test_disjunct_add_sparse_axis()
     model = GDPModel()
     @variable(model, x)
     @variable(model, y[1:3, 1:3], Logical)
-    @constraint(model, con[i=1:3, j=1:3; j > i], x==i+j, DisjunctConstraint(y[i,j]))
+    @constraint(model, con[i=1:3, j=1:3; j > i], x==i+j, Disjunct(y[i,j]))
 
     @test con isa Containers.SparseAxisArray
     @test length(con) == 3
@@ -71,7 +71,7 @@ function test_disjunct_set_name()
     model = GDPModel()
     @variable(model, x)
     @variable(model, y, Logical)
-    c1 = @constraint(model, x == 1, DisjunctConstraint(y))
+    c1 = @constraint(model, x == 1, Disjunct(y))
     set_name(c1, "new name")
     @test name(c1) == "new name"
 end
@@ -80,7 +80,7 @@ function test_disjunct_delete()
     model = GDPModel()
     @variable(model, x)
     @variable(model, y, Logical)
-    @constraint(model, c1, x == 1, DisjunctConstraint(y))
+    @constraint(model, c1, x == 1, Disjunct(y))
 
     @test_throws AssertionError delete(GDPModel(), c1)
     delete(model, c1)
