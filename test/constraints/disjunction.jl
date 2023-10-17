@@ -2,6 +2,7 @@ function test_macro_helpers()
     @test DP._esc_non_constant(1) == 1
     @test DP._get_name(:x) == :x
     @test DP._get_name("x") == "x"
+    @test DP._get_name(nothing) == ()
     @test DP._get_name(Expr(:string,"x")) == Expr(:string,"x")
     @test DP._name_call("",[]) == ""
     @test DP._name_call("name",[]) == "name"
