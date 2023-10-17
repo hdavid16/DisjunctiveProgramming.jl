@@ -85,12 +85,12 @@ Two types of logical constraints are supported:
 
 ## Disjunctions
 
-Disjunctions are built by first defining the constraints associated with each disjunct. This is done via the `@constraint` JuMP macro with the extra `DisjunctConstraint` tag specifying the Logical variable associated with the constraint:
+Disjunctions are built by first defining the constraints associated with each disjunct. This is done via the `@constraint` JuMP macro with the extra `Disjunct` tag specifying the Logical variable associated with the constraint:
 
 ```julia
 @variable(model, x)
-@constraint(model, x ≤ 100, DisjunctConstraint(Y[1]))
-@constraint(model, x ≥ 200, DisjunctConstraint(Y[2]))
+@constraint(model, x ≤ 100, Disjunct(Y[1]))
+@constraint(model, x ≥ 200, Disjunct(Y[2]))
 ```
 
 After all disjunct constraints associated with a disjunction have been defined, the disjunction is created with the `@disjunction` macro, where the disjunction is defined as a `Vector` of Logical variables associated with each disjunct:
@@ -99,10 +99,10 @@ After all disjunct constraints associated with a disjunction have been defined, 
 @disjunction(model, [Y[1], Y[2]])
 ```
 
-Disjunctions can be nested by passing an additional `DisjunctConstraint` tag. The Logical variable in the `DisjunctConstraint` tag specifies which disjunct, the nested disjunction belongs to:
+Disjunctions can be nested by passing an additional `Disjunct` tag. The Logical variable in the `Disjunct` tag specifies which disjunct, the nested disjunction belongs to:
 
 ```julia
-@disjunction(model, Y[1:2], DisjunctConstraint(Y[3]))
+@disjunction(model, Y[1:2], Disjunct(Y[3]))
 ```
 
 Empty disjuncts are supported in GDP models. When used, the only constraints enforced on the model when the empty disjunct is selected are the global constraints and any other disjunction constraints defined.
@@ -139,8 +139,8 @@ using HiGHS
 m = GDPModel(HiGHS.Optimizer)
 @variable(m, 0 ≤ x[1:2] ≤ 20)
 @variable(m, Y[1:2], Logical)
-@constraint(m, [i = 1:2], [2,5][i] ≤ x[i] ≤ [6,9][i], DisjunctConstraint(Y[1]))
-@constraint(m, [i = 1:2], [8,10][i] ≤ x[i] ≤ [11,15][i], DisjunctConstraint(Y[2]))
+@constraint(m, [i = 1:2], [2,5][i] ≤ x[i] ≤ [6,9][i], Disjunct(Y[1]))
+@constraint(m, [i = 1:2], [8,10][i] ≤ x[i] ≤ [11,15][i], Disjunct(Y[2]))
 @disjunction(m, Y)
 @constraint(m, Y in Exactly(1)) #logical constraint
 @objective(m, Max, sum(x))

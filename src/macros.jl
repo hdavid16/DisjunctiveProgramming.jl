@@ -172,7 +172,7 @@ macro disjunction(model, args...)
         _error("Invalid syntax. Did you mean to use `@disjunctions`?")
     end
 
-    # TODO: three cases lead to problems when julia variables are used for DisjunctConstraint tags
+    # TODO: three cases lead to problems when julia variables are used for Disjunct tags
     # which violate the cases considered in the table further below. The three cases are
     # (i) @disjunction(m, Y[1, :], tag[1]) --> gets confused for @disjunction(m, name[...], Y[1, :]) (Case 2 below)
     # (ii) @disjunction(m, Y, tagref) --> gets confused for @disjunction(m, name, Y) (Case 1 below)
@@ -281,8 +281,8 @@ model = GDPModel();
 @variable(model, w);
 @variable(model, x);
 @variable(model, Y[1:4], LogicalVariable);
-@constraint(model, [i=1:2], w == i, DisjunctConstraint(Y[i]));
-@constraint(model, [i=3:4], x == i, DisjunctConstraint(Y[i]));
+@constraint(model, [i=1:2], w == i, Disjunct(Y[i]));
+@constraint(model, [i=3:4], x == i, Disjunct(Y[i]));
 @disjunctions(model, begin
     [Y[1], Y[2]]
     [Y[3], Y[4]]

@@ -163,20 +163,20 @@ end
         _error::Function, 
         func, 
         set::_MOI.AbstractScalarSet,
-        tag::DisjunctConstraint
+        tag::Disjunct
     )::_DisjunctConstraint
 
 Extend `JuMP.build_constraint` to add constraints to disjuncts. This in 
 combination with `JuMP.add_constraint` enables the use of 
 `@constraint(model, [name], constr_expr, tag)`, where tag is a
-`DisjunctConstraint(::Type{LogicalVariableRef})`. The user must specify the 
+`Disjunct(::Type{LogicalVariableRef})`. The user must specify the 
 `LogicalVariable` to use as the indicator for the `_DisjunctConstraint` being created.
 """
 function JuMP.build_constraint(
     _error::Function, 
     func, 
     set::_MOI.AbstractScalarSet, 
-    tag::DisjunctConstraint
+    tag::Disjunct
 )
     _check_expression(func)
     constr = build_constraint(_error, func, set)
@@ -194,7 +194,7 @@ for SetType in (
                 _error::Function, 
                 func, 
                 set::$($SetType),
-                tag::DisjunctConstraint
+                tag::Disjunct
             )::_DisjunctConstraint
 
         Extend `JuMP.build_constraint` to add `VectorConstraint`s to disjuncts.
@@ -203,7 +203,7 @@ for SetType in (
             _error::Function, 
             func, 
             set::$SetType, 
-            tag::DisjunctConstraint
+            tag::Disjunct
         )
             _check_expression(func)
             constr = build_constraint(_error, func, set)
@@ -218,7 +218,7 @@ function JuMP.build_constraint(
     func::AbstractJuMPScalar, 
     lb::Real, 
     ub::Real,
-    tag::DisjunctConstraint
+    tag::Disjunct
 )
     _check_expression(func)
     constr = build_constraint(_error, func, lb, ub)
@@ -234,7 +234,7 @@ end
         name::String = ""
     )::DisjunctConstraintRef
 
-Extend `JuMP.add_constraint` to add a [`DisjunctConstraint`](@ref) to a [`GDPModel`](@ref). 
+Extend `JuMP.add_constraint` to add a [`Disjunct`](@ref) to a [`GDPModel`](@ref). 
 The constraint is added to the `GDPData` in the `.ext` dictionary of the `GDPModel`.
 """
 function JuMP.add_constraint(
@@ -329,7 +329,7 @@ function _disjunction(
     model::Model, # TODO: generalize to AbstractModel
     structure,
     name::String,
-    tag::DisjunctConstraint
+    tag::Disjunct
 )
     dref = _create_disjunction(_error, model, structure, name, true)
     obj = constraint_object(dref)
@@ -362,7 +362,7 @@ Function to add a [`Disjunction`](@ref) to a [`GDPModel`](@ref).
     disjunction(
         model::Model, 
         disjunct_indicators::Vector{LogicalVariableRef},
-        nested_tag::DisjunctConstraint,
+        nested_tag::Disjunct,
         name::String = ""
     )
 
@@ -378,7 +378,7 @@ end
 function disjunction(
     model::Model, 
     disjunct_indicators, 
-    nested_tag::DisjunctConstraint,
+    nested_tag::Disjunct,
     name::String = ""
 ) # TODO add kw argument to build exactly 1 constraint
     return _disjunction(error, model, disjunct_indicators, name, nested_tag)
