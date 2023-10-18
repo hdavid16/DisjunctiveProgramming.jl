@@ -36,14 +36,8 @@ function _disaggregate_variable(model::Model, lvref::LogicalVariableRef, vref::V
     dvname = name(dvref)
     lbname = isempty(dvname) ? "" : "$(dvname)_lower_bound"
     ubname = isempty(dvname) ? "" : "$(dvname)_upper_bound"
-    new_con_lb_ref = add_constraint(model,
-        build_constraint(error, lb*bvref - dvref, _MOI.LessThan(0)),
-        lbname
-    )
-    new_con_ub_ref = add_constraint(model,
-        build_constraint(error, dvref - ub*bvref, _MOI.LessThan(0)),
-        ubname
-    )
+    new_con_lb_ref = @constraint(model, lb*bvref - dvref <= 0, base_name = lbname)
+    new_con_ub_ref = @constraint(model, dvref - ub*bvref <= 0, base_name = ubname)
     push!(_reformulation_constraints(model), new_con_lb_ref, new_con_ub_ref)
     return dvref
 end
