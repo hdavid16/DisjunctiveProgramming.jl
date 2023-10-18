@@ -222,18 +222,14 @@ function _reformulate_selector(model::Model, func, set::Union{_MOIAtLeast, _MOIA
     dict = _indicator_to_binary(model)
     bvrefs = [dict[lvref] for lvref in func[2:end]]
     new_set = _vec_to_scalar_set(set)(func[1].constant)
-    cref = add_constraint(model,
-        build_constraint(error, @expression(model, sum(bvrefs)), new_set)
-    )
+    cref = @constraint(model, sum(bvrefs) in new_set)
     push!(_reformulation_constraints(model), cref)
 end
 function _reformulate_selector(model::Model, func::Vector{LogicalVariableRef}, set::Union{_MOIAtLeast, _MOIAtMost, _MOIExactly})
     dict = _indicator_to_binary(model)
     bvref, bvrefs... = [dict[lvref] for lvref in func]
     new_set = _vec_to_scalar_set(set)(0)
-    cref = add_constraint(model,
-        build_constraint(error, @expression(model, sum(bvrefs) - bvref), new_set)
-    )
+    cref = @constraint(model, sum(bvrefs) - bvref in new_set)
     push!(_reformulation_constraints(model), cref)
 end
 
@@ -261,8 +257,7 @@ _isa_literal(v) = false
 function _add_reformulated_proposition(model::Model, arg::Union{LogicalVariableRef,_LogicalExpr})
     func = _reformulate_clause(model, arg)
     if !isempty(func.terms) && !all(iszero.(values(func.terms)))
-        con = build_constraint(error, func, _MOI.GreaterThan(1))
-        cref = add_constraint(model, con)
+        cref = @constraint(model, func >= 1)
         push!(_reformulation_constraints(model), cref)
     end
     return
