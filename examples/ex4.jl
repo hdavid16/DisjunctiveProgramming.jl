@@ -1,4 +1,3 @@
-using JuMP
 using DisjunctiveProgramming
 
 # Example with proposition reformulation
@@ -6,7 +5,7 @@ using DisjunctiveProgramming
 # ¬((Y[1] ∧ ¬Y[2]) ⇔ (Y[3] ∨ Y[4]))
 
 m = GDPModel()
-@variable(m, Y[1:4], LogicalVariable)
+@variable(m, Y[1:4], Logical)
 @constraint(m, ¬((Y[1] ∧ ¬Y[2]) ⇔ (Y[3] ∨ Y[4])) ∈ IsTrue())
 reformulate_model(m, BigM())
 print(m)

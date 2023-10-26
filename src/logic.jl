@@ -13,8 +13,8 @@ for (name, alt, head) in (
     )
     # make operators
     @eval begin 
-        const $name = JuMP.NonlinearOperator((vs...) -> _op_fallback($(Meta.quot(name))), $(Meta.quot(head)))
-        const $alt = JuMP.NonlinearOperator((vs...) -> _op_fallback($(Meta.quot(alt))), $(Meta.quot(head)))
+        const $name = NonlinearOperator((vs...) -> _op_fallback($(Meta.quot(name))), $(Meta.quot(head)))
+        const $alt = NonlinearOperator((vs...) -> _op_fallback($(Meta.quot(alt))), $(Meta.quot(head)))
     end
 end
 for (name, alt, head, func) in (
@@ -24,25 +24,9 @@ for (name, alt, head, func) in (
     )
     # make operators
     @eval begin 
-        const $name = JuMP.NonlinearOperator($func, $(Meta.quot(head)))
-        const $alt = JuMP.NonlinearOperator($func, $(Meta.quot(head)))
+        const $name = NonlinearOperator($func, $(Meta.quot(head)))
+        const $alt = NonlinearOperator($func, $(Meta.quot(head)))
     end
-end
-
-"""
-    to_cnf!(expr::Expr)
-
-Convert an expression of symbolic Boolean variables and operators to CNF.
-"""
-function to_cnf!(expr::Expr)
-    check_logical_proposition(expr) #check that valid boolean symbols and variables are used in the logical proposition
-    eliminate_equivalence!(expr) #eliminate ⇔
-    eliminate_implication!(expr) #eliminmate ⇒
-    move_negations_inwards!(expr) #expand ¬
-    clause_list = distribute_and_over_or_recursively!(expr) #distribute ∧ over ∨ recursively
-    @assert !isempty(clause_list) "Conversion to CNF failed."
-
-    return clause_list
 end
 
 ################################################################################
@@ -73,7 +57,7 @@ function _eliminate_equivalence(lexpr::_LogicalExpr)
         elseif length(lexpr.args) == 2
             B = _eliminate_equivalence(lexpr.args[2])
         else
-            error("The equivalence logic operator must have at least two arguments.")
+            error("The equivalence logic operator must have at least two clauses.")
         end
         new_lexpr = _LogicalExpr(:&&, Any[
             _LogicalExpr(:(=>), Any[A, B]),
@@ -117,7 +101,7 @@ end
 function _move_negations_inward(lexpr::_LogicalExpr)
     if lexpr.head == :!
         if length(lexpr.args) != 1
-            error("The negation operator can only have 1 clause.")
+            error("The negation operator can only have one clause.")
         end
         new_lexpr = _negate(lexpr.args[1])
     else
@@ -234,29 +218,25 @@ end
 #                              SELECTOR REFORMULATION
 ################################################################################
 # cardinality constraint reformulation
-function _reformulate_selector(model::JuMP.Model, func, set::Union{_MOIAtLeast, _MOIAtMost, _MOIExactly})
+function _reformulate_selector(model::Model, func, set::Union{_MOIAtLeast, _MOIAtMost, _MOIExactly})
     dict = _indicator_to_binary(model)
     bvrefs = [dict[lvref] for lvref in func[2:end]]
     new_set = _vec_to_scalar_set(set)(func[1].constant)
-    cref = JuMP.add_constraint(model,
-        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs)), new_set)
-    )
+    cref = @constraint(model, sum(bvrefs) in new_set)
     push!(_reformulation_constraints(model), cref)
 end
-function _reformulate_selector(model::JuMP.Model, func::Vector{LogicalVariableRef}, set::Union{_MOIAtLeast, _MOIAtMost, _MOIExactly})
+function _reformulate_selector(model::Model, func::Vector{LogicalVariableRef}, set::Union{_MOIAtLeast, _MOIAtMost, _MOIExactly})
     dict = _indicator_to_binary(model)
     bvref, bvrefs... = [dict[lvref] for lvref in func]
     new_set = _vec_to_scalar_set(set)(0)
-    cref = JuMP.add_constraint(model,
-        JuMP.build_constraint(error, JuMP.@expression(model, sum(bvrefs) - bvref), new_set)
-    )
+    cref = @constraint(model, sum(bvrefs) - bvref in new_set)
     push!(_reformulation_constraints(model), cref)
 end
 
 ################################################################################
 #                              PROPOSITION REFORMULATION
 ################################################################################
-function _reformulate_proposition(model::JuMP.Model, lexpr::_LogicalExpr)
+function _reformulate_proposition(model::Model, lexpr::_LogicalExpr)
     expr = _to_cnf(lexpr)
     if expr.head == :&&
         for arg in expr.args
@@ -264,7 +244,7 @@ function _reformulate_proposition(model::JuMP.Model, lexpr::_LogicalExpr)
         end
     elseif expr.head in (:||, :!) && all(_isa_literal.(expr.args))
         _add_reformulated_proposition(model, expr)
-    else
+    else #NOTE: should never enter the `else` section
         error("Expression $expr was not converted to proper Conjunctive Normal Form.")
     end
 end
@@ -274,31 +254,30 @@ _isa_literal(v::LogicalVariableRef) = true
 _isa_literal(v::_LogicalExpr) = (v.head == :!) && (length(v.args) == 1) && _isa_literal(v.args[1])
 _isa_literal(v) = false
 
-function _add_reformulated_proposition(model::JuMP.Model, arg::Union{LogicalVariableRef,_LogicalExpr})
+function _add_reformulated_proposition(model::Model, arg::Union{LogicalVariableRef,_LogicalExpr})
     func = _reformulate_clause(model, arg)
     if !isempty(func.terms) && !all(iszero.(values(func.terms)))
-        con = JuMP.build_constraint(error, func, _MOI.GreaterThan(1))
-        cref = JuMP.add_constraint(model, con)
+        cref = @constraint(model, func >= 1)
         push!(_reformulation_constraints(model), cref)
     end
     return
 end
 
-function _reformulate_clause(model::JuMP.Model, lvref::LogicalVariableRef)
+function _reformulate_clause(model::Model, lvref::LogicalVariableRef)
     func = 1 * _indicator_to_binary(model)[lvref]
     return func
 end
 
-function _reformulate_clause(model::JuMP.Model, lexpr::_LogicalExpr)
-    func = zero(JuMP.AffExpr) #initialize func expression
+function _reformulate_clause(model::Model, lexpr::_LogicalExpr)
+    func = zero(AffExpr) #initialize func expression
     if _isa_literal(lexpr)
-        JuMP.add_to_expression!(func, 1 - _reformulate_clause(model, lexpr.args[1]))
+        add_to_expression!(func, 1 - _reformulate_clause(model, lexpr.args[1]))
     elseif lexpr.head == :||
         for literal in lexpr.args
             if literal isa LogicalVariableRef
-                JuMP.add_to_expression!(func, _reformulate_clause(model, literal))
+                add_to_expression!(func, _reformulate_clause(model, literal))
             elseif _isa_literal(literal)
-                JuMP.add_to_expression!(func, 1 - _reformulate_clause(model, literal.args[1]))
+                add_to_expression!(func, 1 - _reformulate_clause(model, literal.args[1]))
             else
                 error("Expression was not converted to proper Conjunctive Normal Form:\n$literal is not a literal.")
             end

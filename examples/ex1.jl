@@ -1,4 +1,3 @@
-using JuMP
 using DisjunctiveProgramming
 using HiGHS
 
@@ -7,10 +6,10 @@ using HiGHS
 # Disjunction Method 1: Assign Logical Variables Explicitly
 m = GDPModel()
 @variable(m, -5 ≤ x ≤ 10)
-@variable(m, Y[1:2], LogicalVariable)
-@constraint(m, 0 ≤ x ≤ 3, DisjunctConstraint(Y[1]))
-@constraint(m, 5 ≤ x, DisjunctConstraint(Y[2]))
-@constraint(m, x ≤ 9, DisjunctConstraint(Y[2]))
+@variable(m, Y[1:2], Logical)
+@constraint(m, 0 ≤ x ≤ 3, Disjunct(Y[1]))
+@constraint(m, 5 ≤ x, Disjunct(Y[2]))
+@constraint(m, x ≤ 9, Disjunct(Y[2]))
 @disjunction(m, [Y[1], Y[2]])
 @constraint(m, Y in Exactly(1)) 
 @objective(m, Max, x)

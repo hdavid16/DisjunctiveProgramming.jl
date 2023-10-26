@@ -3,6 +3,10 @@ Generalized Disjunctive Programming (GDP) extension to JuMP, based on the GDP mo
 
 ![](logo.png)
 
+[![codecov](https://codecov.io/gh/hdavid16/DisjunctiveProgramming.jl/graph/badge.svg?token=3FRPGMWF0J)](https://codecov.io/gh/hdavid16/DisjunctiveProgramming.jl)
+[![Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://hdavid16.github.io/DisjunctiveProgramming.jl/stable/)
+[![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://hdavid16.github.io/DisjunctiveProgramming.jl/dev/)
+
 ## Installation
 
 ```julia
@@ -45,10 +49,10 @@ data = gdp_data(model)
 
 ## Logical Variables
 
-Logical variables are JuMP `AbstractVariable`s with two fields: `fix_value` and `start_value`. These can be optionally specified at variable creation. Logical variables are created with the `@variable` JuMP macro by adding the tag `LogicalVariable` as the last keyword argument. As with the regular `@variable` macro, variables can be named and indexed: 
+Logical variables are JuMP `AbstractVariable`s with two fields: `fix_value` and `start_value`. These can be optionally specified at variable creation. Logical variables are created with the `@variable` JuMP macro by adding the tag `Logical` as the last keyword argument. As with the regular `@variable` macro, variables can be named and indexed: 
 
 ```julia
-@variable(model, Y[1:3], LogicalVariable)
+@variable(model, Y[1:3], Logical)
 ```
 
 ## Logical Constraints
@@ -81,12 +85,12 @@ Two types of logical constraints are supported:
 
 ## Disjunctions
 
-Disjunctions are built by first defining the constraints associated with each disjunct. This is done via the `@constraint` JuMP macro with the extra `DisjunctConstraint` tag specifying the Logical variable associated with the constraint:
+Disjunctions are built by first defining the constraints associated with each disjunct. This is done via the `@constraint` JuMP macro with the extra `Disjunct` tag specifying the Logical variable associated with the constraint:
 
 ```julia
 @variable(model, x)
-@constraint(model, x ≤ 100, DisjunctConstraint(Y[1]))
-@constraint(model, x ≥ 200, DisjunctConstraint(Y[2]))
+@constraint(model, x ≤ 100, Disjunct(Y[1]))
+@constraint(model, x ≥ 200, Disjunct(Y[2]))
 ```
 
 After all disjunct constraints associated with a disjunction have been defined, the disjunction is created with the `@disjunction` macro, where the disjunction is defined as a `Vector` of Logical variables associated with each disjunct:
@@ -95,10 +99,10 @@ After all disjunct constraints associated with a disjunction have been defined, 
 @disjunction(model, [Y[1], Y[2]])
 ```
 
-Disjunctions can be nested by passing an additional `DisjunctConstraint` tag. The Logical variable in the `DisjunctConstraint` tag specifies which disjunct, the nested disjunction belongs to:
+Disjunctions can be nested by passing an additional `Disjunct` tag. The Logical variable in the `Disjunct` tag specifies which disjunct, the nested disjunction belongs to:
 
 ```julia
-@disjunction(model, Y[1:2], DisjunctConstraint(Y[3]))
+@disjunction(model, Y[1:2], Disjunct(Y[3]))
 ```
 
 Empty disjuncts are supported in GDP models. When used, the only constraints enforced on the model when the empty disjunct is selected are the global constraints and any other disjunction constraints defined.
@@ -129,21 +133,29 @@ Prior to `v0.4.0`, the package did not leverage the JuMP extension capabilities 
 The example below is from the [Cornell University Computational Optimization Open Textbook](https://optimization.cbe.cornell.edu/index.php?title=Disjunctive_inequalities#Big-M_Reformulation[1][2]).
 
 ```julia
-using JuMP
 using DisjunctiveProgramming
+using HiGHS
 
-m = GDPModel()
+m = GDPModel(HiGHS.Optimizer)
 @variable(m, 0 ≤ x[1:2] ≤ 20)
-@variable(m, Y[1:2], LogicalVariable)
-@constraint(m, [i = 1:2], [2,5][i] ≤ x[i] ≤ [6,9][i], DisjunctConstraint(Y[1]))
-@constraint(m, [i = 1:2], [8,10][i] ≤ x[i] ≤ [11,15][i], DisjunctConstraint(Y[2]))
+@variable(m, Y[1:2], Logical)
+@constraint(m, [i = 1:2], [2,5][i] ≤ x[i] ≤ [6,9][i], Disjunct(Y[1]))
+@constraint(m, [i = 1:2], [8,10][i] ≤ x[i] ≤ [11,15][i], Disjunct(Y[2]))
 @disjunction(m, Y)
 @constraint(m, Y in Exactly(1)) #logical constraint
-
-## Big-M
-reformulate_model(m, BigM(100, false)) #specify M value and disable M-tightening
+@objective(m, Max, sum(x))
 print(m)
-# Feasibility
+# Max x[1] + x[2]
+# Subject to
+#  x[1] ≥ 0
+#  x[2] ≥ 0
+#  x[1] ≤ 20
+#  x[2] ≤ 20
+
+##
+optimize!(m, method = BigM(100, false)) #specify M value and disable M-tightening
+print(m)
+# Max x[1] + x[2]
 # Subject to
 #  Y[1] + Y[2] = 1
 #  x[1] - 100 Y[1] ≥ -98
@@ -161,10 +173,10 @@ print(m)
 #  Y[1] binary
 #  Y[2] binary
 
-## Hull
-reformulate_model(m, Hull())
+##
+optimize!(m, method = Hull())
 print(m)
-# Feasibility
+# Max x[1] + x[2]
 # Subject to
 #  -x[2] + x[2]_Y[1] + x[2]_Y[2] = 0
 #  -x[1] + x[1]_Y[1] + x[1]_Y[2] = 0
@@ -199,21 +211,8 @@ print(m)
 #  x[1]_Y[2] ≤ 20
 #  Y[1] binary
 #  Y[2] binary
-
-## Indicator
-reformulate_model(m, Indicator())
-print(m)
-# Feasibility
-# Subject to
-#  Y[1] + Y[2] = 1
-#  x[1] ≥ 0
-#  x[2] ≥ 0
-#  x[1] ≤ 20
-#  x[2] ≤ 20
-#  Y[1] binary
-#  Y[2] binary
-#  Y[1] => {x[1] ∈ [2, 6]}
-#  Y[1] => {x[2] ∈ [5, 9]}
-#  Y[2] => {x[1] ∈ [8, 11]}
-#  Y[2] => {x[2] ∈ [10, 15]}
 ```
+
+## Contributing
+`DisjunctiveProgramming` is being actively developed and suggestions or other forms of contribution are encouraged.
+There are many ways to contribute to this package. Feel free to create an issue to address questions or provide feedback.

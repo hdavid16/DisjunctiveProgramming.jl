@@ -1,6 +1,6 @@
 function test_selector_add_fail()
     m = GDPModel()
-    @variable(m, y[1:3], LogicalVariable)
+    @variable(m, y[1:3], Logical)
     @test_throws ErrorException @constraint(Model(), y in AtMost(2))
     @test_throws ErrorException @constraint(m, logical_or(y...) in Exactly(1))
     @test_throws ErrorException @constraint(m, sin.(y) in Exactly(1))
@@ -11,7 +11,7 @@ end
 
 function test_selector_add_success()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     c1 = @constraint(model, y in Exactly(1))
     @constraint(model, c2, y in Exactly(1))
     @test owner_model(c1) == model
@@ -34,7 +34,7 @@ end
 
 function test_nested_selector_add_success()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     c1 = @constraint(model, y[1:2] in Exactly(y[3]))
     @test is_valid(model, c1)
     @test length(constraint_object(c1).func) == 3
@@ -45,7 +45,7 @@ end
 
 function test_selector_add_array()
     model = GDPModel()
-    @variable(model, y[1:2, 1:3, 1:4], LogicalVariable)
+    @variable(model, y[1:2, 1:3, 1:4], Logical)
     @constraint(model, con[i=1:2, j=1:3], y[i,j,:] in Exactly(1))
     @test con isa Matrix{LogicalConstraintRef}
     @test length(con) == 6
@@ -55,7 +55,7 @@ function test_selector_add_dense_axis()
     model = GDPModel()
     I = ["a", "b", "c"]
     J = [1, 2]
-    @variable(model, y[I, J, 1:4], LogicalVariable)
+    @variable(model, y[I, J, 1:4], Logical)
     @constraint(model, con[i=I, j=J], y[i,j,:] in Exactly(1))
     @test con isa Containers.DenseAxisArray
     @test con.axes[1] == ["a","b","c"]
@@ -65,7 +65,7 @@ end
 
 function test_selector_add_sparse_axis()
     model = GDPModel()
-    @variable(model, y[1:3, 1:3, 1:4], LogicalVariable)
+    @variable(model, y[1:3, 1:3, 1:4], Logical)
     @constraint(model, con[i=1:3, j=1:3; j > i], y[i,j,:] in Exactly(1))
     @test con isa Containers.SparseAxisArray
     @test length(con) == 3
@@ -75,7 +75,7 @@ end
 
 function test_selector_set_name()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     c1 = @constraint(model, y in Exactly(1))
     set_name(c1, "selector")
     @test name(c1) == "selector"
@@ -83,7 +83,7 @@ end
 
 function test_selector_delete()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     c1 = @constraint(model, y in Exactly(1))
 
     @test_throws AssertionError delete(GDPModel(), c1)
@@ -95,7 +95,7 @@ end
 
 function test_exactly_reformulation()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     @constraint(model, y in Exactly(1))
     reformulate_model(model, DummyReformulation())
     ref_con = DP._reformulation_constraints(model)[1]
@@ -107,7 +107,7 @@ end
 
 function test_atleast_reformulation()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     @constraint(model, y in AtLeast(1))
     reformulate_model(model, DummyReformulation())
     ref_con = DP._reformulation_constraints(model)[1]
@@ -119,7 +119,7 @@ end
 
 function test_atmost_reformulation()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     @constraint(model, y in AtMost(1))
     reformulate_model(model, DummyReformulation())
     ref_con = DP._reformulation_constraints(model)[1]
@@ -131,7 +131,7 @@ end
 
 function test_nested_exactly_reformulation()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     @constraint(model, y[1:2] in Exactly(y[3]))
     reformulate_model(model, DummyReformulation())
     ref_con = DP._reformulation_constraints(model)[1]
@@ -146,7 +146,7 @@ end
 
 function test_nested_atleast_reformulation()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     @constraint(model, y[1:2] in AtLeast(y[3]))
     reformulate_model(model, DummyReformulation())
     ref_con = DP._reformulation_constraints(model)[1]
@@ -161,7 +161,7 @@ end
 
 function test_nested_atmost_reformulation()
     model = GDPModel()
-    @variable(model, y[1:3], LogicalVariable)
+    @variable(model, y[1:3], Logical)
     @constraint(model, y[1:2] in AtMost(y[3]))
     reformulate_model(model, DummyReformulation())
     ref_con = DP._reformulation_constraints(model)[1]

@@ -1,19 +1,17 @@
-# https://arxiv.org/pdf/2303.04375.pdf
-
-using JuMP
+# Nested GDP: https://arxiv.org/pdf/2303.04375.pdf
 using DisjunctiveProgramming
 
 ##
 m = GDPModel()
 @variable(m, 1 ≤ x[1:2] ≤ 9)
-@variable(m, Y[1:2], LogicalVariable)
-@variable(m, W[1:2], LogicalVariable)
+@variable(m, Y[1:2], Logical)
+@variable(m, W[1:2], Logical)
 @objective(m, Max, sum(x))
-@constraint(m, y1[i=1:2], [1,4][i] ≤ x[i] ≤ [3,6][i], DisjunctConstraint(Y[1]))
-@constraint(m, w1[i=1:2], [1,5][i] ≤ x[i] ≤ [2,6][i], DisjunctConstraint(W[1]))
-@constraint(m, w2[i=1:2], [2,4][i] ≤ x[i] ≤ [3,5][i], DisjunctConstraint(W[2]))
-@constraint(m, y2[i=1:2], [8,1][i] ≤ x[i] ≤ [9,2][i], DisjunctConstraint(Y[2]))
-@disjunction(m, inner, [W[1], W[2]], DisjunctConstraint(Y[1]))
+@constraint(m, y1[i=1:2], [1,4][i] ≤ x[i] ≤ [3,6][i], Disjunct(Y[1]))
+@constraint(m, w1[i=1:2], [1,5][i] ≤ x[i] ≤ [2,6][i], Disjunct(W[1]))
+@constraint(m, w2[i=1:2], [2,4][i] ≤ x[i] ≤ [3,5][i], Disjunct(W[2]))
+@constraint(m, y2[i=1:2], [8,1][i] ≤ x[i] ≤ [9,2][i], Disjunct(Y[2]))
+@disjunction(m, inner, [W[1], W[2]], Disjunct(Y[1]))
 @disjunction(m, outer, [Y[1], Y[2]])
 @constraint(m, Y in Exactly(1))
 @constraint(m, W in Exactly(Y[1]))

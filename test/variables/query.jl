@@ -18,7 +18,7 @@ function test_interrogate_variables()
     f = Base.Fix1(push!, vars) #interrogator
     m = GDPModel()
     @variable(m, x)
-    @variable(m, y, LogicalVariable)
+    @variable(m, y, Logical)
     DP._interrogate_variables(f, [x, y])
     @test x in vars
     @test y in vars
@@ -30,7 +30,7 @@ function test_interrogate_affexpr()
     f = Base.Fix1(push!, vars) #interrogator
     m = GDPModel()
     @variable(m, x)
-    @variable(m, y, LogicalVariable)
+    @variable(m, y, Logical)
     @variable(m, z)
     DP._interrogate_variables(f, x + y + z)
     @test x in vars
@@ -44,7 +44,7 @@ function test_interrogate_quadexpr()
     f = Base.Fix1(push!, vars) #interrogator
     m = GDPModel()
     @variable(m, x)
-    @variable(m, y, LogicalVariable)
+    @variable(m, y, Logical)
     @variable(m, z)
     DP._interrogate_variables(f, x^2 + x*y + z + 1)
     @test x in vars
@@ -59,7 +59,7 @@ function test_interrogate_nonlinear_expr()
     f = Base.Fix1(push!, vars) #interrogator
     m = GDPModel()
     @variable(m, x)
-    @variable(m, y, LogicalVariable)
+    @variable(m, y, Logical)
     @variable(m, z)
     DP._interrogate_variables(f, sin(exp(x^2 + 1)) + cos(x) + y + 2)
     @test x in vars
@@ -72,8 +72,8 @@ function test_interrogate_logical_expr()
     vars = Set()
     f = Base.Fix1(push!, vars) #interrogator
     m = GDPModel()
-    @variable(m, y, LogicalVariable)
-    @variable(m, w[1:5], LogicalVariable)
+    @variable(m, y, Logical)
+    @variable(m, w[1:5], Logical)
     ex = (implies(w[1], w[2]) ∧ w[3]) ⇔ (¬w[4] ∨ y)
     DP._interrogate_variables(f, ex)
     @test w[1] in vars
@@ -87,8 +87,8 @@ end
 
 function test_interrogate_proposition_constraint()
     m = GDPModel()
-    @variable(m, y, LogicalVariable)
-    @variable(m, w[1:5], LogicalVariable)
+    @variable(m, y, Logical)
+    @variable(m, w[1:5], Logical)
     ex = (implies(w[1], w[2]) ∧ w[3]) ⇔ (¬w[4] ∨ y)
     @constraint(m, con, ex in IsTrue())
     obj = constraint_object(con)
@@ -104,8 +104,8 @@ end
 
 function test_interrogate_selector_constraint()
     m = GDPModel()
-    @variable(m, y, LogicalVariable)
-    @variable(m, w[1:5], LogicalVariable)
+    @variable(m, y, Logical)
+    @variable(m, w[1:5], Logical)
     @constraint(m, con, w[1:4] in AtMost(y))
     obj = constraint_object(con)
     vars = DP._get_constraint_variables(m, obj)
@@ -121,9 +121,9 @@ end
 function test_interrogate_disjunction()
     m = GDPModel()
     @variable(m, -5 ≤ x[1:2] ≤ 10)
-    @variable(m, Y[1:2], LogicalVariable)
-    @constraint(m, [i = 1:2], 0 ≤ x[i] ≤ [3,4][i], DisjunctConstraint(Y[1]))
-    @constraint(m, [i = 1:2], [5,4][i] ≤ x[i] ≤ [9,6][i], DisjunctConstraint(Y[2]))
+    @variable(m, Y[1:2], Logical)
+    @constraint(m, [i = 1:2], 0 ≤ x[i] ≤ [3,4][i], Disjunct(Y[1]))
+    @constraint(m, [i = 1:2], [5,4][i] ≤ x[i] ≤ [9,6][i], Disjunct(Y[2]))
     @disjunction(m, Y)
     disj = DP._disjunctions(m)[DisjunctionIndex(1)].constraint
     vars = DP._get_disjunction_variables(m, disj)
@@ -134,20 +134,20 @@ function test_interrogate_nested_disjunction()
     m = GDPModel()
     @variable(m, -5 <= x[1:3] <= 5)
 
-    @variable(m, y[1:2], LogicalVariable)
-    @constraint(m, x[1] <= -2, DisjunctConstraint(y[1]))
-    @constraint(m, x[1] >= 2, DisjunctConstraint(y[2]))
+    @variable(m, y[1:2], Logical)
+    @constraint(m, x[1] <= -2, Disjunct(y[1]))
+    @constraint(m, x[1] >= 2, Disjunct(y[2]))
     @disjunction(m, y)
 
-    @variable(m, w[1:2], LogicalVariable)
-    @constraint(m, x[2] <= -3, DisjunctConstraint(w[1]))
-    @constraint(m, x[2] >= 3, DisjunctConstraint(w[2]))
-    @disjunction(m, w, DisjunctConstraint(y[1]))
+    @variable(m, w[1:2], Logical)
+    @constraint(m, x[2] <= -3, Disjunct(w[1]))
+    @constraint(m, x[2] >= 3, Disjunct(w[2]))
+    @disjunction(m, w, Disjunct(y[1]))
 
-    @variable(m, z[1:2], LogicalVariable)
-    @constraint(m, x[3] <= -4, DisjunctConstraint(z[1]))
-    @constraint(m, x[3] >= 4, DisjunctConstraint(z[2]))
-    @disjunction(m, z, DisjunctConstraint(w[1]))
+    @variable(m, z[1:2], Logical)
+    @constraint(m, x[3] <= -4, Disjunct(z[1]))
+    @constraint(m, x[3] >= 4, Disjunct(z[2]))
+    @disjunction(m, z, Disjunct(w[1]))
 
     disj = DP._disjunctions(m)[DisjunctionIndex(1)].constraint
     vars = DP._get_disjunction_variables(m, disj)

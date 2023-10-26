@@ -46,7 +46,7 @@ function _name_call(base_name, idxvars)
     return ex
 end
 
-# Process macro arugments 
+# Process macro arguments 
 function _extract_kwargs(args)
     arg_list = collect(args)
     if !isempty(args) && isexpr(args[1], :parameters)
@@ -89,15 +89,6 @@ function _add_positional_args(call, args)
     return
 end
 
-# Determine if an expression contains any index variable symbols
-function _has_idxvars(expr, idxvars)
-    expr in idxvars && return true
-    if expr isa Expr
-        return any(_has_idxvars(a, idxvars) for a in expr.args)
-    end
-    return false
-end
-
 # Ensure a model argument is valid
 # Inspired from https://github.com/jump-dev/JuMP.jl/blob/d9cd5fb16c2d0a7e1c06aa9941923492fc9a28b5/src/macros.jl#L38-L44
 function _valid_model(_error::Function, model, name)
@@ -111,7 +102,7 @@ function _error_if_cannot_register(
     model, 
     name::Symbol
     )
-    if haskey(JuMP.object_dictionary(model), name)
+    if haskey(object_dictionary(model), name)
         _error("An object of name $name is already attached to this model. If ",
                "this is intended, consider using the anonymous construction ",
                "syntax, e.g., `x = @macro_name(model, ...)` where the name ",
@@ -181,7 +172,7 @@ macro disjunction(model, args...)
         _error("Invalid syntax. Did you mean to use `@disjunctions`?")
     end
 
-    # TODO: three cases lead to problems when julia variables are used for DisjunctConstraint tags
+    # TODO: three cases lead to problems when julia variables are used for Disjunct tags
     # which violate the cases considered in the table further below. The three cases are
     # (i) @disjunction(m, Y[1, :], tag[1]) --> gets confused for @disjunction(m, name[...], Y[1, :]) (Case 2 below)
     # (ii) @disjunction(m, Y, tagref) --> gets confused for @disjunction(m, name, Y) (Case 1 below)
@@ -248,7 +239,7 @@ macro disjunction(model, args...)
         _add_kwargs(creation_code, extra_kwargs)
     else
         # we have a container of parameters
-        idxvars, inds = JuMP.Containers.build_ref_sets(_error, c)
+        idxvars, inds = Containers.build_ref_sets(_error, c)
         if model in idxvars
             _error("Index $(model) is the same symbol as the model. Use a ",
                    "different name for the index.")
@@ -257,7 +248,7 @@ macro disjunction(model, args...)
         disjunction_call = :( _disjunction($_error, $esc_model, $x, $name_code) )
         _add_positional_args(disjunction_call, extra)
         _add_kwargs(disjunction_call, extra_kwargs)
-        creation_code = JuMP.Containers.container_code(idxvars, inds, disjunction_call,
+        creation_code = Containers.container_code(idxvars, inds, disjunction_call,
                                                        container_type)
     end
 
@@ -285,23 +276,17 @@ The macro returns a tuple containing the disjunctions that were defined.
 
 ## Example
 
-```jldoctest
-julia> model = GDPModel();
-
-julia> @variable(model, w);
-
-julia> @variable(model, x);
-
-julia> @variable(model, Y[1:4], LogicalVariable);
-
-julia> @constraint(model, [i=1:2], w == i, DisjunctConstraint(Y[i]));
-
-julia> @constraint(model, [i=3:4], x == i, DisjunctConstraint(Y[i]));
-
-julia> @disjunctions(model, begin
-           [Y[1], Y[2]]
-           [Y[3], Y[4]]
-       end);
+```julia
+model = GDPModel();
+@variable(model, w);
+@variable(model, x);
+@variable(model, Y[1:4], LogicalVariable);
+@constraint(model, [i=1:2], w == i, Disjunct(Y[i]));
+@constraint(model, [i=3:4], x == i, Disjunct(Y[i]));
+@disjunctions(model, begin
+    [Y[1], Y[2]]
+    [Y[3], Y[4]]
+end);
 ````
 """
 macro disjunctions(m, x)

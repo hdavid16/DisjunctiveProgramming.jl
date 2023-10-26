@@ -1,0 +1,182 @@
+\begin{thebibliography}{10}
+
+\bibitem{agarwal2015novel}
+Anshul Agarwal.
+A novel minlp reformulation for nonlinear generalized disjunctive programming
+  (gdp) problems.
+{\em arXiv preprint arXiv:1510.01791}, 2015.
+\href{http://dx.doi.org/10.48550/arXiv.1510.01791}{doi:10.48550/arXiv.1510.01791}.
+
+\bibitem{agarwal2010automating}
+Ashish Agarwal, Sooraj Bhat, Alexander Gray, and Ignacio~E Grossmann.
+Automating mathematical program transformations.
+In {\em International Symposium on Practical Aspects of Declarative Languages},
+  pages 134--148. Springer, 2010.
+\href{http://dx.doi.org/10.1007/978-3-642-11503-5\_12}{doi:10.1007/978-3-642-11503-5\_12}.
+
+\bibitem{balas_2018}
+Egon Balas.
+{\em Disjunctive programming}.
+Springer, 2018.
+\href{http://dx.doi.org/10.1007/978-3-030-00148-3}{doi:10.1007/978-3-030-00148-3}.
+
+\bibitem{Bussieck2004}
+Michael~R. Bussieck and Alex Meeraus.
+{\em General Algebraic Modeling System (GAMS)}, pages 137--157.
+Springer US, Boston, MA, 2004.
+\href{http://dx.doi.org/10.1007/978-1-4613-0215-5\_8}{doi:10.1007/978-1-4613-0215-5\_8}.
+
+\bibitem{bynum2021pyomo}
+Michael~L. Bynum, Gabriel~A. Hackebeil, William~E. Hart, Carl~D. Laird,
+  Bethany~L. Nicholson, John~D. Siirola, Jean-Paul Watson, and David~L.
+  Woodruff.
+{\em Pyomo--optimization modeling in python}, volume~67.
+Springer Science \& Business Media, third edition, 2021.
+\href{http://dx.doi.org/10.1007/978-3-030-68928-5}{doi:10.1007/978-3-030-68928-5}.
+
+\bibitem{chen_grossmann_2019}
+Qi~Chen and Ignacio Grossmann.
+Modern modeling paradigms using generalized disjunctive programming.
+{\em Processes}, 7(11), 2019.
+\href{http://dx.doi.org/10.3390/pr7110839}{doi:10.3390/pr7110839}.
+
+\bibitem{chen2022pyomo}
+Qi~Chen, Emma~S Johnson, David~E Bernal, Romeo Valentin, Sunjeev Kale, Johnny
+  Bates, John~D Siirola, and Ignacio~E Grossmann.
+Pyomo. gdp: an ecosystem for logic based modeling and optimization development.
+{\em Optimization and Engineering}, 23(1):607--642, 2022.
+\href{http://dx.doi.org/10.1007/978-3-030-00148-3}{doi:10.1007/978-3-030-00148-3}.
+
+\bibitem{CHEN2022107616}
+Ying Chen, Yixin Ye, Zhihong Yuan, Ignacio~E. Grossmann, and Bingzhen Chen.
+Integrating stochastic programming and reliability in the optimal synthesis of
+  chemical processes.
+{\em Computers \& Chemical Engineering}, 157:107616, 2022.
+\href{http://dx.doi.org/10.1016/j.compchemeng.2021.107616}{doi:10.1016/j.compchemeng.2021.107616}.
+
+\bibitem{CHO2022841}
+Seolhee Cho and Ignacio~E. Grossmann.
+An optimization model for expansion planning of reliable power generation
+  systems.
+In Ludovic Montastruc and Stephane Negny, editors, {\em 32nd European Symposium
+  on Computer Aided Process Engineering}, volume~51 of {\em Computer Aided
+  Chemical Engineering}, pages 841--846. Elsevier, 2022.
+\href{http://dx.doi.org/10.1016/B978-0-323-95879-0.50141-7}{doi:10.1016/B978-0-323-95879-0.50141-7}.
+
+\bibitem{dunning_huchette_lubin_2017}
+Iain Dunning, Joey Huchette, and Miles Lubin.
+Jump: A modeling language for mathematical optimization.
+{\em SIAM Review}, 59(2):295–320, 2017.
+\href{http://dx.doi.org/10.1137/15M1020575}{doi:10.1137/15M1020575}.
+
+\bibitem{E.Grossmann2009}
+Ignacio E.~Grossmann.
+{\em Logic-based outer approximation}, pages 1928--1931.
+Springer US, Boston, MA, 2009.
+\href{http://dx.doi.org/10.1007/978-0-387-74759-0\_348}{doi:10.1007/978-0-387-74759-0\_348}.
+
+\bibitem{furman_sawaya_grossmann_2020}
+Kevin~C. Furman, Nicolas~W. Sawaya, and Ignacio~E. Grossmann.
+A computationally useful algebraic representation of nonlinear disjunctive
+  convex sets using the perspective function.
+{\em Computational Optimization and Applications}, 76(2):589–614, 2020.
+\href{http://dx.doi.org/10.1007/s10589-020-00176-0}{doi:10.1007/s10589-020-00176-0}.
+
+\bibitem{10.1145/3511528.3511535}
+Shashi Gowda, Yingbo Ma, Alessandro Cheli, Maja Gw\'{o}\'{z}zd\'{z}, Viral~B.
+  Shah, Alan Edelman, and Christopher Rackauckas.
+High-performance symbolic-numerics via multiple dispatch.
+{\em ACM Commun. Comput. Algebra}, 55(3):92–96, jan 2022.
+\href{http://dx.doi.org/10.1145/3511528.3511535}{doi:10.1145/3511528.3511535}.
+
+\bibitem{grossmann_lee_2003}
+Ignacio~E. Grossmann and Sangbum Lee.
+Generalized convex disjunctive programming: Nonlinear convex hull relaxation.
+{\em Computational Optimization and Applications}, 26(1):83–100, 2003.
+\href{http://dx.doi.org/10.1023/a:1025154322278}{doi:10.1023/a:1025154322278}.
+
+\bibitem{grossmann_trespalacios_2013}
+Ignacio~E. Grossmann and Francisco Trespalacios.
+Systematic modeling of discrete-continuous optimization models through
+  generalized disjunctive programming.
+{\em AIChE Journal}, 59(9):3276--3295, 2013.
+\href{http://dx.doi.org/10.1002/aic.14088}{doi:10.1002/aic.14088}.
+
+\bibitem{hart2011pyomo}
+William~E Hart, Jean-Paul Watson, and David~L Woodruff.
+Pyomo: modeling and solving mathematical programs in python.
+{\em Mathematical Programming Computation}, 3(3):219--260, 2011.
+\href{http://dx.doi.org/10.1007/s12532-011-0026-8}{doi:10.1007/s12532-011-0026-8}.
+
+\bibitem{huangfu2018parallelizing}
+Qi~Huangfu and JA~Julian Hall.
+Parallelizing the dual revised simplex method.
+{\em Mathematical Programming Computation}, 10(1):119--142, 2018.
+\href{http://dx.doi.org/10.1007/s12532-017-0130-5}{doi:10.1007/s12532-017-0130-5}.
+
+\bibitem{jackson_sheridan_2005}
+Paul Jackson and Daniel Sheridan.
+Clause form conversions for boolean circuits.
+{\em Theory and Applications of Satisfiability Testing}, page 183–198, 2005.
+\href{http://dx.doi.org/10.1007/11527695\_15}{doi:10.1007/11527695\_15}.
+
+\bibitem{kronqvist2022p}
+Jan Kronqvist, Ruth Misener, and Calvin Tsay.
+P-split formulations: A class of intermediate formulations between big-m and
+  convex hull for disjunctive constraints.
+{\em arXiv preprint arXiv:2202.05198}, 2022.
+\href{http://dx.doi.org/10.48550/arXiv.2202.05198}{doi:10.48550/arXiv.2202.05198}.
+
+\bibitem{LEE20002125}
+Sangbum Lee and Ignacio~E. Grossmann.
+New algorithms for nonlinear generalized disjunctive programming.
+{\em Computers \& Chemical Engineering}, 24(9):2125--2141, 2000.
+\href{http://dx.doi.org/10.1016/S0098-1354(00)00581-0}{doi:10.1016/S0098-1354(00)00581-0}.
+
+\bibitem{MATOVU2022107856}
+Fahad Matovu, Shuhaimi Mahadzir, Rasel Ahmed, and Nor Erniza~Mohammad Rozali.
+Synthesis and optimization of multilevel refrigeration systems using
+  generalized disjunctive programming.
+{\em Computers \& Chemical Engineering}, 163:107856, 2022.
+\href{http://dx.doi.org/10.1016/j.compchemeng.2022.107856}{doi:10.1016/j.compchemeng.2022.107856}.
+
+\bibitem{NAVARROAMOROS201413}
+Miguel~A. Navarro-Amorós, Rubén Ruiz-Femenia, and José~A. Caballero.
+Integration of modular process simulators under the generalized disjunctive
+  programming framework for the structural flowsheet optimization.
+{\em Computers \& Chemical Engineering}, 67:13--25, 2014.
+\href{http://dx.doi.org/10.1016/j.compchemeng.2014.03.014}{doi:10.1016/j.compchemeng.2014.03.014}.
+
+\bibitem{nemhauser_1999}
+George~L. Nemhauser.
+{\em Integer and combinatorial optimization}.
+John Wiley and Sons, 1999.
+\href{http://dx.doi.org/10.1002/9781118627372}{doi:10.1002/9781118627372}.
+
+\bibitem{TRESPALACIOS201598}
+Francisco Trespalacios and Ignacio~E. Grossmann.
+Improved big-m reformulation for generalized disjunctive programs.
+{\em Computers \& Chemical Engineering}, 76:98--103, 2015.
+\href{http://dx.doi.org/10.1016/j.compchemeng.2015.02.013}{doi:10.1016/j.compchemeng.2015.02.013}.
+
+\bibitem{trespalacios_grossmann_2016}
+Francisco Trespalacios and Ignacio~E. Grossmann.
+Cutting plane algorithm for convex generalized disjunctive programs.
+{\em INFORMS Journal on Computing}, 28(2):209–222, 2016.
+\href{http://dx.doi.org/10.1287/ijoc.2015.0669}{doi:10.1287/ijoc.2015.0669}.
+
+\bibitem{vecchietti1999logmip}
+Aldo Vecchietti and Ignacio~E Grossmann.
+Logmip: a disjunctive 0--1 non-linear optimizer for process system models.
+{\em Computers \& chemical engineering}, 23(4-5):555--565, 1999.
+\href{http://dx.doi.org/10.1016/s0098-1354(98)00293-2}{doi:10.1016/s0098-1354(98)00293-2}.
+
+\bibitem{ZHOU202269}
+Wenjin Zhou, Kashif Iqbal, Xiaogang Sun, Dinghui Gan, Chun Deng, José~María
+  Ponce-Ortega, and Chunmao Chen.
+Disjunctive programming model for the synthesis of property-based water supply
+  network with multiple resources.
+{\em Chemical Engineering Research and Design}, 187:69--83, 2022.
+\href{http://dx.doi.org/10.1016/j.cherd.2022.08.027}{doi:10.1016/j.cherd.2022.08.027}.
+
+\end{thebibliography}

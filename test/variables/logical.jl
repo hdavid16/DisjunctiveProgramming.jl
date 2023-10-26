@@ -1,12 +1,26 @@
 # test creating, modifying, and reformulating logical variables
+
+function test_base()
+    model = GDPModel()
+    @variable(model, y, Logical)
+    @test Base.broadcastable(y) isa Base.RefValue{LogicalVariableRef}
+    @test length(y) == 1
+end
+
 function test_lvar_add_fail()
    model = Model()
-   @test_throws ErrorException @variable(model, y, LogicalVariable)
+   @test_throws ErrorException @variable(model, y, Logical)
+   @test_throws ErrorException @variable(model, y, Logical; kwarg=true)
+   @test_throws ErrorException @variable(model, 0 <= y, Logical)
+   @test_throws ErrorException @variable(model, y <= 1, Logical)
+   @test_throws ErrorException @variable(model, y, Logical, integer=true)
+   @test_throws ErrorException @variable(model, y, Logical, start=2)
+   @test_throws ErrorException @variable(model, y == 2, Logical)
 end
 
 function test_lvar_add_success()
     model = GDPModel()
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @test typeof(y) == LogicalVariableRef
     @test owner_model(y) == model
     @test is_valid(model, y)
@@ -24,14 +38,14 @@ end
 
 function test_lvar_add_array()
     model = GDPModel()
-    @variable(model, y[1:3, 1:2], LogicalVariable)
+    @variable(model, y[1:3, 1:2], Logical)
     @test y isa Array{LogicalVariableRef, 2}
     @test length(y) == 6
 end
 
 function test_lvar_add_dense_axis()
     model = GDPModel()
-    @variable(model, y[["a","b","c"],[1,2]], LogicalVariable)
+    @variable(model, y[["a","b","c"],[1,2]], Logical)
     @test y isa Containers.DenseAxisArray
     @test length(y) == 6
     @test y.axes[1] == ["a","b","c"]
@@ -41,7 +55,7 @@ end
 
 function test_lvar_add_sparse_axis()
     model = GDPModel()
-    @variable(model, y[i = 1:3, j = 1:3; j > i], LogicalVariable)
+    @variable(model, y[i = 1:3, j = 1:3; j > i], Logical)
     @test y isa Containers.SparseAxisArray
     @test length(y) == 3
     @test y.names == (:i, :j)
@@ -50,7 +64,7 @@ end
 
 function test_lvar_set_name()
     model = GDPModel()
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     set_name(y, "z")
     @test name(y) == "z"
     #reformulate the variable
@@ -59,7 +73,7 @@ end
 
 function test_lvar_creation_start_value()
     model = GDPModel()
-    @variable(model, y, LogicalVariable, start = true)
+    @variable(model, y, Logical, start = true)
     @test start_value(y)
     #reformulate the variable
     test_lvar_reformulation(model, y)
@@ -67,7 +81,7 @@ end
 
 function test_lvar_set_start_value()
     model = GDPModel()
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @test isnothing(start_value(y))
     set_start_value(y, false)
     @test !start_value(y)
@@ -75,9 +89,15 @@ function test_lvar_set_start_value()
     test_lvar_reformulation(model, y)
 end
 
+function test_lvar_creation_fix_value()
+    model = GDPModel()
+    @variable(model, y == true, Logical)
+    @test fix_value(y)
+end
+
 function test_lvar_fix_value()
     model = GDPModel()
-    @variable(model, y, LogicalVariable)
+    @variable(model, y, Logical)
     @test isnothing(fix_value(y))
     fix(y, true)
     @test fix_value(y)
@@ -90,11 +110,11 @@ end
 
 function test_lvar_delete()
     model = GDPModel()
-    @variable(model, y, LogicalVariable)
-    @variable(model, z, LogicalVariable)
+    @variable(model, y, Logical)
+    @variable(model, z, Logical)
     @variable(model, x)
-    @constraint(model, con, x <= 10, DisjunctConstraint(y))
-    @constraint(model, con2, x >= 50, DisjunctConstraint(z))
+    @constraint(model, con, x <= 10, Disjunct(y))
+    @constraint(model, con2, x >= 50, Disjunct(z))
     @disjunction(model, disj, [y, z])
     @constraint(model, lcon, y ∨ z in IsTrue())
     DP._reformulate_logical_variables(model)
@@ -115,7 +135,7 @@ end
 
 function test_lvar_reformulation()
     model = GDPModel()
-    @variable(model, y, LogicalVariable, start = false)
+    @variable(model, y, Logical, start = false)
     fix(y, true)
     test_lvar_reformulation(model, y)
 end
@@ -146,6 +166,9 @@ function test_lvar_reformulation(model::Model, lvref::LogicalVariableRef)
 end
 
 @testset "Logical Variables" begin
+    @testset "Base Methods" begin
+        test_base()
+    end
     @testset "Add Logical Variables" begin
         test_lvar_add_fail()
         test_lvar_add_success()
@@ -157,6 +180,7 @@ end
         test_lvar_set_name()
         test_lvar_creation_start_value()
         test_lvar_set_start_value()
+        test_lvar_creation_fix_value()
         test_lvar_fix_value()
     end
     @testset "Delete Logical Variables" begin

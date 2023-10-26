@@ -1,13 +1,12 @@
-using JuMP
 using DisjunctiveProgramming
 
 m = GDPModel()
 @variable(m, -5 ≤ x ≤ 10)
-@variable(m, Y[1:2], LogicalVariable)
-@constraint(m, exp(x) <= 2, DisjunctConstraint(Y[1]))
-@constraint(m, x >= -3, DisjunctConstraint(Y[1]))
-@constraint(m, exp(x) >= 3, DisjunctConstraint(Y[2]))
-@constraint(m, x >= 5, DisjunctConstraint(Y[2]))
+@variable(m, Y[1:2], Logical)
+@constraint(m, exp(x) <= 2, Disjunct(Y[1]))
+@constraint(m, x >= -3, Disjunct(Y[1]))
+@constraint(m, exp(x) >= 3, Disjunct(Y[2]))
+@constraint(m, x >= 5, Disjunct(Y[2]))
 @disjunction(m, Y)
 @constraint(m, Y in Exactly(1)) #logical constraint
 @objective(m, Max, x)
