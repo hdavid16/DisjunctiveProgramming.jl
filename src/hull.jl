@@ -149,6 +149,30 @@ end
 ################################################################################
 #                              HULL REFORMULATION
 ################################################################################
+requires_exactly1(::Hull) = true
+
+function _reformulate_disjunctions(model::Model, method::Hull)
+    _query_variable_bounds(model, method)
+    _reformulate_all_disjunctions(model, method)
+end
+
+function reformulate_disjunction(model::Model, disj::Disjunction, method::Hull)
+    ref_cons = Vector{AbstractConstraint}() #store reformulated constraints
+    disj_vrefs = _get_disjunction_variables(model, disj)
+    hull = _Hull(method, disj_vrefs)
+    for d in disj.indicators #reformulate each disjunct
+        _disaggregate_variables(model, d, disj_vrefs, hull) #disaggregate variables for that disjunct
+        _reformulate_disjunct(model, ref_cons, d, hull)
+    end
+    for vref in disj_vrefs #create sum constraint for disaggregated variables
+        _aggregate_variable(model, ref_cons, vref, hull)
+    end
+    return ref_cons
+end
+function reformulate_disjunction(model::Model, disj::Disjunction, method::_Hull)
+    return reformulate_disjunction(model, disj, Hull(method.value, method.variable_bounds))
+end
+
 function reformulate_disjunct_constraint(
     model::Model, 
     con::ScalarConstraint{T, S}, 

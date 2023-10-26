@@ -221,7 +221,9 @@ end
 function _reformulate_selector(model::Model, func, set::Union{_MOIAtLeast, _MOIAtMost, _MOIExactly})
     dict = _indicator_to_binary(model)
     bvrefs = [dict[lvref] for lvref in func[2:end]]
-    new_set = _vec_to_scalar_set(set)(func[1].constant)
+    # TODO better handle form of func[1]
+    c = first(func) isa Number ? first(func) : JuMP.constant(func[1])
+    new_set = _vec_to_scalar_set(set)(c)
     cref = @constraint(model, sum(bvrefs) in new_set)
     push!(_reformulation_constraints(model), cref)
 end

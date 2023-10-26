@@ -104,17 +104,24 @@ for (RefType, loc) in ((:DisjunctConstraintRef, :disjunct_constraints),
     end
 end
 
-# Extend delete
 """
     JuMP.delete(model::Model, cref::DisjunctionRef)
 
 Delete a disjunction constraint from the `GDP model`.
 """
 function JuMP.delete(model::Model, cref::DisjunctionRef)
-    @assert is_valid(model, cref) "Disjunctive constraint does not belong to model."
-    cidx = index(cref)
-    dict = _disjunctions(model)
-    delete!(dict, cidx)
+    @assert is_valid(model, cref) "Disjunction does not belong to model."
+    if JuMP.constraint_object(cref).nested
+        lvref = gdp_data(model).constraint_to_indicator[cref]
+        filter!(Base.Fix2(!=, cref), _indicator_to_constraints(model)[lvref])
+        delete!(gdp_data(model).constraint_to_indicator, cref)
+    end
+    delete!(_disjunctions(model), index(cref))
+    exactly1_dict = gdp_data(model).exactly1_constraints
+    if haskey(exactly1_dict, cref)
+        JuMP.delete(model, exactly1_dict[cref])
+        delete!(exactly1_dict, cref)
+    end
     _set_ready_to_optimize(model, false)
     return 
 end
@@ -126,9 +133,10 @@ Delete a disjunct constraint from the `GDP model`.
 """
 function JuMP.delete(model::Model, cref::DisjunctConstraintRef)
     @assert is_valid(model, cref) "Disjunctive constraint does not belong to model."
-    cidx = index(cref)
-    dict = _disjunct_constraints(model)
-    delete!(dict, cidx)
+    delete!(_disjunct_constraints(model), index(cref))
+    lvref = gdp_data(model).constraint_to_indicator[cref]
+    filter!(Base.Fix2(!=, cref), _indicator_to_constraints(model)[lvref])
+    delete!(gdp_data(model).constraint_to_indicator, cref)
     _set_ready_to_optimize(model, false)
     return 
 end
@@ -140,9 +148,7 @@ Delete a logical constraint from the `GDP model`.
 """
 function JuMP.delete(model::Model, cref::LogicalConstraintRef)
     @assert is_valid(model, cref) "Logical constraint does not belong to model."
-    cidx = index(cref)
-    dict = _logical_constraints(model)
-    delete!(dict, cidx)
+    delete!(_logical_constraints(model), index(cref))
     _set_ready_to_optimize(model, false)
     return 
 end
@@ -263,6 +269,7 @@ function _add_indicator_var(
         _indicator_to_constraints(model)[con.lvref] = Vector{Union{DisjunctConstraintRef, DisjunctionRef}}()
     end
     push!(_indicator_to_constraints(model)[con.lvref], cref)
+    gdp_data(model).constraint_to_indicator[cref] = con.lvref
     return
 end
 # check disjunction
@@ -308,9 +315,25 @@ function _disjunction(
     _error::Function,
     model::Model, # TODO: generalize to AbstractModel
     structure::AbstractVector, #generalize for containers
-    name::String
+    name::String;
+    exactly1::Bool = true,
+    extra_kwargs...
 )
-    return _create_disjunction(_error, model, structure, name, false)
+    # check for unneeded keywords
+    for (kwarg, _) in extra_kwargs
+        _error("Unrecognized keyword argument $kwarg.")
+    end
+    # create the disjunction
+    dref = _create_disjunction(_error, model, structure, name, false)
+    # add the exactly one constraint if desired
+    if exactly1
+        lvars = JuMP.constraint_object(dref).indicators
+        func = Union{Number, LogicalVariableRef}[1, lvars...]
+        set = _MOIExactly(length(lvars) + 1)
+        cref = JuMP.add_constraint(model, JuMP.VectorConstraint(func, set))
+        gdp_data(model).exactly1_constraints[dref] = cref
+    end
+    return dref
 end
 
 # Fallback disjunction build for nonvector structure
@@ -318,7 +341,8 @@ function _disjunction(
     _error::Function,
     model::Model, # TODO: generalize to AbstractModel
     structure,
-    name::String
+    name::String;
+    kwargs...
 )
     _error("Unrecognized disjunction input structure.")
 end
@@ -329,11 +353,26 @@ function _disjunction(
     model::Model, # TODO: generalize to AbstractModel
     structure,
     name::String,
-    tag::Disjunct
+    tag::Disjunct;
+    exactly1::Bool = true,
+    extra_kwargs...
 )
+    # check for unneeded keywords
+    for (kwarg, _) in extra_kwargs
+        _error("Unrecognized keyword argument $kwarg.")
+    end
+    # create the disjunction
     dref = _create_disjunction(_error, model, structure, name, true)
     obj = constraint_object(dref)
     _add_indicator_var(_DisjunctConstraint(obj, tag.indicator), dref, model)
+    # add the exactly one constraint if desired
+    if exactly1
+        lvars = JuMP.constraint_object(dref).indicators
+        func = LogicalVariableRef[tag.indicator, lvars...]
+        set = _MOIExactly(length(lvars) + 1)
+        cref = JuMP.add_constraint(model, JuMP.VectorConstraint(func, set))
+        gdp_data(model).exactly1_constraints[dref] = cref
+    end
     return dref
 end
 
@@ -343,7 +382,8 @@ function _disjunction(
     model::Model, # TODO: generalize to AbstractModel
     structure,
     name::String,
-    extra...
+    extra...;
+    kwargs...
 )
     for arg in extra
         _error("Unrecognized argument `$arg`.")
@@ -353,35 +393,38 @@ end
 """
     disjunction(
         model::Model, 
-        disjunct_indicators::Vector{LogicalVariableRef}
-        name::String = ""
-    )
-
-Function to add a [`Disjunction`](@ref) to a [`GDPModel`](@ref).
-
-    disjunction(
-        model::Model, 
         disjunct_indicators::Vector{LogicalVariableRef},
-        nested_tag::Disjunct,
-        name::String = ""
+        [nested_tag::Disjunct],
+        [name::String = ""];
+        [exactly1::Bool = true]
     )
 
-Function to add a nested [`Disjunction`](@ref) to a [`GDPModel`](@ref).
+Create a disjunction comprised of disjuncts with indicator variables `disjunct_indicators` 
+and add it to `model`. For nested disjunctions, the `nested_tag` is required to indicate 
+which disjunct it will be part of in the parent disjunction. By default, `exactly1` adds 
+a constraint of the form `@constraint(model, disjunct_indicators in Exactly(1))` making 
+the disjuncts exclusive to one another; this is required for certain reformulations like 
+[`Hull`](@ref). To conveniently generate many disjunctions at once, see [`@disjunction`](@ref) 
+and [`@disjunctions`](@ref).
 """
 function disjunction(
     model::Model, 
     disjunct_indicators, 
-    name::String = ""
-) # TODO add kw argument to build exactly 1 constraint
-    return _disjunction(error, model, disjunct_indicators, name)
+    name::String = "",
+    extra...;
+    kwargs...
+)
+    return _disjunction(error, model, disjunct_indicators, name, extra...; kwargs...)
 end
 function disjunction(
     model::Model, 
     disjunct_indicators, 
     nested_tag::Disjunct,
-    name::String = ""
-) # TODO add kw argument to build exactly 1 constraint
-    return _disjunction(error, model, disjunct_indicators, name, nested_tag)
+    name::String = "",
+    extra...;
+    kwargs...
+)
+    return _disjunction(error, model, disjunct_indicators, name, nested_tag, extra...; kwargs...)
 end
 
 ################################################################################

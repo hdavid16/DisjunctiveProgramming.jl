@@ -10,8 +10,7 @@ m = GDPModel()
 @constraint(m, 0 ≤ x ≤ 3, Disjunct(Y[1]))
 @constraint(m, 5 ≤ x, Disjunct(Y[2]))
 @constraint(m, x ≤ 9, Disjunct(Y[2]))
-@disjunction(m, [Y[1], Y[2]])
-@constraint(m, Y in Exactly(1)) 
+@disjunction(m, [Y[1], Y[2]])  # can also just call `disjunction` instead
 @objective(m, Max, x)
 
 # Reformulate logical variables and logical constraints
