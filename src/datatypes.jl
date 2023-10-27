@@ -422,7 +422,4 @@ mutable struct GDPData
             false,
             )
     end
-    function GDPData(args...)
-        new(args...)
-    end
 end
