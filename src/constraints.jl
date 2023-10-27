@@ -117,10 +117,10 @@ function JuMP.delete(model::Model, cref::DisjunctionRef)
         delete!(gdp_data(model).constraint_to_indicator, cref)
     end
     delete!(_disjunctions(model), index(cref))
-    exactly1_dict = gdp_data(model).exactly1_constraints
-    if haskey(exactly1_dict, cref)
-        JuMP.delete(model, exactly1_dict[cref])
-        delete!(exactly1_dict, cref)
+    exclusive_dict = gdp_data(model).exclusive_constraints
+    if haskey(exclusive_dict, cref)
+        JuMP.delete(model, exclusive_dict[cref])
+        delete!(exclusive_dict, cref)
     end
     _set_ready_to_optimize(model, false)
     return 
@@ -316,7 +316,7 @@ function _disjunction(
     model::Model, # TODO: generalize to AbstractModel
     structure::AbstractVector, #generalize for containers
     name::String;
-    exactly1::Bool = true,
+    exclusive::Bool = true,
     extra_kwargs...
 )
     # check for unneeded keywords
@@ -326,12 +326,12 @@ function _disjunction(
     # create the disjunction
     dref = _create_disjunction(_error, model, structure, name, false)
     # add the exactly one constraint if desired
-    if exactly1
+    if exclusive
         lvars = JuMP.constraint_object(dref).indicators
         func = Union{Number, LogicalVariableRef}[1, lvars...]
         set = _MOIExactly(length(lvars) + 1)
         cref = JuMP.add_constraint(model, JuMP.VectorConstraint(func, set))
-        gdp_data(model).exactly1_constraints[dref] = cref
+        gdp_data(model).exclusive_constraints[dref] = cref
     end
     return dref
 end
@@ -354,7 +354,7 @@ function _disjunction(
     structure,
     name::String,
     tag::Disjunct;
-    exactly1::Bool = true,
+    exclusive::Bool = true,
     extra_kwargs...
 )
     # check for unneeded keywords
@@ -366,12 +366,12 @@ function _disjunction(
     obj = constraint_object(dref)
     _add_indicator_var(_DisjunctConstraint(obj, tag.indicator), dref, model)
     # add the exactly one constraint if desired
-    if exactly1
+    if exclusive
         lvars = JuMP.constraint_object(dref).indicators
         func = LogicalVariableRef[tag.indicator, lvars...]
         set = _MOIExactly(length(lvars) + 1)
         cref = JuMP.add_constraint(model, JuMP.VectorConstraint(func, set))
-        gdp_data(model).exactly1_constraints[dref] = cref
+        gdp_data(model).exclusive_constraints[dref] = cref
     end
     return dref
 end
@@ -396,15 +396,17 @@ end
         disjunct_indicators::Vector{LogicalVariableRef},
         [nested_tag::Disjunct],
         [name::String = ""];
-        [exactly1::Bool = true]
+        [exclusive::Bool = true]
     )
 
 Create a disjunction comprised of disjuncts with indicator variables `disjunct_indicators` 
 and add it to `model`. For nested disjunctions, the `nested_tag` is required to indicate 
-which disjunct it will be part of in the parent disjunction. By default, `exactly1` adds 
+which disjunct it will be part of in the parent disjunction. By default, `exclusive` adds 
 a constraint of the form `@constraint(model, disjunct_indicators in Exactly(1))` making 
 the disjuncts exclusive to one another; this is required for certain reformulations like 
-[`Hull`](@ref). To conveniently generate many disjunctions at once, see [`@disjunction`](@ref) 
+[`Hull`](@ref). For nested disjunctions, `exclusive` creates a constraint of the form
+`@constraint(model, disjunct_indicators in Exactly(nested_tag.indicator))`. 
+To conveniently generate many disjunctions at once, see [`@disjunction`](@ref) 
 and [`@disjunctions`](@ref).
 """
 function disjunction(

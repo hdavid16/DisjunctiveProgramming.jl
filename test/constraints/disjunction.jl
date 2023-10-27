@@ -51,7 +51,7 @@ function test_disjunction_add_success()
     disj = DisjunctionRef(model, DisjunctionIndex(1))
     disj2 = DisjunctionRef(model, DisjunctionIndex(2))
     @test @disjunction(model, y) == disj
-    @test @disjunction(model, disj2, y, exactly1 = false) == disj2
+    @test @disjunction(model, disj2, y, exclusive = false) == disj2
     @test owner_model(disj) == model
     @test is_valid(model, disj)
     @test index(disj) == DisjunctionIndex(1)
@@ -62,8 +62,8 @@ function test_disjunction_add_success()
     @test DP._disjunctions(model)[index(disj)] == DP._constraint_data(disj)
     @test !constraint_object(disj).nested
     @test constraint_object(disj).indicators == y
-    @test haskey(gdp_data(model).exactly1_constraints, disj)
-    @test !haskey(gdp_data(model).exactly1_constraints, disj2)
+    @test haskey(gdp_data(model).exclusive_constraints, disj)
+    @test !haskey(gdp_data(model).exclusive_constraints, disj2)
     @test disj == copy(disj)
 end
 
@@ -89,7 +89,7 @@ function test_disjunction_add_nested()
     @test !constraint_object(outer).nested
     @test haskey(DP._indicator_to_constraints(model), z[1])
     @test inner in DP._indicator_to_constraints(model)[z[1]]
-    @test haskey(gdp_data(model).exactly1_constraints, inner)
+    @test haskey(gdp_data(model).exclusive_constraints, inner)
 end
 
 function test_disjunction_add_array()
@@ -189,7 +189,7 @@ function test_disjunction_delete()
     @test delete(model, disj) isa Nothing
     @test !haskey(gdp_data(model).disjunctions, index(disj))
     @test !DP._ready_to_optimize(model)
-    @test !haskey(gdp_data(model).exactly1_constraints, disj)
+    @test !haskey(gdp_data(model).exclusive_constraints, disj)
 
     model = GDPModel()
     @variable(model, x)
@@ -197,7 +197,7 @@ function test_disjunction_delete()
     @variable(model, z[1:2], Logical)
     @constraint(model, x <= 5, Disjunct(y[1]))
     @constraint(model, x >= 5, Disjunct(y[2]))
-    @disjunction(model, inner, y, Disjunct(z[1]), exactly1 = false)
+    @disjunction(model, inner, y, Disjunct(z[1]), exclusive = false)
 
     @test delete(model, inner) isa Nothing
     @test !haskey(gdp_data(model).disjunctions, index(inner))
@@ -219,7 +219,7 @@ function test_disjunction_function()
     set_name(disj, "new_name")
     @test name(disj) == "new_name"
     @test haskey(DP._disjunctions(model), index(disj))
-    @test haskey(gdp_data(model).exactly1_constraints, disj)
+    @test haskey(gdp_data(model).exclusive_constraints, disj)
 end
 
 function test_disjunction_function_nested()
@@ -233,7 +233,7 @@ function test_disjunction_function_nested()
     @constraint(model, x >= 10, Disjunct(z[2]))
     disj1 = DisjunctionRef(model, DisjunctionIndex(1))
     disj2 = DisjunctionRef(model, DisjunctionIndex(2))
-    @test disjunction(model, y, Disjunct(z[1]), "inner", exactly1 = false) == disj1
+    @test disjunction(model, y, Disjunct(z[1]), "inner", exclusive = false) == disj1
     @test disjunction(model, z, "outer") == disj2
 
     @test is_valid(model, disj1)
@@ -244,7 +244,7 @@ function test_disjunction_function_nested()
     @test !constraint_object(disj2).nested
     @test haskey(DP._indicator_to_constraints(model), z[1])
     @test disj1 in DP._indicator_to_constraints(model)[z[1]]
-    @test !haskey(gdp_data(model).exactly1_constraints, disj1)
+    @test !haskey(gdp_data(model).exclusive_constraints, disj1)
 end
 
 @testset "Disjunction" begin

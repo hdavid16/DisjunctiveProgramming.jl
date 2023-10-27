@@ -636,14 +636,14 @@ function test_scalar_nonlinear_hull_2sided()
     end
 end
 
-function test_exactly1_error()
+function test_exclusive_error()
     model = GDPModel()
     @variable(model, 10 <= x <= 100)
     @variable(model, z[1:2], Logical)
     @constraint(model, 1 <= x <= 5, Disjunct(z[1]))
     @constraint(model, 3 <= x <= 5, Disjunct(z[2]))
-    disjunction(model, z, exactly1 = false)
-    @test requires_exactly1(Hull())
+    disjunction(model, z, exclusive = false)
+    @test requires_exclusive(Hull())
     @test_throws ErrorException reformulate_model(model, Hull())
 end
 
@@ -686,5 +686,5 @@ end
     test_scalar_quadratic_hull_2sided()
     test_scalar_nonlinear_hull_2sided()
     test_scalar_nonlinear_hull_2sided_error()
-    test_exactly1_error()
+    test_exclusive_error()
 end

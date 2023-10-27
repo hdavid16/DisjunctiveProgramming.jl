@@ -391,7 +391,7 @@ mutable struct GDPData
     disjunctions::_MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}
 
     # Exactly one constraint mappings
-    exactly1_constraints::Dict{DisjunctionRef, LogicalConstraintRef}
+    exclusive_constraints::Dict{DisjunctionRef, LogicalConstraintRef}
 
     # Indicator variable mappings
     indicator_to_binary::Dict{LogicalVariableRef, VariableRef}

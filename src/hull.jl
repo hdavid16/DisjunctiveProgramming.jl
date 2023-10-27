@@ -149,7 +149,7 @@ end
 ################################################################################
 #                              HULL REFORMULATION
 ################################################################################
-requires_exactly1(::Hull) = true
+requires_exclusive(::Hull) = true
 
 function _reformulate_disjunctions(model::Model, method::Hull)
     _query_variable_bounds(model, method)

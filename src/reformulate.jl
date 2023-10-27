@@ -47,22 +47,23 @@ end
 #                              DISJUNCTIONS
 ################################################################################
 """
-    requires_exactly1(method::AbstractReformulationMethod)
+    requires_exclusive(method::AbstractReformulationMethod)
 
-Return a `Bool` whether `method` requires an exactly one constraint for each 
-disjunction. For new reformulation method types, this should be extended to 
-in case such a constraint is required (defaults to `false` otherwise).
+Return a `Bool` whether `method` requires an the disjuncts to be exactly exclusive 
+for each disjunction (i.e., it requires an exactly one constraint). For new 
+reformulation method types, this should be extended to in case such a constraint 
+is required (defaults to `false` otherwise).
 """
-requires_exactly1(::AbstractReformulationMethod) = false
+requires_exclusive(::AbstractReformulationMethod) = false
 
 # disjunctions
 function _reformulate_all_disjunctions(model::Model, method::AbstractReformulationMethod)
     for (idx, disj) in _disjunctions(model)
         disj.constraint.nested && continue #only reformulate top level disjunctions
         dref = DisjunctionRef(model, idx)
-        if requires_exactly1(method) && !haskey(gdp_data(model).exactly1_constraints, dref)
-            error("Reformulation method `$method` requires exactly one constraints for " *
-                  "disjunctions, but `exactly1 = false` for disjunction `$dref`.")
+        if requires_exclusive(method) && !haskey(gdp_data(model).exclusive_constraints, dref)
+            error("Reformulation method `$method` requires exclusive disjuncts for " *
+                  "disjunctions, but `exclusive = false` for disjunction `$dref`.")
         end
         ref_cons = reformulate_disjunction(model, disj.constraint, method)
         for (i, ref_con) in enumerate(ref_cons)
