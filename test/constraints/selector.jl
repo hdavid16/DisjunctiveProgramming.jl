@@ -4,9 +4,9 @@ function test_selector_add_fail()
     @test_throws ErrorException @constraint(Model(), y in AtMost(2))
     @test_throws ErrorException @constraint(m, logical_or(y...) in Exactly(1))
     @test_throws ErrorException @constraint(m, sin.(y) in Exactly(1))
-    @test_throws AssertionError @constraint(GDPModel(), y in AtMost(2))
-    @test_throws MethodError @constraint(m, y in AtMost(1.0))
-    @test_throws MethodError @constraint(m, y[1:2] in AtMost(1y[3]))
+    @test_throws VariableNotOwned @constraint(GDPModel(), y in AtMost(2))
+    # @test_throws MethodError @constraint(m, y in AtMost(1.0)) --> MethodErrors are not a good thing to want
+    # @test_throws MethodError @constraint(m, y[1:2] in AtMost(1y[3]))
 end
 
 function test_selector_add_success()

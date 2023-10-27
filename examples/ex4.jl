@@ -6,7 +6,7 @@ using DisjunctiveProgramming
 
 m = GDPModel()
 @variable(m, Y[1:4], Logical)
-@constraint(m, ¬((Y[1] ∧ ¬Y[2]) ⇔ (Y[3] ∨ Y[4])) ∈ IsTrue())
+@constraint(m, ¬((Y[1] ∧ ¬Y[2]) ⇔ (Y[3] ∨ Y[4])) := true)
 reformulate_model(m, BigM())
 print(m)
 # Feasibility

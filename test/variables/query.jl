@@ -90,7 +90,7 @@ function test_interrogate_proposition_constraint()
     @variable(m, y, Logical)
     @variable(m, w[1:5], Logical)
     ex = (implies(w[1], w[2]) ∧ w[3]) ⇔ (¬w[4] ∨ y)
-    @constraint(m, con, ex in IsTrue())
+    @constraint(m, con, ex := true)
     obj = constraint_object(con)
     vars = DP._get_constraint_variables(m, obj)
     @test w[1] in vars
