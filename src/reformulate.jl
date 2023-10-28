@@ -90,7 +90,6 @@ Reformulate a disjunction using the specified `method`. Current reformulation me
 The `disj` field is the `ConstraintData` object for the disjunction, stored in the 
 `disjunctions` field of the `GDPData` object.
 """
-# generic fallback (e.g., BigM, Indicator)
 function reformulate_disjunction(model::JuMP.Model, disj::Disjunction, method::AbstractReformulationMethod)
     ref_cons = Vector{AbstractConstraint}() #store reformulated constraints
     for d in disj.indicators
