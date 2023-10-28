@@ -149,7 +149,7 @@ function test_disjunctions_add_success()
     @constraint(model, x <= 10, Disjunct(z[1]))
     @constraint(model, x >= 10, Disjunct(z[2]))
     @disjunctions(model, begin
-        disj1, y
+        disj1, y, (base_name = "bob", container = Array)
         disj2, z
     end)
     @test is_valid(model, disj1)
