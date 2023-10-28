@@ -5,6 +5,11 @@ function test_reformulate_disjunct_constraint_fallback()
     @test_throws ErrorException reformulate_disjunct_constraint(model, c, x, DummyReformulation())
 end
 
+function test_exactly1_fallback()
+    @test requires_exactly1(BigM()) == false
+end
+
 @testset "Fallbacks" begin
     test_reformulate_disjunct_constraint_fallback()
+    test_exactly1_fallback()
 end

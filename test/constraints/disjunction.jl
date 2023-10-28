@@ -35,6 +35,11 @@ function test_disjunction_add_fail()
 
     @test_macro_throws ErrorException @disjunction(model, "bad"[i=1:2], y) #wrong expression for disjunction name
     @test_macro_throws ErrorException @disjunction(model, [model=1:2], y) #index name can't be same as model name
+
+    @test_throws ErrorException disjunction(model, y, bad_key = 42)
+    @variable(model, w[1:3], Logical)
+    @constraint(model, [i = 1:2], x == 5, Disjunct(w[i]))
+    @test_throws ErrorException disjunction(model, w, Disjunct(w[3]), bad_key = 42)
 end
 
 function test_disjunction_add_success()
@@ -43,8 +48,10 @@ function test_disjunction_add_success()
     @variable(model, y[1:2], Logical)
     @constraint(model, x == 5, Disjunct(y[1]))
     @constraint(model, x == 10, Disjunct(y[2]))
-    disj = @disjunction(model, y)
-    @disjunction(model, disj2, y)
+    disj = DisjunctionRef(model, DisjunctionIndex(1))
+    disj2 = DisjunctionRef(model, DisjunctionIndex(2))
+    @test @disjunction(model, y) == disj
+    @test @disjunction(model, disj2, y, exactly1 = false) == disj2
     @test owner_model(disj) == model
     @test is_valid(model, disj)
     @test index(disj) == DisjunctionIndex(1)
@@ -55,6 +62,8 @@ function test_disjunction_add_success()
     @test DP._disjunctions(model)[index(disj)] == DP._constraint_data(disj)
     @test !constraint_object(disj).nested
     @test constraint_object(disj).indicators == y
+    @test haskey(gdp_data(model).exactly1_constraints, disj)
+    @test !haskey(gdp_data(model).exactly1_constraints, disj2)
     @test disj == copy(disj)
 end
 
@@ -65,10 +74,12 @@ function test_disjunction_add_nested()
     @variable(model, z[1:2], Logical)
     @constraint(model, x <= 5, Disjunct(y[1]))
     @constraint(model, x >= 5, Disjunct(y[2]))
-    @disjunction(model, inner, y, Disjunct(z[1]))
+    inner = DisjunctionRef(model, DisjunctionIndex(1))
+    @test @disjunction(model, inner, y, Disjunct(z[1])) == inner
     @constraint(model, x <= 10, Disjunct(z[1]))
     @constraint(model, x >= 10, Disjunct(z[2]))
-    @disjunction(model, outer, z)
+    outer = DisjunctionRef(model, DisjunctionIndex(2))
+    @test @disjunction(model, outer, z) == outer
 
     @test is_valid(model, inner)
     @test is_valid(model, outer)
@@ -78,6 +89,7 @@ function test_disjunction_add_nested()
     @test !constraint_object(outer).nested
     @test haskey(DP._indicator_to_constraints(model), z[1])
     @test inner in DP._indicator_to_constraints(model)[z[1]]
+    @test haskey(gdp_data(model).exactly1_constraints, inner)
 end
 
 function test_disjunction_add_array()
@@ -87,7 +99,6 @@ function test_disjunction_add_array()
     @constraint(model, con[i=1:2, j=1:3, k=1:4], x==i+j+k, Disjunct(y[i,j,k]))
     @disjunction(model, disj[i=1:2, j=1:3], y[i,j,:])
 
-    @test disj isa Matrix{DisjunctionRef}
     @test length(disj) == 6
     @test all(is_valid.(model, disj))
 end
@@ -101,7 +112,6 @@ function test_disjunciton_add_dense_axis()
     @constraint(model, con[i=I, j=J, k=1:4], x==k, Disjunct(y[i,j,k]))
     @disjunction(model, disj[i=I, j=J], y[i,j,:])
 
-    @test disj isa Containers.DenseAxisArray
     @test disj.axes[1] == ["a","b","c"]
     @test disj.axes[2] == [1,2]
     @test disj.data isa Matrix{DisjunctionRef}
@@ -114,7 +124,6 @@ function test_disjunction_add_sparse_axis()
     @constraint(model, con[i=1:3, j=1:3, k=1:4; j > i], x==i+j+k, Disjunct(y[i,j,k]))
     @disjunction(model, disj[i=1:3, j=1:3; j > i], y[i,j,:])
 
-    @test disj isa Containers.SparseAxisArray
     @test length(disj) == 3
     @test disj.names == (:i, :j)
     @test Set(keys(disj.data)) == Set([(1,2),(1,3),(2,3)])
@@ -177,9 +186,23 @@ function test_disjunction_delete()
     @disjunction(model, disj, y)
 
     @test_throws AssertionError delete(GDPModel(), disj)
-    delete(model, disj)
+    @test delete(model, disj) isa Nothing
     @test !haskey(gdp_data(model).disjunctions, index(disj))
     @test !DP._ready_to_optimize(model)
+    @test !haskey(gdp_data(model).exactly1_constraints, disj)
+
+    model = GDPModel()
+    @variable(model, x)
+    @variable(model, y[1:2], Logical)
+    @variable(model, z[1:2], Logical)
+    @constraint(model, x <= 5, Disjunct(y[1]))
+    @constraint(model, x >= 5, Disjunct(y[2]))
+    @disjunction(model, inner, y, Disjunct(z[1]), exactly1 = false)
+
+    @test delete(model, inner) isa Nothing
+    @test !haskey(gdp_data(model).disjunctions, index(inner))
+    @test !haskey(gdp_data(model).constraint_to_indicator, disj)
+    @test !(inner in gdp_data(model).indicator_to_constraints[z[1]])
 end
 
 function test_disjunction_function()
@@ -188,13 +211,15 @@ function test_disjunction_function()
     @variable(model, y[1:2], Logical)
     @constraint(model, x == 5, Disjunct(y[1]))
     @constraint(model, x == 10, Disjunct(y[2]))
-    disj = disjunction(model, y, "name")
+    disj = DisjunctionRef(model, DisjunctionIndex(1))
+    @test disjunction(model, y, "name") == disj
 
     @test is_valid(model, disj)
     @test name(disj) == "name"
     set_name(disj, "new_name")
     @test name(disj) == "new_name"
     @test haskey(DP._disjunctions(model), index(disj))
+    @test haskey(gdp_data(model).exactly1_constraints, disj)
 end
 
 function test_disjunction_function_nested()
@@ -206,8 +231,10 @@ function test_disjunction_function_nested()
     @constraint(model, x >= 5, Disjunct(y[2]))
     @constraint(model, x <= 10, Disjunct(z[1]))
     @constraint(model, x >= 10, Disjunct(z[2]))
-    disj1 = disjunction(model, y, Disjunct(z[1]), "inner")
-    disj2 = disjunction(model, z, "outer")
+    disj1 = DisjunctionRef(model, DisjunctionIndex(1))
+    disj2 = DisjunctionRef(model, DisjunctionIndex(2))
+    @test disjunction(model, y, Disjunct(z[1]), "inner", exactly1 = false) == disj1
+    @test disjunction(model, z, "outer") == disj2
 
     @test is_valid(model, disj1)
     @test is_valid(model, disj2)
@@ -217,6 +244,7 @@ function test_disjunction_function_nested()
     @test !constraint_object(disj2).nested
     @test haskey(DP._indicator_to_constraints(model), z[1])
     @test disj1 in DP._indicator_to_constraints(model)[z[1]]
+    @test !haskey(gdp_data(model).exactly1_constraints, disj1)
 end
 
 @testset "Disjunction" begin

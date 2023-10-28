@@ -54,12 +54,14 @@ _logical_variables(model::Model) = gdp_data(model).logical_variables
 _logical_constraints(model::Model) = gdp_data(model).logical_constraints
 _disjunct_constraints(model::Model) = gdp_data(model).disjunct_constraints
 _disjunctions(model::Model) = gdp_data(model).disjunctions
+_exactly1_constraints(model::Model) = gdp_data(model).exactly1_constraints
 _indicator_to_binary(model::Model) = gdp_data(model).indicator_to_binary
 _indicator_to_constraints(model::Model) = gdp_data(model).indicator_to_constraints
+_constraint_to_indicator(model::Model) = gdp_data(model).constraint_to_indicator
 _reformulation_variables(model::Model) = gdp_data(model).reformulation_variables
 _reformulation_constraints(model::Model) = gdp_data(model).reformulation_constraints
-_ready_to_optimize(model::Model) = gdp_data(model).ready_to_optimize # Determine if the model is ready to call `optimize!` without a optimize hook
 _solution_method(model::Model) = gdp_data(model).solution_method # Get the current solution method
+_ready_to_optimize(model::Model) = gdp_data(model).ready_to_optimize # Determine if the model is ready to call `optimize!` without a optimize hook
 
 # Update the ready_to_optimize field
 function _set_ready_to_optimize(model::Model, is_ready::Bool)

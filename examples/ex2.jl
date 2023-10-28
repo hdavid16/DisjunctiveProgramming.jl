@@ -7,8 +7,7 @@ m = GDPModel(HiGHS.Optimizer)
 @variable(m, Y[1:2], Logical)
 @constraint(m, [i = 1:2], [2,5][i] ≤ x[i] ≤ [6,9][i], Disjunct(Y[1]))
 @constraint(m, [i = 1:2], [8,10][i] ≤ x[i] ≤ [11,15][i], Disjunct(Y[2]))
-@disjunction(m, Y)
-@constraint(m, Y in Exactly(1)) #logical constraint
+disjunction(m, Y)
 @objective(m, Max, sum(x))
 print(m)
 # Max x[1] + x[2]

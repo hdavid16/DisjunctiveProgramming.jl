@@ -46,10 +46,24 @@ end
 ################################################################################
 #                              DISJUNCTIONS
 ################################################################################
+"""
+    requires_exactly1(method::AbstractReformulationMethod)
+
+Return a `Bool` whether `method` requires that `Exactly 1` disjunct be selected 
+as true for each disjunction. For new reformulation method types, this should be 
+extended to return `true` if such a constraint is required (defaults to `false` otherwise).
+"""
+requires_exactly1(::AbstractReformulationMethod) = false
+
 # disjunctions
 function _reformulate_all_disjunctions(model::Model, method::AbstractReformulationMethod)
-    for (_, disj) in _disjunctions(model)
+    for (idx, disj) in _disjunctions(model)
         disj.constraint.nested && continue #only reformulate top level disjunctions
+        dref = DisjunctionRef(model, idx)
+        if requires_exactly1(method) && !haskey(gdp_data(model).exactly1_constraints, dref)
+            error("Reformulation method `$method` requires disjunctions where only 1 disjunct is selected, " *
+                  "but `exactly1 = false` for disjunction `$dref`.")
+        end
         ref_cons = reformulate_disjunction(model, disj.constraint, method)
         for (i, ref_con) in enumerate(ref_cons)
             name = isempty(disj.name) ? "" : string(disj.name,"_$i")
@@ -59,14 +73,6 @@ function _reformulate_all_disjunctions(model::Model, method::AbstractReformulati
     end
 end
 function _reformulate_disjunctions(model::Model, method::AbstractReformulationMethod)
-    _reformulate_all_disjunctions(model, method)
-end
-function _reformulate_disjunctions(model::Model, method::BigM)
-    method.tighten && _query_variable_bounds(model, method)
-    _reformulate_all_disjunctions(model, method)
-end
-function _reformulate_disjunctions(model::Model, method::Hull)
-    _query_variable_bounds(model, method)
     _reformulate_all_disjunctions(model, method)
 end
 
@@ -84,30 +90,12 @@ Reformulate a disjunction using the specified `method`. Current reformulation me
 The `disj` field is the `ConstraintData` object for the disjunction, stored in the 
 `disjunctions` field of the `GDPData` object.
 """
-# generic fallback (e.g., BigM, Indicator)
 function reformulate_disjunction(model::Model, disj::Disjunction, method::AbstractReformulationMethod)
     ref_cons = Vector{AbstractConstraint}() #store reformulated constraints
     for d in disj.indicators
         _reformulate_disjunct(model, ref_cons, d, method)
     end
     return ref_cons
-end
-# hull specific
-function reformulate_disjunction(model::Model, disj::Disjunction, method::Hull)
-    ref_cons = Vector{AbstractConstraint}() #store reformulated constraints
-    disj_vrefs = _get_disjunction_variables(model, disj)
-    hull = _Hull(method, disj_vrefs)
-    for d in disj.indicators #reformulate each disjunct
-        _disaggregate_variables(model, d, disj_vrefs, hull) #disaggregate variables for that disjunct
-        _reformulate_disjunct(model, ref_cons, d, hull)
-    end
-    for vref in disj_vrefs #create sum constraint for disaggregated variables
-        _aggregate_variable(model, ref_cons, vref, hull)
-    end
-    return ref_cons
-end
-function reformulate_disjunction(model::Model, disj::Disjunction, method::_Hull)
-    return reformulate_disjunction(model, disj, Hull(method.value, method.variable_bounds))
 end
 
 # individual disjuncts
@@ -122,8 +110,18 @@ function _reformulate_disjunct(model::Model, ref_cons::Vector{AbstractConstraint
     return
 end
 
-# reformulation for nested disjunction
-# NOTE: name of inner disjunction (if given) is currently lost (not passed upwards)
+"""
+    reformulate_disjunct_constraint(
+        model::JuMP.Model,  
+        con::JuMP.AbstractConstraint, 
+        bvref::JuMP.VariableRef,
+        method::AbstractReformulationMethod
+    )
+
+Extension point for reformulation method `method` to reformulate disjunction constraint `con` over each 
+constraint. If `method` needs to specify how to reformulate the entire disjunction, see 
+[`reformulate_disjunction`](@ref).
+"""
 function reformulate_disjunct_constraint(
     model::Model,  
     con::Disjunction, 

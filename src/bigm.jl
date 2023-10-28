@@ -118,6 +118,11 @@ end
 ################################################################################
 #                              BIG-M REFORMULATION
 ################################################################################
+function _reformulate_disjunctions(model::Model, method::BigM)
+    method.tighten && _query_variable_bounds(model, method)
+    _reformulate_all_disjunctions(model, method)
+end
+
 function reformulate_disjunct_constraint(
     model::Model,
     con::ScalarConstraint{T, S}, 

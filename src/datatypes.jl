@@ -390,9 +390,13 @@ mutable struct GDPData
     disjunct_constraints::_MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}
     disjunctions::_MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}
 
+    # Exactly one constraint mappings
+    exactly1_constraints::Dict{DisjunctionRef, LogicalConstraintRef}
+
     # Indicator variable mappings
     indicator_to_binary::Dict{LogicalVariableRef, VariableRef}
     indicator_to_constraints::Dict{LogicalVariableRef, Vector{Union{DisjunctConstraintRef, DisjunctionRef}}}
+    constraint_to_indicator::Dict{Union{DisjunctConstraintRef, DisjunctionRef}, LogicalVariableRef} # needed for deletion
 
     # Reformulation variables and constraints
     reformulation_variables::Vector{VariableRef}
@@ -408,15 +412,14 @@ mutable struct GDPData
             _MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData}(),
             _MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}(),
             _MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}(),
+            Dict{DisjunctionRef, LogicalConstraintRef}(),
             Dict{LogicalVariableRef, VariableRef}(),
             Dict{LogicalVariableRef, Vector{Union{DisjunctConstraintRef, DisjunctionRef}}}(),
+            Dict{Union{DisjunctConstraintRef, DisjunctionRef}, LogicalVariableRef}(),
             Vector{VariableRef}(),
             Vector{ConstraintRef}(),
             nothing,
             false,
             )
-    end
-    function GDPData(args...)
-        new(args...)
     end
 end

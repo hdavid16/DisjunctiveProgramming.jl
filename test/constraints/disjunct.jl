@@ -26,6 +26,7 @@ function test_disjunct_add_success()
     @test haskey(DP._indicator_to_constraints(model), y)
     @test DP._indicator_to_constraints(model)[y] == [c1, c2]
     @test DP._disjunct_constraints(model)[index(c1)] == DP._constraint_data(c1)
+    @test DP.gdp_data(model).constraint_to_indicator[c1] == y
     @test constraint_object(c1).set == MOI.EqualTo(1.0)
     @test constraint_object(c1).func == constraint_object(c2).func == 1x
     @test constraint_object(c1).set == constraint_object(c2).set
@@ -85,6 +86,8 @@ function test_disjunct_delete()
     @test_throws AssertionError delete(GDPModel(), c1)
     delete(model, c1)
     @test !haskey(gdp_data(model).disjunct_constraints, index(c1))
+    @test !haskey(gdp_data(model).constraint_to_indicator, c1)
+    @test !(c1 in gdp_data(model).indicator_to_constraints[y])
     @test !DP._ready_to_optimize(model)
 end
 

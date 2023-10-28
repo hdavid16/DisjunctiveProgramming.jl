@@ -2,5 +2,5 @@
 
 ```@autodocs
 Modules = [DisjunctiveProgramming]
-Order   = [:type, :function]
+Order   = [:macro, :function, :type]
 ```
