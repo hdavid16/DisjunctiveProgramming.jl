@@ -163,7 +163,8 @@ macro disjunction(args...)
 
     # initial processing of positional arguments
     length(pos_args) >= 2 || _error("Not enough arguments, please see docs for accepted `@disjunction` syntax..")
-    esc_model = esc(popfirst!(pos_args))
+    model = popfirst!(pos_args)
+    esc_model = esc(model)
     y = first(pos_args)
     extra = pos_args[2:end]
     if isexpr(args[1], :block)
