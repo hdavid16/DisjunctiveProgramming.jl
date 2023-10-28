@@ -578,7 +578,8 @@ function JuMP.add_constraint(
     name::String = ""
     ) where {F, S <: Union{_MOIAtLeast, _MOIAtMost, _MOIExactly}, Shape}
     is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")
-    JuMP.check_belongs_to_model.(JuMP.jump_function(c), model)
+    func = JuMP.jump_function(c)
+    JuMP.check_belongs_to_model.(filter(Base.Fix2(isa, JuMP.AbstractJuMPScalar), func), model)
     # TODO maybe do some formatting on `c` to ensure the types are what we expect later
     constr_data = ConstraintData(c, name)
     idx = _MOIUC.add_item(_logical_constraints(model), constr_data)
