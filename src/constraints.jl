@@ -93,14 +93,14 @@ for (RefType, loc) in ((:DisjunctConstraintRef, :disjunct_constraints),
             return cref1.model === cref2.model && cref1.index == cref2.index
         end
         Base.copy(cref::$RefType) = cref
-        @doc """
-            Base.getindex(map::GenericReferenceMap, cref::$($RefType))
+        # @doc """
+        #     Base.getindex(map::GenericReferenceMap, cref::$($RefType))
 
-        ...
-        """
-        function Base.getindex(map::ReferenceMap, cref::$RefType)
-            $RefType(map.model, index(cref))
-        end
+        # ...
+        # """
+        # function Base.getindex(map::ReferenceMap, cref::$RefType)
+        #     $RefType(map.model, index(cref))
+        # end
     end
 end
 

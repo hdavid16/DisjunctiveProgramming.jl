@@ -85,7 +85,7 @@ function test_disjunction_add_array()
     @variable(model, x)
     @variable(model, y[1:2, 1:3, 1:4], Logical)
     @constraint(model, con[i=1:2, j=1:3, k=1:4], x==i+j+k, Disjunct(y[i,j,k]))
-    @disjunction(model, disj[i=1:2, j=1:3], y[i,j,:])
+    @disjunction(model, disj[i=1:2, j=1:3], y[i,j,:]; container = Array)
 
     @test disj isa Matrix{DisjunctionRef}
     @test length(disj) == 6

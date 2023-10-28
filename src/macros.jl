@@ -51,7 +51,7 @@ function _extract_kwargs(args)
     arg_list = collect(args)
     if !isempty(args) && isexpr(args[1], :parameters)
         p = popfirst!(arg_list)
-        append!(arg_list, p.args)
+        append!(arg_list, (Expr(:(=), a.args...) for a in p.args))
     end
     extra_kwargs = filter(x -> isexpr(x, :(=)) && x.args[1] != :container &&
                           x.args[1] != :base_name, arg_list)
@@ -153,19 +153,17 @@ The recognized keyword arguments in `kw_args` are the following:
         of the axes `axes`.
 -  `container`: Specify the container type.
 """
-macro disjunction(model, args...)
-    # prepare the model 
-    esc_model = esc(model)
-
+macro disjunction(args...)
     # define error message function
-    _error(str...) = _macro_error(:disjunction, (model, args...),
+    _error(str...) = _macro_error(:disjunction, (args...),
                                   __source__, str...)
 
     # parse the arguments
     pos_args, extra_kwargs, container_type, base_name = _extract_kwargs(args)
 
     # initial processing of positional arguments
-    length(pos_args) >= 1 || _error("Not enough arguments, please see docs for accepted `@disjunction` syntax..")
+    length(pos_args) >= 2 || _error("Not enough arguments, please see docs for accepted `@disjunction` syntax..")
+    esc_model = esc(popfirst!(pos_args))
     y = first(pos_args)
     extra = pos_args[2:end]
     if isexpr(args[1], :block)
