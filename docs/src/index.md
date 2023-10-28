@@ -107,6 +107,8 @@ Disjunctions can be nested by passing an additional `Disjunct` tag. The Logical 
 
 Empty disjuncts are supported in GDP models. When used, the only constraints enforced on the model when the empty disjunct is selected are the global constraints and any other disjunction constraints defined.
 
+For convenience, the `Exactly(1)` selector constraint is added by default when adding a disjunction to the model. In other words, `@disjunction(model, Y)` will add the disjunction and automatically add the logical constraint `Y in Exactly(1)`. For nested disjunctions, the appropriate `Exactly` constraint is added (e.g., `@constraint(model, Y[1:2] in Exactly(Y[3]))`) to indicate that `Exactly 1` logical variable in `Y[1:2]` is set to `true` when `Y[3]` is `true`, and both variables in `Y[1:2]` are set to `false` when `Y[3]` is `false`, meaning the parent disjunct is not selected. Adding the `Exactly` selector constraint by default can be disabled by setting the keyword argument `exclusive` to `false` in the `@disjunction` macro.
+
 ## MIP Reformulations
 
 The following reformulation methods are currently supported:
