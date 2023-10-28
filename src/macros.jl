@@ -155,7 +155,8 @@ The recognized keyword arguments in `kw_args` are the following:
 """
 macro disjunction(args...)
     # define error message function
-    _error(str...) = _macro_error(:disjunction, (args...),
+    
+    _error(str...) = _macro_error(:disjunction, (args...,),
                                   __source__, str...)
 
     # parse the arguments
@@ -167,7 +168,7 @@ macro disjunction(args...)
     esc_model = esc(model)
     y = first(pos_args)
     extra = pos_args[2:end]
-    if isexpr(args[1], :block)
+    if isexpr(args[2], :block)
         _error("Invalid syntax. Did you mean to use `@disjunctions`?")
     end
 
