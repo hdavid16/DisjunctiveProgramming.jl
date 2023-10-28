@@ -7,8 +7,7 @@ m = GDPModel()
 @constraint(m, x >= -3, Disjunct(Y[1]))
 @constraint(m, exp(x) >= 3, Disjunct(Y[2]))
 @constraint(m, x >= 5, Disjunct(Y[2]))
-@disjunction(m, Y)
-@constraint(m, Y in Exactly(1)) #logical constraint
+disjunction(m, Y)
 @objective(m, Max, x)
 print(m)
 # Max x

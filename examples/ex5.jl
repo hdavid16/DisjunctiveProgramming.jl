@@ -13,8 +13,6 @@ m = GDPModel()
 @constraint(m, y2[i=1:2], [8,1][i] ≤ x[i] ≤ [9,2][i], Disjunct(Y[2]))
 @disjunction(m, inner, [W[1], W[2]], Disjunct(Y[1]))
 @disjunction(m, outer, [Y[1], Y[2]])
-@constraint(m, Y in Exactly(1))
-@constraint(m, W in Exactly(Y[1]))
 
 ##
 reformulate_model(m, BigM())
