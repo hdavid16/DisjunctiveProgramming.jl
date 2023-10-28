@@ -155,8 +155,8 @@ The recognized keyword arguments in `kw_args` are the following:
     the constraint names are set to `base_name[...]` for each index `...` 
         of the axes `axes`.
 -  `container`: Specify the container type.
--  `exclusive`: Specify a `Bool` whether an constraint should be added to make 
-   the disjuncts strictly exlcusive of one another.
+-  `exclusive`: Specify a `Bool` whether a constraint should be added to 
+   only allow selecting one disjunct in the disjunction.
 
 To create disjunctions without macros, see [`disjunction`](@ref).
 """

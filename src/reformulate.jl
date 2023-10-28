@@ -49,10 +49,9 @@ end
 """
     requires_exclusive(method::AbstractReformulationMethod)
 
-Return a `Bool` whether `method` requires an the disjuncts to be exactly exclusive 
-for each disjunction (i.e., it requires an exactly one constraint). For new 
-reformulation method types, this should be extended to in case such a constraint 
-is required (defaults to `false` otherwise).
+Return a `Bool` whether `method` requires that `Exactly 1` disjunct be selected 
+as true for each disjunction. For new reformulation method types, this should be 
+extended to return `true` if such a constraint is required (defaults to `false` otherwise).
 """
 requires_exclusive(::AbstractReformulationMethod) = false
 
