@@ -146,7 +146,7 @@ which must be a `Vector` of `LogicalVariableRef`s.
 Add a group of disjunction described by the expression `expr` parameterized
 by `i`, `j`, ..., which must be a `Vector` of `LogicalVariableRef`s. 
 
-In both of the above calls, a [`Disjunct`](@ref) tag can be added to created 
+In both of the above calls, a [`Disjunct`](@ref) tag can be added to create 
 nested disjunctions.
 
 The recognized keyword arguments in `kw_args` are the following:

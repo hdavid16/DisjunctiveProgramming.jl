@@ -119,7 +119,7 @@ end
     )
 
 Extension point for reformulation method `method` to reformulate disjunction constraint `con` over each 
-constraint. If `method` needs to reformulate the whole disjunction simultaneously, see 
+constraint. If `method` needs to specify how to reformulate the entire disjunction, see 
 [`reformulate_disjunction`](@ref).
 """
 function reformulate_disjunct_constraint(
