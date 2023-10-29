@@ -156,6 +156,7 @@ function test_disjunctions_add_success()
     @test is_valid(model, disj2)
     @test haskey(DP._disjunctions(model), index(disj1))
     @test haskey(DP._disjunctions(model), index(disj2))
+    @test name(disj1) == "bob"
 
     unamed = @disjunctions(model, begin
         y
