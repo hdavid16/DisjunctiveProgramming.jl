@@ -8,22 +8,25 @@ end
 function test_proposition_add_fail()
     m = GDPModel()
     @variable(m, y[1:3], Logical)
-    @test_throws ErrorException @constraint(m, y[1] in IsTrue())
-    @test_throws ErrorException @constraint(Model(), logical_or(y...) in IsTrue())
+    @test_throws ErrorException @constraint(m, y[1] := true)
+    @test_throws ErrorException @constraint(Model(), logical_or(y...) := true)
     @test_throws ErrorException @constraint(m, logical_or(y...) == 2)
     @test_throws ErrorException @constraint(m, logical_or(y...) <= 1)
-    @test_throws ErrorException @constraint(m, sum(y) in IsTrue())
-    @test_throws ErrorException @constraint(m, prod(y) in IsTrue())
-    @test_throws ErrorException @constraint(m, sin(y[1]) in IsTrue())
-    @test_throws MethodError @constraint(m, logical_or(y...) == IsTrue())
-    @test_throws AssertionError @constraint(GDPModel(), logical_or(y...) in IsTrue())
+    @test_throws ErrorException @constraint(m, sum(y) := true)
+    @test_throws ErrorException @constraint(m, y[1]^2 := true)
+    @test_throws ErrorException @constraint(m, sum(y) == true)
+    @test_throws ErrorException @constraint(m, prod(y) := true)
+    @test_throws ErrorException @constraint(m, sin(y[1]) := true)
+    @test_throws ErrorException @constraint(m, logical_or(y...) == true)
+    @test_throws VariableNotOwned @constraint(GDPModel(), logical_or(y...) := true)
+    @test_throws AssertionError add_constraint(m, ScalarConstraint(logical_or(y...), MOI.LessThan(42)))
 end
 
 function test_negation_add_success()
     model = GDPModel()
     @variable(model, y, Logical)
-    c1 = @constraint(model, logical_not(y) in IsTrue())
-    @constraint(model, c2, ¬y in IsTrue())
+    c1 = @constraint(model, logical_not(y) := true)
+    @constraint(model, c2, ¬y := true)
     @test is_valid(model, c1)
     @test is_valid(model, c2)
     @test owner_model(c1) == model
@@ -42,44 +45,46 @@ function test_negation_add_success()
     @test constraint_object(c1).func.args ==
             constraint_object(c2).func.args == Any[y]
     @test constraint_object(c1).set == 
-            constraint_object(c2).set == IsTrue()
+            constraint_object(c2).set == MOI.EqualTo{Bool}(true)
     @test c1 == copy(c1)
 end
 
 function test_implication_add_success()
     model = GDPModel()
     @variable(model, y[1:2], Logical)
-    @constraint(model, c1, implies(y...) in IsTrue())
-    @constraint(model, c2, (y[1] ⟹ y[2]) in IsTrue())
-    @test_macro_throws ErrorException @constraint(model, y[1] ⟹ y[2] in IsTrue())
+    @constraint(model, c1, implies(y...) := true)
+    @constraint(model, c2, y[1] ⟹ y[2] := true)
+    @constraint(model, c3, y[1] ⟹ y[2] := false)
     @test constraint_object(c1).func.head == 
             constraint_object(c2).func.head == :(=>)
     @test constraint_object(c1).func.args ==
             constraint_object(c2).func.args == Vector{Any}(y)
     @test constraint_object(c1).set == 
-            constraint_object(c2).set == IsTrue()
+            constraint_object(c2).set == MOI.EqualTo{Bool}(true)
+    @test constraint_object(c3).func.head == :!
+    @test constraint_object(c3).set == MOI.EqualTo{Bool}(true)
 end
 
 function test_equivalence_add_success()
     model = GDPModel()
     @variable(model, y[1:2], Logical)
-    @constraint(model, c1, iff(y...) in IsTrue())
-    @constraint(model, c2, (y[1] ⇔ y[2]) in IsTrue())
-    @test_macro_throws ErrorException @constraint(model, y[1] ⇔ y[2] in IsTrue())
+    @constraint(model, c1, iff(y...) := true)
+    @constraint(model, c2, y[1] ⇔ y[2] := true)
+    @constraint(model, y[1] == y[2] := true)
     @test constraint_object(c1).func.head == 
             constraint_object(c2).func.head == :(==)
     @test constraint_object(c1).func.args ==
             constraint_object(c2).func.args == Vector{Any}(y)
     @test constraint_object(c1).set == 
-            constraint_object(c2).set == IsTrue()
+            constraint_object(c2).set == MOI.EqualTo{Bool}(true)
 end
 
 function test_intersection_and_flatten_add_success()
     model = GDPModel()
     @variable(model, y[1:3], Logical)
-    @constraint(model, c1, logical_and(y...) in IsTrue())
-    @constraint(model, c2, ∧(y...) in IsTrue())
-    @constraint(model, c3, y[1] ∧ y[2] ∧ y[3] in IsTrue())
+    @constraint(model, c1, logical_and(y...) := true)
+    @constraint(model, c2, ∧(y...) := true)
+    @constraint(model, c3, y[1] ∧ y[2] && y[3] := true)
     @test is_valid(model, c1)
     @test is_valid(model, c2)
     @test is_valid(model, c3)
@@ -91,15 +96,15 @@ function test_intersection_and_flatten_add_success()
             Set(DP._flatten(constraint_object(c3).func).args)
     @test constraint_object(c1).set == 
             constraint_object(c2).set == 
-            constraint_object(c3).set == IsTrue()
+            constraint_object(c3).set == MOI.EqualTo{Bool}(true)
 end
 
 function test_union_and_flatten_add_success()
     model = GDPModel()
     @variable(model, y[1:3], Logical)
-    @constraint(model, c1, logical_or(y...) in IsTrue())
-    @constraint(model, c2, ∨(y...) in IsTrue())
-    @constraint(model, c3, y[1] ∨ y[2] ∨ y[3] in IsTrue())
+    @constraint(model, c1, logical_or(y...) := true)
+    @constraint(model, c2, ∨(y...) := true)
+    @constraint(model, c3, y[1] ∨ y[2] || y[3] := true)
     @test is_valid(model, c1)
     @test is_valid(model, c2)
     @test is_valid(model, c3)
@@ -111,13 +116,13 @@ function test_union_and_flatten_add_success()
             Set(DP._flatten(constraint_object(c3).func).args)
     @test constraint_object(c1).set == 
             constraint_object(c2).set == 
-            constraint_object(c3).set == IsTrue()
+            constraint_object(c3).set == MOI.EqualTo{Bool}(true)
 end
 
 function test_proposition_add_array()
     model = GDPModel()
     @variable(model, y[1:2, 1:3, 1:4], Logical)
-    @constraint(model, con[i=1:2,j=1:3], ∨(y[i,j,:]...) in IsTrue())
+    @constraint(model, con[i=1:2,j=1:3], ∨(y[i,j,:]...) := true)
     @test con isa Matrix{LogicalConstraintRef}
     @test length(con) == 6
 end
@@ -127,7 +132,7 @@ function test_proposition_add_dense_axis()
     I = ["a", "b", "c"]
     J = [1, 2]
     @variable(model, y[I, J, 1:4], Logical)
-    @constraint(model, con[i=I,j=J], ∨(y[i,j,:]...) in IsTrue())
+    @constraint(model, con[i=I,j=J], ∨(y[i,j,:]...) := true)
     @test con isa Containers.DenseAxisArray
     @test con.axes[1] == ["a","b","c"]
     @test con.axes[2] == [1,2]
@@ -137,7 +142,7 @@ end
 function test_proposition_add_sparse_axis()
     model = GDPModel()
     @variable(model, y[1:3, 1:3, 1:4], Logical)
-    @constraint(model, con[i=1:3,j=1:3; j > i], ∨(y[i,j,:]...) in IsTrue())
+    @constraint(model, con[i=1:3,j=1:3; j > i], ∨(y[i,j,:]...) := true)
     @test con isa Containers.SparseAxisArray
     @test length(con) == 3
     @test con.names == (:i, :j)
@@ -147,7 +152,7 @@ end
 function test_proposition_set_name()
     model = GDPModel()
     @variable(model, y[1:3], Logical)
-    c1 = @constraint(model, logical_not(y...) in IsTrue())
+    c1 = @constraint(model, logical_not(y...) := true)
     set_name(c1, "proposition")
     @test name(c1) == "proposition"
 end
@@ -155,7 +160,7 @@ end
 function test_proposition_delete()
     model = GDPModel()
     @variable(model, y[1:3], Logical)
-    c1 = @constraint(model, logical_not(y...) in IsTrue())
+    c1 = @constraint(model, logical_not(y...) := true)
 
     @test_throws AssertionError delete(GDPModel(), c1)
     delete(model, c1)
@@ -166,7 +171,7 @@ end
 function test_negation_reformulation()
     model = GDPModel()
     @variable(model, y, Logical)
-    @constraint(model, ¬y in IsTrue()) 
+    @constraint(model, ¬y := true) 
     reformulate_model(model, DummyReformulation())
     ref_con = DP._reformulation_constraints(model)[1]
     @test is_valid(model, ref_con)
@@ -178,7 +183,7 @@ end
 function test_implication_reformulation()
     model = GDPModel()
     @variable(model, y[1:2], Logical)
-    @constraint(model, implies(y[1], y[2]) in IsTrue())
+    @constraint(model, implies(y[1], y[2]) := true)
     reformulate_model(model, DummyReformulation())
     ref_con = DP._reformulation_constraints(model)[1]
     @test is_valid(model, ref_con)
@@ -192,14 +197,14 @@ end
 function test_implication_reformulation_fail()
     model = GDPModel()
     @variable(model, y[1:3], Logical)
-    @constraint(model, implies(y...) in IsTrue())
+    @constraint(model, implies(y...) := true)
     @test_throws ErrorException reformulate_model(model, DummyReformulation())
 end
 
 function test_equivalence_reformulation()
     model = GDPModel()
     @variable(model, y[1:2], Logical)
-    @constraint(model, iff(y[1], y[2]) in IsTrue())
+    @constraint(model, iff(y[1], y[2]) := true)
     reformulate_model(model, DummyReformulation())
     ref_cons = DP._reformulation_constraints(model)
     @test all(is_valid.(model, ref_cons))
@@ -217,7 +222,7 @@ end
 function test_intersection_reformulation()
     model = GDPModel()
     @variable(model, y[1:2], Logical)
-    @constraint(model, ∧(y[1], y[2]) in IsTrue())
+    @constraint(model, ∧(y[1], y[2]) := true)
     reformulate_model(model, DummyReformulation())
     ref_cons = DP._reformulation_constraints(model)
     @test all(is_valid.(model, ref_cons))
@@ -233,7 +238,7 @@ end
 function test_implication_reformulation()
     model = GDPModel()
     @variable(model, y[1:2], Logical)
-    @constraint(model, ∨(y[1], y[2]) in IsTrue())
+    @constraint(model, ∨(y[1], y[2]) := true)
     reformulate_model(model, DummyReformulation())
     ref_con = DP._reformulation_constraints(model)[1]
     @test is_valid(model, ref_con)

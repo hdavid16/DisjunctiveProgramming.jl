@@ -67,16 +67,16 @@ Two types of logical constraints are supported:
 
 2. `Proposition` or Boolean constraints: These describe the relationships between Logical variables via Boolean algebra. Supported logical operators include:
 
-    - `∨` or `logical_or` (OR, typed with `\vee + tab`).
-    - `∧` or `logical_and` (AND, typed with `\wedge + tab`).
+    - `∨` or `logical_or` or `||` (OR, typed with `\vee + tab`).
+    - `∧` or `logical_and` or `&&` (AND, typed with `\wedge + tab`).
     - `¬` or `logical_not` (NOT, typed with `\neg + tab`).
     - `⟹` of `implies` (Implication, typed with `\Longrightarrow + tab`).
-    - `⇔` or `iff` (double implication or equivalence, typed with `\Leftrightarrow + tab`).
+    - `⇔` or `iff` or `==` (double implication or equivalence, typed with `\Leftrightarrow + tab`).
 
-    The `@constraint` JuMP macro is used to create these constraints with the `IsTrue` set:
+    The `@constraint` JuMP macro is used to create these constraints with `:=`:
 
     ```julia
-    @constraint(model, (Y[1] ⟹ Y[2]) in IsTrue())
+    @constraint(model, Y[1] ⟹ Y[2] := true)
     ```
 
     _Note_: The parenthesis in the example above around the implication clause are only required when the parent logical operator is `⟹` or `⇔` to avoid parsing errors.

@@ -116,7 +116,7 @@ function test_lvar_delete()
     @constraint(model, con, x <= 10, Disjunct(y))
     @constraint(model, con2, x >= 50, Disjunct(z))
     @disjunction(model, disj, [y, z])
-    @constraint(model, lcon, y ∨ z in IsTrue())
+    @constraint(model, lcon, y ∨ z := true)
     DP._reformulate_logical_variables(model)
 
     @test_throws AssertionError delete(GDPModel(), y)

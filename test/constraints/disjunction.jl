@@ -97,7 +97,7 @@ function test_disjunction_add_array()
     @variable(model, x)
     @variable(model, y[1:2, 1:3, 1:4], Logical)
     @constraint(model, con[i=1:2, j=1:3, k=1:4], x==i+j+k, Disjunct(y[i,j,k]))
-    @disjunction(model, disj[i=1:2, j=1:3], y[i,j,:])
+    @disjunction(model, disj[i=1:2, j=1:3], y[i,j,:]; container = Array)
 
     @test length(disj) == 6
     @test all(is_valid.(model, disj))
@@ -149,13 +149,14 @@ function test_disjunctions_add_success()
     @constraint(model, x <= 10, Disjunct(z[1]))
     @constraint(model, x >= 10, Disjunct(z[2]))
     @disjunctions(model, begin
-        disj1, y
+        disj1, y, (base_name = "bob", container = Array)
         disj2, z
     end)
     @test is_valid(model, disj1)
     @test is_valid(model, disj2)
     @test haskey(DP._disjunctions(model), index(disj1))
     @test haskey(DP._disjunctions(model), index(disj2))
+    @test name(disj1) == "bob"
 
     unamed = @disjunctions(model, begin
         y

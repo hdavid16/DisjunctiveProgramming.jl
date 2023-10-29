@@ -93,14 +93,14 @@ for (RefType, loc) in ((:DisjunctConstraintRef, :disjunct_constraints),
             return cref1.model === cref2.model && cref1.index == cref2.index
         end
         Base.copy(cref::$RefType) = cref
-        @doc """
-            Base.getindex(map::GenericReferenceMap, cref::$($RefType))
+        # @doc """
+        #     Base.getindex(map::GenericReferenceMap, cref::$($RefType))
 
-        ...
-        """
-        function Base.getindex(map::ReferenceMap, cref::$RefType)
-            $RefType(map.model, index(cref))
-        end
+        # ...
+        # """
+        # function Base.getindex(map::ReferenceMap, cref::$RefType)
+        #     $RefType(map.model, index(cref))
+        # end
     end
 end
 
@@ -432,19 +432,6 @@ end
 ################################################################################
 #                              LOGICAL CONSTRAINTS
 ################################################################################
-JuMP.operator_to_set(_error::Function, ::Val{:⟹}) = _error(
-    "Cannot use ⟹ in a MOI set (invalid right-hand side). If you are seeing this error, " *
-    "you likely added a logical constraint of the form A ⟹ B ∈ IsTrue(). " *
-    "Instead, you should enclose the constraint function in parenthesis: " *
-    "(A ⟹ B) ∈ IsTrue()."
-)
-JuMP.operator_to_set(_error::Function, ::Val{:⇔}) = _error(
-    "Cannot use ⇔ in a MOI set (invalid right-hand side). If you are seeing this error, " *
-    "you likely added a logical constraint of the form A ⇔ B ∈ IsTrue(). " *
-    "Instead, you should enclose the constraint function in parenthesis: " *
-    "(A ⇔ B) ∈ IsTrue()."
-)
-
 """
     function JuMP.build_constraint(
         _error::Function, 
@@ -468,17 +455,6 @@ model = GDPModel();
 @variable(model, Y[i = 1:2], LogicalVariable);
 @constraint(model, [Y[1], Y[2]] in Exactly(1));
 ```
-
-    JuMP.build_constraint(
-        _error::Function, 
-        func::_LogicalExpr,
-        set::IsTrue
-    )
-
-Extend `JuMP.build_constraint` to add logical propositional constraints to a [`GDPModel`](@ref). 
-This in combination with `JuMP.add_constraint` enables the use of 
-`@constraint(model, [name], logical_expr in IsTrue())` to define a Boolean expression that must
-either be true or false.
 """
 function JuMP.build_constraint( # Cardinality logical constraint
     _error::Function, 
@@ -497,31 +473,6 @@ function JuMP.build_constraint( # Cardinality logical constraint
     _error("Selector constraints can only be applied to a Vector or Container of LogicalVariableRefs.")
 end
 
-# Proposition logical constraint: _LogicalExpr
-function JuMP.build_constraint(
-    _error::Function, 
-    func::_LogicalExpr,
-    set::IsTrue
-    )
-    if !(func.head in _LogicalOperatorHeads)
-        _error("Unrecognized logical operator `$(func.head)`.")
-    else
-        return ScalarConstraint(func, set)
-    end
-end
-
-# Fallback for LogicalVariableRef in IsTrue
-function JuMP.build_constraint(
-    _error::Function, 
-    func::LogicalVariableRef,
-    set::IsTrue
-    )
-    _error(
-        "Logical propositions must be of the form `logical_expr in IsTrue()`. " *
-        "If you are trying to fix a logical variable, use `fix(logical_var, true)` instead."
-    )
-end
-
 # Fallback for Affine/Quad expressions
 function JuMP.build_constraint(
     _error::Function,
@@ -531,7 +482,7 @@ function JuMP.build_constraint(
     _error("Cannot add, subtract, or multiply with logical variables.")
 end
 
-# Fallback for other set types (TODO: we could relax this later if needed)
+# Fallback for other set types
 function JuMP.build_constraint(
     _error::Function,
     expr::Union{LogicalVariableRef, _LogicalExpr},
@@ -540,16 +491,78 @@ function JuMP.build_constraint(
     _error("Invalid set `$set` for logical constraint.")
 end
 
+# Check that logical expression is valid
+function _check_logical_expression(ex)
+    return
+end
+function _check_logical_expression(ex::_LogicalExpr)
+    if !(ex.head in _LogicalOperatorHeads)
+        error("Unrecognized logical operator `$(ex.head)`.")
+    end
+    for a in ex.args
+        _check_logical_expression(a)
+    end
+    return
+end
+
 """
     function JuMP.add_constraint(
-        model::Model,
-        c::ScalarConstraint{<:F, S},
+        model::JuMP.Model,
+        c::JuMP.ScalarConstraint{_LogicalExpr, MOI.EqualTo{Bool}},
         name::String = ""
-    ) where {F <: Union{LogicalVariableRef, _LogicalExpr}, S}
+    )
 
 Extend `JuMP.add_constraint` to allow creating logical proposition constraints 
-for a [`GDPModel`](@ref) with the `@constraint` macro.
+for a [`GDPModel`](@ref) with the `@constraint` macro. Users should define 
+logical constraints via the syntax `@constraint(model, logical_expr := true)`.
+"""
+function JuMP.add_constraint(
+    model::JuMP.Model,
+    c::JuMP.ScalarConstraint{_LogicalExpr, S},
+    name::String = ""
+    ) where {S} # S <: JuMP._DoNotConvertSet{MOI.EqualTo{Bool}} or MOI.EqualTo{Bool}
+    # check the constraint out
+    is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")
+    set = JuMP.moi_set(c)
+    @assert set isa MOI.EqualTo{Bool} "Unexpected set `$set` for logical constraint."
+    func = JuMP.jump_function(c)
+    JuMP.check_belongs_to_model(func, model)
+    _check_logical_expression(func)
+    # add negation if needed
+    if !set.value
+        func = _LogicalExpr(:!, func)
+        set = MOI.EqualTo{Bool}(true)
+    end
+    # add the constraint
+    new_c = JuMP.ScalarConstraint(func, set) # we have guarranteed that set.value = true
+    constr_data = ConstraintData(new_c, name)
+    idx = _MOIUC.add_item(_logical_constraints(model), constr_data)
+    _set_ready_to_optimize(model, false)
+    return LogicalConstraintRef(model, idx)
+end
+function JuMP.add_constraint(
+    model::JuMP.Model,
+    c::JuMP.ScalarConstraint{LogicalVariableRef, S},
+    name::String = ""
+    ) where {S} # S <: JuMP._DoNotConvertSet{MOI.EqualTo{Bool}} or MOI.EqualTo{Bool}
+    error("Cannot define constraint on single logical variable, use `fix` instead.")
+end
+function JuMP.add_constraint(
+    model::JuMP.Model,
+    c::JuMP.ScalarConstraint{GenericAffExpr{C, LogicalVariableRef}, S},
+    name::String = ""
+    ) where {S, C}
+    error("Cannot add, subtract, or multiply with logical variables.")
+end
+function JuMP.add_constraint(
+    model::JuMP.Model,
+    c::JuMP.ScalarConstraint{GenericQuadExpr{C, LogicalVariableRef}, S},
+    name::String = ""
+    ) where {S, C}
+    error("Cannot add, subtract, or multiply with logical variables.")
+end
 
+"""
     function JuMP.add_constraint(
         model::Model,
         c::VectorConstraint{<:F, S, Shape},
@@ -560,24 +573,14 @@ Extend `JuMP.add_constraint` to allow creating logical cardinality constraints
 for a [`GDPModel`](@ref) with the `@constraint` macro.
 """
 function JuMP.add_constraint(
-    model::Model,
-    c::ScalarConstraint{F, S},
+    model::JuMP.Model,
+    c::JuMP.VectorConstraint{F, S, Shape},
     name::String = ""
-) where {F <: Union{LogicalVariableRef, _LogicalExpr}, S <: IsTrue}
+    ) where {F, S <: Union{_MOIAtLeast, _MOIAtMost, _MOIExactly}, Shape}
     is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")
-    @assert all(is_valid.(model, _get_constraint_variables(model, c))) "Constraint variables do not belong to model."
-    constr_data = ConstraintData(c, name)
-    idx = _MOIUC.add_item(_logical_constraints(model), constr_data)
-    _set_ready_to_optimize(model, false)
-    return LogicalConstraintRef(model, idx)
-end
-function JuMP.add_constraint(
-    model::Model,
-    c::VectorConstraint{F, S, Shape},
-    name::String = ""
-) where {F, S <: Union{_MOIAtLeast, _MOIAtMost, _MOIExactly}, Shape}
-    is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")
-    @assert all(is_valid.(model, _get_constraint_variables(model, c))) "Constraint variables do not belong to model."
+    func = JuMP.jump_function(c)
+    JuMP.check_belongs_to_model.(filter(Base.Fix2(isa, JuMP.AbstractJuMPScalar), func), model)
+    # TODO maybe do some formatting on `c` to ensure the types are what we expect later
     constr_data = ConstraintData(c, name)
     idx = _MOIUC.add_item(_logical_constraints(model), constr_data)
     _set_ready_to_optimize(model, false)

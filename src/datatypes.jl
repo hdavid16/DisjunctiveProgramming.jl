@@ -56,11 +56,6 @@ struct LogicalVariableRef <: AbstractVariableRef
 end
 
 ################################################################################
-#                        LOGICAL PROPOSITION SETS
-################################################################################
-struct IsTrue <: _MOI.AbstractScalarSet end
-
-################################################################################
 #                        LOGICAL SELECTOR (CARDINALITY) SETS
 ################################################################################
 # TODO check required methods for AbstractVectorSet: 
