@@ -185,17 +185,18 @@ end
 function test_intersection_reformulation()
     model = GDPModel()
     @variable(model, y[1:2], Logical)
-    @constraint(model, ∧(y[1], y[2]) := true)
+    @constraint(model, y[1] ∧ ¬y[2] := true)
     reformulate_model(model, DummyReformulation())
     ref_cons = DP._reformulation_constraints(model)
     @test all(is_valid.(model, ref_cons))
     ref_con_objs = constraint_object.(ref_cons)
-    @test ref_con_objs[1].set == 
-            ref_con_objs[2].set == MOI.GreaterThan(1.0)
+    sets = [ref_con_objs[1].set, ref_con_objs[2].set]
+    @test MOI.GreaterThan(1.0) in sets
+    @test MOI.GreaterThan(0.0) in sets
     bvars = DP._indicator_to_binary(model)
     funcs = [ref_con_objs[1].func, ref_con_objs[2].func]
     @test 1bvars[y[1]] in funcs
-    @test 1bvars[y[2]] in funcs
+    @test -1bvars[y[2]] in funcs
 end
 
 function test_implication_reformulation()
