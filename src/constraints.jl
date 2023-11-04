@@ -542,14 +542,23 @@ end
 
 # Check that logical expression is valid
 function _check_logical_expression(ex)
+    _check_logical_expression_literal(ex)
+    _check_logical_expression_operator(ex)
+end
+function _check_logical_expression_literal(ex::_LogicalExpr)
+    if _isa_literal(ex)
+        error("Cannot define constraint on single logical variable, use `fix` instead.")
+    end
+end
+function _check_logical_expression_operator(ex)
     return
 end
-function _check_logical_expression(ex::_LogicalExpr)
+function _check_logical_expression_operator(ex::_LogicalExpr)
     if !(ex.head in _LogicalOperatorHeads)
         error("Unrecognized logical operator `$(ex.head)`.")
     end
     for a in ex.args
-        _check_logical_expression(a)
+        _check_logical_expression_operator(a)
     end
     return
 end

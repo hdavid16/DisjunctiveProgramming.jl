@@ -9,6 +9,8 @@ function test_proposition_add_fail()
     m = GDPModel()
     @variable(m, y[1:3], Logical)
     @test_throws ErrorException @constraint(m, y[1] := true)
+    @test_throws ErrorException @constraint(m, ¬y[1] := true)
+    @test_throws ErrorException @constraint(m, logical_not(y[1]) := true)
     @test_throws ErrorException @constraint(Model(), logical_or(y...) := true)
     @test_throws ErrorException @constraint(m, logical_or(y...) == 2)
     @test_throws ErrorException @constraint(m, logical_or(y...) <= 1)
@@ -20,33 +22,6 @@ function test_proposition_add_fail()
     @test_throws ErrorException @constraint(m, logical_or(y...) == true)
     @test_throws VariableNotOwned @constraint(GDPModel(), logical_or(y...) := true)
     @test_throws AssertionError add_constraint(m, ScalarConstraint(logical_or(y...), MOI.LessThan(42)))
-end
-
-function test_negation_add_success()
-    model = GDPModel()
-    @variable(model, y, Logical)
-    c1 = @constraint(model, logical_not(y) := true)
-    @constraint(model, c2, ¬y := true)
-    @test is_valid(model, c1)
-    @test is_valid(model, c2)
-    @test owner_model(c1) == model
-    @test owner_model(c2) == model
-    @test name(c1) == ""
-    @test name(c2) == "c2"
-    @test index(c1) == LogicalConstraintIndex(1)
-    @test index(c2) == LogicalConstraintIndex(2)
-    @test haskey(DP._logical_constraints(model), index(c1))
-    @test haskey(DP._logical_constraints(model), index(c2))
-    @test DP._logical_constraints(model)[index(c1)] == DP._constraint_data(c1)
-    @test constraint_object(c1).func isa DP._LogicalExpr
-    @test constraint_object(c2).func isa DP._LogicalExpr
-    @test constraint_object(c1).func.head == 
-            constraint_object(c2).func.head == :!
-    @test constraint_object(c1).func.args ==
-            constraint_object(c2).func.args == Any[y]
-    @test constraint_object(c1).set == 
-            constraint_object(c2).set == MOI.EqualTo{Bool}(true)
-    @test c1 == copy(c1)
 end
 
 function test_implication_add_success()
@@ -168,18 +143,6 @@ function test_proposition_delete()
     @test !DP._ready_to_optimize(model)
 end
 
-function test_negation_reformulation()
-    model = GDPModel()
-    @variable(model, y, Logical)
-    @constraint(model, ¬y := true) 
-    reformulate_model(model, DummyReformulation())
-    ref_con = DP._reformulation_constraints(model)[1]
-    @test is_valid(model, ref_con)
-    ref_con_obj = constraint_object(ref_con)
-    @test ref_con_obj.set == MOI.GreaterThan(0.0)
-    @test ref_con_obj.func == -DP._indicator_to_binary(model)[y]
-end
-
 function test_implication_reformulation()
     model = GDPModel()
     @variable(model, y[1:2], Logical)
@@ -222,17 +185,18 @@ end
 function test_intersection_reformulation()
     model = GDPModel()
     @variable(model, y[1:2], Logical)
-    @constraint(model, ∧(y[1], y[2]) := true)
+    @constraint(model, y[1] ∧ ¬y[2] := true)
     reformulate_model(model, DummyReformulation())
     ref_cons = DP._reformulation_constraints(model)
     @test all(is_valid.(model, ref_cons))
     ref_con_objs = constraint_object.(ref_cons)
-    @test ref_con_objs[1].set == 
-            ref_con_objs[2].set == MOI.GreaterThan(1.0)
+    sets = [ref_con_objs[1].set, ref_con_objs[2].set]
+    @test MOI.GreaterThan(1.0) in sets
+    @test MOI.GreaterThan(0.0) in sets
     bvars = DP._indicator_to_binary(model)
     funcs = [ref_con_objs[1].func, ref_con_objs[2].func]
     @test 1bvars[y[1]] in funcs
-    @test 1bvars[y[2]] in funcs
+    @test -1bvars[y[2]] in funcs
 end
 
 function test_implication_reformulation()
@@ -543,7 +507,6 @@ end
     end
     @testset "Add Proposition" begin
         test_proposition_add_fail()
-        test_negation_add_success()
         test_implication_add_success()
         test_equivalence_add_success()
         test_intersection_and_flatten_add_success()
@@ -553,7 +516,6 @@ end
         test_proposition_add_sparse_axis()
     end
     @testset "Reformulate Proposition" begin
-        test_negation_reformulation()
         test_implication_reformulation()
         test_implication_reformulation_fail()
         test_equivalence_reformulation()
