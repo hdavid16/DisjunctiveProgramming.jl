@@ -114,7 +114,7 @@ function test_disjunciton_add_dense_axis()
 
     @test disj.axes[1] == ["a","b","c"]
     @test disj.axes[2] == [1,2]
-    @test disj.data isa Matrix{DisjunctionRef}
+    @test disj.data isa Matrix{DisjunctionRef{Model}}
 end
 
 function test_disjunction_add_sparse_axis()
@@ -248,6 +248,23 @@ function test_disjunction_function_nested()
     @test !haskey(gdp_data(model).exactly1_constraints, disj1)
 end
 
+function test_extension_disjunctions()
+    model = GDPModel{MyModel, MyVarRef, MyConRef}()
+    @variable(model, y[1:2], Logical(MyVar), start = true)
+    @variable(model, 0 <= x[1:2] <= 1)
+    crefs = [DisjunctConstraintRef(model, DisjunctConstraintIndex(i)) for i in 1:2]
+    @test @constraint(model, [i = 1:2], x[i]^2 >= 0.5, Disjunct(y[i])) == crefs
+    dref = DisjunctionRef(model, DisjunctionIndex(1))
+    @test @disjunction(model, y, base_name = "test") == dref
+    @test name(dref) == "test"
+    dref2 = DisjunctionRef(model, DisjunctionIndex(2))
+    @test disjunction(model, y) == dref2
+    @test length(DP._disjunctions(model)) == 2
+    @test length(DP._disjunct_constraints(model)) == 2
+    @test delete(model, dref2) isa Nothing
+    @test !is_valid(model, dref2)
+end
+
 @testset "Disjunction" begin
     @testset "Macro Helpers" begin
         test_macro_helpers()
@@ -269,5 +286,8 @@ end
     end
     @testset "Delete Disjunction" begin
         test_disjunction_delete()
+    end
+    @testset "Test Extension" begin
+        test_extension_disjunctions()
     end
 end

@@ -110,6 +110,27 @@ function test_indicator_nested()
     @test all([cobj.set isa MOI.Indicator for cobj in ref_cons_obj])
 end
 
+function test_extension_indicator()
+    model = GDPModel{MyModel, MyVarRef, MyConRef}()
+    @variable(model, x)
+    @variable(model, y[1:2], Logical(MyVar))
+    @variable(model, z[1:2], Logical(MyVar))
+    @constraint(model, x <= 5, Disjunct(y[1]))
+    @constraint(model, x >= 5, Disjunct(y[2]))
+    @disjunction(model, y, Disjunct(z[1]), exactly1 = false)
+    @constraint(model, x <= 10, Disjunct(z[1]))
+    @constraint(model, x >= 10, Disjunct(z[2]))
+    @disjunction(model, z, exactly1 = false)
+    reformulate_model(model, Indicator())
+
+    ref_cons = DP._reformulation_constraints(model)
+    ref_cons_obj = constraint_object.(ref_cons)
+    @test length(ref_cons) == 4
+    @test all(is_valid.(model, ref_cons))
+    @test all(isa.(ref_cons_obj, VectorConstraint))
+    @test all([cobj.set isa MOI.Indicator for cobj in ref_cons_obj])
+end
+
 @testset "Indicator" begin
     test_indicator_scalar_constraints()
     test_indicator_vector_constraints()
@@ -117,4 +138,5 @@ end
     test_indicator_dense_axis()
     test_indicator_sparse_axis()
     test_indicator_nested()
+    test_extension_indicator()
 end

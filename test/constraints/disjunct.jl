@@ -38,7 +38,7 @@ function test_disjunct_add_array()
     @variable(model, x)
     @variable(model, y[1:2, 1:3], Logical)
     @constraint(model, con[i=1:2, j=1:3], x == 1, Disjunct(y[i,j]))
-    @test con isa Matrix{DisjunctConstraintRef}
+    @test con isa Matrix{DisjunctConstraintRef{Model}}
     @test length(con) == 6
 end
 
@@ -53,7 +53,7 @@ function test_disjunct_add_dense_axis()
     @test con isa Containers.DenseAxisArray
     @test con.axes[1] == ["a","b","c"]
     @test con.axes[2] == [1,2]
-    @test con.data isa Matrix{DisjunctConstraintRef}
+    @test con.data isa Matrix{DisjunctConstraintRef{Model}}
 end
 
 function test_disjunct_add_sparse_axis()

@@ -1,35 +1,75 @@
 ################################################################################
 #                              VARIABLE DISAGGREGATION
 ################################################################################
-function _update_variable_bounds(vref::VariableRef, method::Hull)
-    if is_binary(vref) #not used
-        lb, ub = 0, 1
-    elseif !has_lower_bound(vref) || !has_upper_bound(vref)
-        error("Variable $vref must have both lower and upper bounds defined when using the Hull reformulation.")
-    else
-        lb = min(0, lower_bound(vref))
-        ub = max(0, upper_bound(vref))
-    end
-    return lb, ub
+"""
+    requires_disaggregation(vref::JuMP.AbstractVariableRef)::Bool
+
+Return a `Bool` whether `vref` requires disaggregation for the [`Hull`](@ref) 
+reformulation. This is intended as an extension point for interfaces with 
+DisjunctiveProgramming that use variable reference types that are not 
+`JuMP.GenericVariableRef`s. Errors if `vref` is not a `JuMP.GenericVariableRef`.
+See also [`make_disaggregated_variable`](@ref).
+"""
+requires_disaggregation(vref::JuMP.GenericVariableRef) = true
+function requires_disaggregation(::V) where {V}
+    error("`Hull` method does not support expressions with variable " *
+          "references of type `$V`.")
 end
-function _disaggregate_variables(model::Model, lvref::LogicalVariableRef, vrefs::Set{VariableRef}, method::_Hull)
+
+"""
+    make_disaggregated_variable(
+        model::JuMP.AbstractModel, 
+        vref::JuMP.AbstractVariableRef, 
+        name::String, 
+        lower_bound::Number, 
+        upper_bound::Number
+        )::JuMP.AbstractVariableRef
+
+Creates and adds a variable to `model` with name `name` and bounds `lower_bound` 
+and `upper_bound` based on the original variable `vref`. This is used to 
+create dissagregated variables needed for the [`Hull`](@ref) reformulation.
+This is implemented for `model::JuMP.GenericModel` and 
+`vref::JuMP.GenericVariableRef`, but it serves as an extension point for 
+interfaces with other model/variable reference types. This also requires 
+the implementation of [`requires_disaggregation`](@ref).
+"""
+function make_disaggregated_variable(
+    model::JuMP.GenericModel, 
+    vref::JuMP.GenericVariableRef, 
+    name, 
+    lb, 
+    ub
+    )
+    return JuMP.@variable(model, base_name = name, lower_bound = lb, upper_bound = ub)
+end
+
+function _disaggregate_variables(
+    model::JuMP.AbstractModel, 
+    lvref::LogicalVariableRef, 
+    vrefs::Set, 
+    method::_Hull
+    )
     #create disaggregated variables for that disjunct
     for vref in vrefs
-        is_binary(vref) && continue #skip binary variables
+        if !requires_disaggregation(vref) || is_binary(vref) 
+            continue # skip variables that don't require dissagregation
+        end
         _disaggregate_variable(model, lvref, vref, method) #create disaggregated var for that disjunct
     end
 end
-function _disaggregate_variable(model::Model, lvref::LogicalVariableRef, vref::VariableRef, method::_Hull)
+function _disaggregate_variable(
+    model::JuMP.AbstractModel, 
+    lvref::LogicalVariableRef, 
+    vref::JuMP.AbstractVariableRef, 
+    method::_Hull
+    )
     #create disaggregated vref
-    lb, ub = method.variable_bounds[vref]
-    dvref = @variable(model, base_name = "$(vref)_$(lvref)", lower_bound = lb, upper_bound = ub)
+    lb, ub = variable_bound_info(vref)
+    dvref = make_disaggregated_variable(model, vref, "$(vref)_$(lvref)", lb, ub)
     push!(_reformulation_variables(model), dvref)
     #get binary indicator variable
     bvref = _indicator_to_binary(model)[lvref]
     #temp storage
-    if !haskey(method.disjunction_variables, vref) #NOTE: not needed because _Hull disjunction_variables is initialized with all the variables in the disjunction
-        method.disjunction_variables[vref] = Vector{VariableRef}()
-    end
     push!(method.disjunction_variables[vref], dvref)
     method.disjunct_variables[vref, bvref] = dvref
     #create bounding constraints
@@ -45,12 +85,15 @@ end
 ################################################################################
 #                              VARIABLE AGGREGATION
 ################################################################################
-function _aggregate_variable(model::Model, ref_cons::Vector{AbstractConstraint}, vref::VariableRef, method::_Hull)
+function _aggregate_variable(
+    model::JuMP.AbstractModel, 
+    ref_cons::Vector{JuMP.AbstractConstraint}, 
+    vref::JuMP.AbstractVariableRef, 
+    method::_Hull
+    )
     is_binary(vref) && return #skip binary variables
     con_expr = @expression(model, -vref + sum(method.disjunction_variables[vref]))
-    push!(ref_cons,
-        build_constraint(error, con_expr, _MOI.EqualTo(0))
-    )
+    push!(ref_cons, build_constraint(error, con_expr, _MOI.EqualTo(0)))
     return 
 end
 
@@ -58,7 +101,12 @@ end
 #                              CONSTRAINT DISAGGREGATION
 ################################################################################
 # variable
-function _disaggregate_expression(model::Model, vref::VariableRef, bvref::VariableRef, method::_Hull)
+function _disaggregate_expression(
+    model::JuMP.AbstractModel, 
+    vref::JuMP.AbstractVariableRef, 
+    bvref::JuMP.AbstractVariableRef, 
+    method::_Hull
+    )
     if is_binary(vref) || !haskey(method.disjunct_variables, (vref, bvref)) #keep any binary variables or nested disaggregated variables unchanged 
         return vref #NOTE: not needed because nested constraint of the form `vref in MOI.AbstractScalarSet` gets reformulated to an affine expression.
     else #replace with disaggregated form
@@ -66,7 +114,12 @@ function _disaggregate_expression(model::Model, vref::VariableRef, bvref::Variab
     end
 end
 # affine expression
-function _disaggregate_expression(model::Model, aff::AffExpr, bvref::VariableRef, method::_Hull)
+function _disaggregate_expression(
+    model::JuMP.AbstractModel, 
+    aff::JuMP.GenericAffExpr, 
+    bvref::JuMP.AbstractVariableRef, 
+    method::_Hull
+    )
     new_expr = @expression(model, aff.constant*bvref) #multiply constant by binary indicator variable
     for (vref, coeff) in aff.terms
         if is_binary(vref) || !haskey(method.disjunct_variables, (vref, bvref)) #keep any binary variables or nested disaggregated variables unchanged 
@@ -81,24 +134,39 @@ end
 # quadratic expression
 # TODO review what happens when there are bilinear terms with binary variables involved since these are not being disaggregated 
 #   (e.g., complementarity constraints; though likely irrelevant)...
-function _disaggregate_expression(model::Model, quad::QuadExpr, bvref::VariableRef, method::_Hull)
+function _disaggregate_expression(
+    model::JuMP.AbstractModel, 
+    quad::JuMP.GenericQuadExpr, 
+    bvref::JuMP.AbstractVariableRef, 
+    method::_Hull
+    )
     #get affine part
     new_expr = _disaggregate_expression(model, quad.aff, bvref, method)
-    #get nonlinear part
+    #get quadratic part
     ϵ = method.value
     for (pair, coeff) in quad.terms
         da_ref = method.disjunct_variables[pair.a, bvref]
         db_ref = method.disjunct_variables[pair.b, bvref]
-         new_expr += coeff * da_ref * db_ref / ((1-ϵ)*bvref+ϵ)
+        new_expr += coeff * da_ref * db_ref / ((1-ϵ)*bvref+ϵ)
     end
     return new_expr
 end
 # constant in NonlinearExpr
-function _disaggregate_nl_expression(model::Model, c::Number, ::VariableRef, method::_Hull)
+function _disaggregate_nl_expression(
+    ::JuMP.AbstractModel, 
+    c::Number, 
+    ::JuMP.AbstractVariableRef, 
+    ::_Hull
+    )
     return c
 end
 # variable in NonlinearExpr
-function _disaggregate_nl_expression(model::Model, vref::VariableRef, bvref::VariableRef, method::_Hull)
+function _disaggregate_nl_expression(
+    ::JuMP.AbstractModel, 
+    vref::JuMP.AbstractVariableRef, 
+    bvref::JuMP.AbstractVariableRef, 
+    method::_Hull
+    )
     ϵ = method.value
     if is_binary(vref) || !haskey(method.disjunct_variables, (vref, bvref)) #keep any binary variables or nested disaggregated variables unchanged 
         dvref = vref
@@ -108,7 +176,12 @@ function _disaggregate_nl_expression(model::Model, vref::VariableRef, bvref::Var
     return dvref / ((1-ϵ)*bvref+ϵ)
 end
 # affine expression in NonlinearExpr
-function _disaggregate_nl_expression(model::Model, aff::AffExpr, bvref::VariableRef, method::_Hull)
+function _disaggregate_nl_expression(
+    ::JuMP.AbstractModel, 
+    aff::JuMP.GenericAffExpr, 
+    bvref::JuMP.AbstractVariableRef, 
+    method::_Hull
+    )
     new_expr = aff.constant
     ϵ = method.value
     for (vref, coeff) in aff.terms
@@ -124,7 +197,11 @@ end
 # quadratic expression in NonlinearExpr
 # TODO review what happens when there are bilinear terms with binary variables involved since these are not being disaggregated 
 #   (e.g., complementarity constraints; though likely irrelevant)...
-function _disaggregate_nl_expression(model::Model, quad::QuadExpr, bvref::VariableRef, method::_Hull)
+function _disaggregate_nl_expression(
+    model::JuMP.AbstractModel, 
+    quad::JuMP.GenericQuadExpr, 
+    bvref::JuMP.AbstractVariableRef, 
+    method::_Hull)
     #get affine part
     new_expr = _disaggregate_nl_expression(model, quad.aff, bvref, method)
     #get quadratic part
@@ -137,12 +214,17 @@ function _disaggregate_nl_expression(model::Model, quad::QuadExpr, bvref::Variab
     return new_expr
 end
 # nonlinear expression in NonlinearExpr
-function _disaggregate_nl_expression(model::Model, nlp::NonlinearExpr, bvref::VariableRef, method::_Hull)
+function _disaggregate_nl_expression(
+    model::JuMP.AbstractModel, 
+    nlp::NLP, 
+    bvref::JuMP.AbstractVariableRef, 
+    method::_Hull
+    ) where {NLP <: JuMP.GenericNonlinearExpr}
     new_args = Vector{Any}(undef, length(nlp.args))
     for (i,arg) in enumerate(nlp.args)
         new_args[i] = _disaggregate_nl_expression(model, arg, bvref, method)
     end
-    new_expr = NonlinearExpr(nlp.head, new_args)
+    new_expr = NLP(nlp.head, new_args)
     return new_expr
 end
 
@@ -151,12 +233,19 @@ end
 ################################################################################
 requires_exactly1(::Hull) = true
 
-function _reformulate_disjunctions(model::Model, method::Hull)
-    _query_variable_bounds(model, method)
-    _reformulate_all_disjunctions(model, method)
+requires_variable_bound_info(::Hull) = true
+
+function set_variable_bound_info(vref::JuMP.AbstractVariableRef, ::Hull)
+    if !has_lower_bound(vref) || !has_upper_bound(vref)
+        error("Variable $vref must have both lower and upper bounds defined when using the Hull reformulation.")
+    else
+        lb = min(0, lower_bound(vref))
+        ub = max(0, upper_bound(vref))
+    end
+    return lb, ub
 end
 
-function reformulate_disjunction(model::Model, disj::Disjunction, method::Hull)
+function reformulate_disjunction(model::JuMP.AbstractModel, disj::Disjunction, method::Hull)
     ref_cons = Vector{AbstractConstraint}() #store reformulated constraints
     disj_vrefs = _get_disjunction_variables(model, disj)
     hull = _Hull(method, disj_vrefs)
@@ -169,16 +258,16 @@ function reformulate_disjunction(model::Model, disj::Disjunction, method::Hull)
     end
     return ref_cons
 end
-function reformulate_disjunction(model::Model, disj::Disjunction, method::_Hull)
-    return reformulate_disjunction(model, disj, Hull(method.value, method.variable_bounds))
+function reformulate_disjunction(model::JuMP.AbstractModel, disj::Disjunction, method::_Hull)
+    return reformulate_disjunction(model, disj, Hull(method.value))
 end
 
 function reformulate_disjunct_constraint(
-    model::Model, 
+    model::JuMP.AbstractModel, 
     con::ScalarConstraint{T, S}, 
-    bvref::VariableRef, 
+    bvref::JuMP.AbstractVariableRef, 
     method::_Hull
-) where {T <: Union{VariableRef, AffExpr, QuadExpr}, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
+) where {T <: JuMP.AbstractJuMPScalar, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
     new_func = _disaggregate_expression(model, con.func, bvref, method)
     set_value = _set_value(con.set)
     new_func -= set_value*bvref
@@ -186,11 +275,11 @@ function reformulate_disjunct_constraint(
     return [reform_con]
 end
 function reformulate_disjunct_constraint(
-    model::Model, 
+    model::JuMP.AbstractModel, 
     con::VectorConstraint{T, S, R}, 
-    bvref::VariableRef, 
+    bvref::JuMP.AbstractVariableRef, 
     method::_Hull
-) where {T <: Union{VariableRef, AffExpr, QuadExpr}, S <: Union{_MOI.Nonpositives, _MOI.Nonnegatives, _MOI.Zeros}, R}
+) where {T <: JuMP.AbstractJuMPScalar, S <: Union{_MOI.Nonpositives, _MOI.Nonnegatives, _MOI.Zeros}, R}
     new_func = @expression(model, [i=1:con.set.dimension],
         _disaggregate_expression(model, con.func[i], bvref, method)
     )
@@ -198,9 +287,9 @@ function reformulate_disjunct_constraint(
     return [reform_con]
 end
 function reformulate_disjunct_constraint(
-    model::Model, 
+    model::JuMP.AbstractModel, 
     con::ScalarConstraint{T, S}, 
-    bvref::VariableRef,
+    bvref::JuMP.AbstractVariableRef,
     method::_Hull
 ) where {T <: GenericNonlinearExpr, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
     con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
@@ -215,9 +304,9 @@ function reformulate_disjunct_constraint(
     return [reform_con]
 end
 function reformulate_disjunct_constraint(
-    model::Model, 
+    model::JuMP.AbstractModel, 
     con::VectorConstraint{T, S, R}, 
-    bvref::VariableRef,
+    bvref::JuMP.AbstractVariableRef,
     method::_Hull
 ) where {T <: GenericNonlinearExpr, S <: Union{_MOI.Nonpositives, _MOI.Nonnegatives, _MOI.Zeros}, R}
     con_func = @expression(model, [i=1:con.set.dimension],
@@ -235,11 +324,11 @@ function reformulate_disjunct_constraint(
     return [reform_con]
 end
 function reformulate_disjunct_constraint(
-    model::Model, 
+    model::JuMP.AbstractModel, 
     con::ScalarConstraint{T, S}, 
-    bvref::VariableRef,
+    bvref::JuMP.AbstractVariableRef,
     method::_Hull
-) where {T <: Union{VariableRef, AffExpr, QuadExpr}, S <: _MOI.Interval}
+) where {T <: JuMP.AbstractJuMPScalar, S <: _MOI.Interval}
     new_func = _disaggregate_expression(model, con.func, bvref, method)
     new_func_gt = @expression(model, new_func - con.set.lower*bvref)
     new_func_lt = @expression(model, new_func - con.set.upper*bvref)
@@ -248,9 +337,9 @@ function reformulate_disjunct_constraint(
     return [reform_con_gt, reform_con_lt]
 end
 function reformulate_disjunct_constraint(
-    model::Model, 
+    model::JuMP.AbstractModel, 
     con::ScalarConstraint{T, S}, 
-    bvref::VariableRef,
+    bvref::JuMP.AbstractVariableRef,
     method::_Hull
 ) where {T <: GenericNonlinearExpr, S <: _MOI.Interval}
     con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
