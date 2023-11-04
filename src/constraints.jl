@@ -290,11 +290,6 @@ function _check_disjunction(_error, lvrefs::AbstractVector{<:LogicalVariableRef}
     return lvrefs
 end
 
-# fallback
-function _check_disjunction(_error, _, ::JuMP.AbstractModel)
-    _error("Unrecognized disjunction input structure, see documentation for details.")
-end
-
 # Write the main function for creating disjunctions that is macro friendly
 function _create_disjunction(
     _error::Function,
@@ -503,7 +498,7 @@ end
 # Fallback for Affine/Quad expressions
 function JuMP.build_constraint(
     _error::Function,
-    expr::Union{GenericAffExpr{C, LogicalVariableRef}, GenericQuadExpr{C, LogicalVariableRef}},
+    expr::Union{GenericAffExpr{C, <:LogicalVariableRef}, GenericQuadExpr{C, <:LogicalVariableRef}},
     set::_MOI.AbstractScalarSet
 ) where {C}
     _error("Cannot add, subtract, or multiply with logical variables.")
