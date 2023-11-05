@@ -47,7 +47,7 @@ function _optimize_hook(
     if !_ready_to_optimize(model) || _solution_method(model) != method
         reformulate_model(model, method)
     end
-    return optimize!(model; ignore_optimize_hook = true, kwargs...)
+    return JuMP.optimize!(model; ignore_optimize_hook = true, kwargs...)
 end
 
 ################################################################################
