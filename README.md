@@ -59,7 +59,7 @@ Logical variables are JuMP `AbstractVariable`s with two fields: `fix_value` and 
 
 Two types of logical constraints are supported:
 
-1. `Selector` or cardinality constraints: A subset of Logical variables is passed and `Exactly`, `AtMost`, or `AtLeast` `n` of these is allowed to be `True`. These constraints are specified with the `func` $\in$ `set` notation in `MathOptInterface` in a `@constraint` JuMP macro. It is not assumed that disjunctions have an `Exactly(1)` constraint enforced on their disjuncts upon creation. This constraint must be explicitly specified.
+1. `Selector` or cardinality constraints: A subset of Logical variables is passed and `Exactly`, `AtMost`, or `AtLeast` `n` of these is allowed to be `true`. These constraints are specified with the `func` $\in$ `set` notation in `MathOptInterface` in a `@constraint` JuMP macro. It is not assumed that disjunctions have an `Exactly(1)` constraint enforced on their disjuncts upon creation. This constraint must be explicitly specified.
 
     ```julia
     @constraint(model, [Y[1], Y[2]] in Exactly(1))
@@ -117,12 +117,10 @@ The following reformulation methods are currently supported:
 
     - `value`: Big-M value to use. Default: `1e9`. Big-M values are currently global to the model. Constraint specific Big-M values can be supported in future releases.
     - `tighten`: Boolean indicating if tightening the Big-M value should be attempted (currently supported only for linear disjunct constraints when variable bounds have been set or specified in the `variable_bounds` field). Default: `true`.
-    - `variable_bounds`: Dictionary specifying the lower and upper bounds for each `VariableRef` (e.g., `Dict(x => (lb, ub))`). Default: populate when calling the reformulation method.
 
 2. [Hull](https://optimization.cbe.cornell.edu/index.php?title=Disjunctive_inequalities#Convex-Hull_Reformulation[1][2]): The `Hull` struct is created with the following optional arguments:
 
     - `value`: `ϵ` value to use when reformulating quadratic or nonlinear constraints via the perspective function proposed by [Furman, et al. [2020]](https://link.springer.com/article/10.1007/s10589-020-00176-0). Default: `1e-6`. `ϵ` values are currently global to the model. Constraint specific tolerances can be supported in future releases.
-    - `variable_bounds`: Dictionary specifying the lower and upper bounds for each `VariableRef` (e.g., `Dict(x => (lb, ub))`). Default: populate when calling the reformulation method.
 
 3. [Indicator](https://jump.dev/JuMP.jl/stable/manual/constraints/#Indicator-constraints): This method reformulates each disjunct constraint into an indicator constraint with the Boolean reformulation counterpart of the Logical variable used to define the disjunct constraint.
 
@@ -154,7 +152,7 @@ print(m)
 #  x[2] ≤ 20
 
 ##
-optimize!(m, method = BigM(100, false)) #specify M value and disable M-tightening
+optimize!(m, gdp_method = BigM(100, false)) #specify M value and disable M-tightening
 print(m)
 # Max x[1] + x[2]
 # Subject to
@@ -175,7 +173,7 @@ print(m)
 #  Y[2] binary
 
 ##
-optimize!(m, method = Hull())
+optimize!(m, gdp_method = Hull())
 print(m)
 # Max x[1] + x[2]
 # Subject to

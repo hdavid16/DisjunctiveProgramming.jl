@@ -36,7 +36,7 @@ print(m)
 
 ## BigM reformulation
 set_optimizer(m, HiGHS.Optimizer)
-optimize!(m, method = BigM())
+optimize!(m, gdp_method = BigM())
 print(m)
 # Max x
 # Subject to
@@ -51,7 +51,7 @@ print(m)
 #  Y[2] binary
 
 ## Hull reformulation
-optimize!(m, method = Hull())
+optimize!(m, gdp_method = Hull())
 print(m)
 # Max x
 # Subject to

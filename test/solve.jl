@@ -23,7 +23,7 @@ function test_linear_gdp_example(m)
     @test value(bins[W[1]]) ≈ 0
     @test value(bins[W[2]]) ≈ 0
 
-    optimize!(m, method = Hull())
+    optimize!(m, gdp_method = Hull())
     @test termination_status(m) == MOI.OPTIMAL
     @test objective_value(m) ≈ 11
     @test value.(x) ≈ [9,2]
@@ -55,10 +55,10 @@ function test_generic_model(m)
     @disjunction(m, inner, [W[1], W[2]], Disjunct(Y[1]))
     @disjunction(m, outer, [Y[1], Y[2]])
 
-    optimize!(m, method = BigM())
-    optimize!(m, method = Hull())
+    optimize!(m, gdp_method = BigM())
+    optimize!(m, gdp_method = Hull())
 
-    # TODO add meaningful tests once we find an appropriate solver
+    # TODO add meaningful tests to check the constraints/variables
 end
 
 @testset "Solve Linear GDP" begin
