@@ -102,7 +102,7 @@ function test_exactly_reformulation()
     @test is_valid(model, ref_con)
     ref_con_obj = constraint_object(ref_con)
     @test ref_con_obj.set == MOI.EqualTo(1.0)
-    @test ref_con_obj.func == sum(DP._reformulation_variables(model))
+    @test ref_con_obj.func == sum(binary_variable.(y))
 end
 
 function test_atleast_reformulation()
@@ -114,7 +114,7 @@ function test_atleast_reformulation()
     @test is_valid(model, ref_con)
     ref_con_obj = constraint_object(ref_con)
     @test ref_con_obj.set == MOI.GreaterThan(1.0)
-    @test ref_con_obj.func == sum(DP._reformulation_variables(model))
+    @test ref_con_obj.func == sum(binary_variable.(y))
 end
 
 function test_atmost_reformulation()
@@ -126,7 +126,7 @@ function test_atmost_reformulation()
     @test is_valid(model, ref_con)
     ref_con_obj = constraint_object(ref_con)
     @test ref_con_obj.set == MOI.LessThan(1.0)
-    @test ref_con_obj.func == sum(DP._reformulation_variables(model))
+    @test ref_con_obj.func == sum(binary_variable.(y))
 end
 
 function test_nested_exactly_reformulation()
@@ -183,7 +183,7 @@ function test_extension_variables()
     ref_con = DP._reformulation_constraints(model)[1]
     c = constraint_object(ref_con)
     @test c.set == MOI.GreaterThan(1.0)
-    @test c.func == sum(DP._reformulation_variables(model))
+    @test c.func == sum(binary_variable.(y))
 end
 
 @testset "Logical Selector Constraints" begin

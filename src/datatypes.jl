@@ -52,17 +52,17 @@ struct Logical{T}
 end
 
 """
-    LogicalVariableData{V}
+    LogicalVariableData
 
 A type for storing [`LogicalVariable`](@ref)s and any meta-data they 
 possess.
 
 **Fields**
-- `variable::V`: The logical variable object.
+- `variable::LogicalVariable`: The logical variable object.
 - `name::String`: The name of the variable.
 """
-mutable struct LogicalVariableData{V}
-    variable::V
+mutable struct LogicalVariableData
+    variable::LogicalVariable
     name::String
 end
 

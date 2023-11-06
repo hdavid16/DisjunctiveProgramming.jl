@@ -223,8 +223,7 @@ function _reformulate_selector(
     func::Vector{AbstractJuMPScalar}, 
     set::AbstractCardinalitySet
     )
-    dict = _indicator_to_binary(model)
-    bvrefs = [dict[lvref] for lvref in func[2:end]]
+    bvrefs = [binary_variable(lvref) for lvref in func[2:end]]
     c = JuMP.constant(func[1])
     new_set = _vec_to_scalar_set(set)(c)
     cref = @constraint(model, sum(bvrefs) in new_set)
@@ -235,8 +234,7 @@ function _reformulate_selector(
     func::Vector{<:LogicalVariableRef}, 
     set::AbstractCardinalitySet
     )
-    dict = _indicator_to_binary(model)
-    bvref, bvrefs... = [dict[lvref] for lvref in func]
+    bvref, bvrefs... = [binary_variable(lvref) for lvref in func]
     new_set = _vec_to_scalar_set(set)(0)
     cref = @constraint(model, sum(bvrefs) - bvref in new_set)
     push!(_reformulation_constraints(model), cref)
@@ -276,7 +274,7 @@ function _add_reformulated_proposition(
 end
 
 function _reformulate_clause(model::JuMP.AbstractModel, lvref::LogicalVariableRef)
-    func = 1 * _indicator_to_binary(model)[lvref]
+    func = 1 * binary_variable(lvref)
     return func
 end
 

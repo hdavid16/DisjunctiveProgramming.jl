@@ -46,6 +46,37 @@ function JuMP.build_variable(
     return _TaggedLogicalVariable(lvar, tag.tag_data) 
 end
 
+# Helper functions to extract the core variable object
+_get_variable(v::_TaggedLogicalVariable) = v.variable
+_get_variable(v) = v
+
+# Helper function to add start value and fix value
+function _add_logical_info(bvref, var::LogicalVariable)
+    if !isnothing(var.fix_value)
+        JuMP.fix(bvref, var.fix_value)
+    end
+    if !isnothing(var.start_value)
+        JuMP.set_start_value(bvref, var.start_value)
+    end
+    return
+end
+function _add_logical_info(bvref, var::_TaggedLogicalVariable)
+    return _add_logical_info(bvref, var.variable)
+end
+
+# Dispatch on logical variable type to create a binary variable
+function _make_binary_variable(model, ::LogicalVariable, name)
+    return JuMP.@variable(model, base_name = name, binary = true)
+end
+function _make_binary_variable(model, var::_TaggedLogicalVariable, name)
+    return JuMP.@variable(
+        model, 
+        base_name = name, 
+        binary = true, 
+        variable_type = var.tag_data
+        )
+end
+
 """
     JuMP.add_variable(model::Model, v::LogicalVariable, 
                       name::String = "")::LogicalVariableRef
@@ -59,10 +90,16 @@ function JuMP.add_variable(
     name::String = ""
     )
     is_gdp_model(model) || error("Can only add logical variables to `GDPModel`s.")
-    data = LogicalVariableData(v, name)
+    # add the logical variable
+    data = LogicalVariableData(_get_variable(v), name)
     idx = _MOIUC.add_item(_logical_variables(model), data)
+    lvref = LogicalVariableRef(model, idx)
     _set_ready_to_optimize(model, false)
-    return LogicalVariableRef(model, idx)
+    # add the assocviated binary variables
+    bvref = _make_binary_variable(model, v, name)
+    _add_logical_info(bvref, v)
+    _indicator_to_binary(model)[lvref] = bvref
+    return lvref
 end
 
 # Base extensions
@@ -77,31 +114,15 @@ end
 # end
 
 # Define helpful getting functions
-function _variable_object(data::LogicalVariableData{<:_TaggedLogicalVariable})
-    return data.variable.variable
-end
-function _variable_object(data::LogicalVariableData)
-    return data.variable
-end
 function _variable_object(lvref::LogicalVariableRef)
     dict = _logical_variables(JuMP.owner_model(lvref))
-    return _variable_object(dict[JuMP.index(lvref)])
+    return dict[JuMP.index(lvref)].variable
 end
 
 # Define helpful setting functions
-function _set_variable_object(data::LogicalVariableData{<:_TaggedLogicalVariable}, var)
-    tag = data.variable.tag_data
-    data.variable = _TaggedLogicalVariable(var, tag)
-    return
-end
-function _set_variable_object(data::LogicalVariableData, var)
-    data.variable = var
-    return
-end
 function _set_variable_object(lvref::LogicalVariableRef, var::LogicalVariable)
     model = JuMP.owner_model(lvref)
-    dict = _logical_variables(model)
-    _set_variable_object(dict[JuMP.index(lvref)], var)
+    _logical_variables(model)[JuMP.index(lvref)].variable = var
     _set_ready_to_optimize(model, false)
     return
 end
@@ -158,6 +179,7 @@ function JuMP.set_name(vref::LogicalVariableRef, name::String)
     data = gdp_data(model)
     data.logical_variables[index(vref)].name = name
     _set_ready_to_optimize(model, false)
+    JuMP.set_name(binary_variable(vref), name)
     return
 end
 
@@ -183,6 +205,7 @@ function JuMP.set_start_value(
     )
     new_var = LogicalVariable(JuMP.fix_value(vref), value)
     _set_variable_object(vref, new_var)
+    JuMP.set_start_value(binary_variable(vref), value)
     return
 end
 """
@@ -215,6 +238,7 @@ new one.
 function JuMP.fix(vref::LogicalVariableRef, value::Bool)
     new_var = LogicalVariable(value, JuMP.start_value(vref))
     _set_variable_object(vref, new_var)
+    JuMP.fix(binary_variable(vref), value)
     return
 end
 
@@ -226,7 +250,20 @@ Delete the fixed value of a logical variable.
 function JuMP.unfix(vref::LogicalVariableRef)
     new_var = LogicalVariable(nothing, JuMP.start_value(vref))
     _set_variable_object(vref, new_var)
+    JuMP.unfix(binary_variable(vref))
     return
+end
+
+"""
+    binary_variable(vref::LogicalVariableRef)::JuMP.AbstractVariableRef
+
+Returns the underlying binary variable for the logical variable `vref` which 
+is used in the reformulated model. This is helpful to embed logical variables 
+in algebraic constraints.
+"""
+function binary_variable(vref::LogicalVariableRef)
+    model = JuMP.owner_model(vref)
+    return _indicator_to_binary(model)[vref]
 end
 
 """
@@ -241,24 +278,25 @@ function JuMP.delete(model::JuMP.AbstractModel, vref::LogicalVariableRef)
     #delete any disjunct constraints associated with the logical variables in the disjunction
     if haskey(_indicator_to_constraints(model), vref)
         crefs = _indicator_to_constraints(model)[vref]
-        delete.(model, crefs)
+        JuMP.delete.(model, crefs)
         delete!(_indicator_to_constraints(model), vref)
     end
     #delete any disjunctions that have the logical variable
     for (didx, ddata) in _disjunctions(model)
         if vref in ddata.constraint.indicators
-            delete(model, DisjunctionRef(model, didx))
+            JuMP.delete(model, DisjunctionRef(model, didx))
         end
     end
     #delete any logical constraints involving the logical variables
     for (cidx, cdata) in _logical_constraints(model)
         lvars = _get_logical_constraint_variables(model, cdata.constraint)
         if vref in lvars
-            delete(model, LogicalConstraintRef(model, cidx))
+            JuMP.delete(model, LogicalConstraintRef(model, cidx))
         end
     end
     #delete the logical variable
     delete!(dict, vidx)
+    JuMP.delete(model, binary_variable(vref))
     delete!(_indicator_to_binary(model), vref)
     #not ready to optimize
     _set_ready_to_optimize(model, false)

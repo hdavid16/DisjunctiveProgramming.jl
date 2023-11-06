@@ -11,7 +11,6 @@ function reformulate_model(model::JuMP.AbstractModel, method::AbstractSolutionMe
     #clear all previous reformulations
     _clear_reformulations(model)
     #reformulate
-    _reformulate_logical_variables(model)
     _reformulate_disjunctions(model, method)
     _reformulate_logical_constraints(model)
     #set solution method
@@ -27,48 +26,6 @@ function _clear_reformulations(model::JuMP.AbstractModel)
     empty!(gdp_data(model).reformulation_variables)
     empty!(gdp_data(model).variable_bounds)
     return
-end
-
-################################################################################
-#                              LOGICAL VARIABLES
-################################################################################
-# Helper function to add start value and fix value
-function _add_logical_info(bvref, var::LogicalVariable)
-    if !isnothing(var.fix_value)
-        JuMP.fix(bvref, var.fix_value)
-    end
-    if !isnothing(var.start_value)
-        JuMP.set_start_value(bvref, var.start_value)
-    end
-    return
-end
-function _add_logical_info(bvref, var::_TaggedLogicalVariable)
-    return _add_logical_info(bvref, var.variable)
-end
-
-# Dispatch on logical variable type to create a binary variable
-function _make_binary_variable(model, ::LogicalVariable, name)
-    return JuMP.@variable(model, base_name = name, binary = true)
-end
-function _make_binary_variable(model, var::_TaggedLogicalVariable, name)
-    return JuMP.@variable(
-        model, 
-        base_name = name, 
-        binary = true, 
-        variable_type = var.tag_data
-        )
-end
-
-# create binary (indicator) variables for logic variables.
-function _reformulate_logical_variables(model::JuMP.AbstractModel)
-    for (lv_idx, lv_data) in _logical_variables(model)
-        var = lv_data.variable
-        lvref = LogicalVariableRef(model, lv_idx)
-        bvref = _make_binary_variable(model, var, lv_data.name)
-        _add_logical_info(bvref, var)
-        push!(_reformulation_variables(model), bvref)
-        _indicator_to_binary(model)[lvref] = bvref
-    end
 end
 
 ################################################################################
@@ -167,7 +124,7 @@ function _reformulate_disjunct(
     method::AbstractReformulationMethod
     )
     #reformulate each constraint and add to the model
-    bvref = _indicator_to_binary(model)[lvref]
+    bvref = binary_variable(lvref)
     !haskey(_indicator_to_constraints(model), lvref) && return #skip if disjunct is empty
     for cref in _indicator_to_constraints(model)[lvref]
         con = constraint_object(cref)

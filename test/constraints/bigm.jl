@@ -166,8 +166,7 @@ function test_lessthan_bigm()
     @variable(model, y, Logical)
     @constraint(model, con, x <= 5, Disjunct(y))
 
-    DP._reformulate_logical_variables(model)
-    bvref = DP._indicator_to_binary(model)[y]
+    bvref = binary_variable(y)
     ref = reformulate_disjunct_constraint(model, constraint_object(con), bvref, BigM(100, false))
     @test length(ref) == 1
     @test ref[1].func == x - 100*(-bvref)
@@ -180,8 +179,7 @@ function test_nonpositives_bigm()
     @variable(model, y, Logical)
     @constraint(model, con, [x; x] <= [5; 5], Disjunct(y))
 
-    DP._reformulate_logical_variables(model)
-    bvref = DP._indicator_to_binary(model)[y]
+    bvref = binary_variable(y)
     ref = reformulate_disjunct_constraint(model, constraint_object(con), bvref, BigM(100, false))
     @test length(ref) == 1
     @test ref[1].func[1] == x - 5 - 100*(1-bvref)
@@ -195,8 +193,7 @@ function test_greaterthan_bigm()
     @variable(model, y, Logical)
     @constraint(model, con, x >= 5, Disjunct(y))
 
-    DP._reformulate_logical_variables(model)
-    bvref = DP._indicator_to_binary(model)[y]
+    bvref = binary_variable(y)
     ref = reformulate_disjunct_constraint(model, constraint_object(con), bvref, BigM(100, false))
     @test length(ref) == 1
     @test ref[1].func == x + 100*(-bvref)
@@ -209,8 +206,7 @@ function test_nonnegatives_bigm()
     @variable(model, y, Logical)
     @constraint(model, con, [x; x] >= [5; 5], Disjunct(y))
 
-    DP._reformulate_logical_variables(model)
-    bvref = DP._indicator_to_binary(model)[y]
+    bvref = binary_variable(y)
     ref = reformulate_disjunct_constraint(model, constraint_object(con), bvref, BigM(100, false))
     @test length(ref) == 1
     @test ref[1].func[1] == x - 5 + 100*(1-bvref)
@@ -224,8 +220,7 @@ function test_equalto_bigm()
     @variable(model, y, Logical)
     @constraint(model, con, x == 5, Disjunct(y))
 
-    DP._reformulate_logical_variables(model)
-    bvref = DP._indicator_to_binary(model)[y]
+    bvref = binary_variable(y)
     ref = reformulate_disjunct_constraint(model, constraint_object(con), bvref, BigM(100, false))
     @test length(ref) == 2
     @test ref[1].func == x + 100*(-bvref)
@@ -240,8 +235,7 @@ function test_interval_bigm()
     @variable(model, y, Logical)
     @constraint(model, con, 5 <= x <= 5, Disjunct(y))
 
-    DP._reformulate_logical_variables(model)
-    bvref = DP._indicator_to_binary(model)[y]
+    bvref = binary_variable(y)
     ref = reformulate_disjunct_constraint(model, constraint_object(con), bvref, BigM(100, false))
     @test length(ref) == 2
     @test ref[1].func == x + 100*(-bvref)
@@ -256,8 +250,7 @@ function test_zeros_bigm()
     @variable(model, y, Logical)
     @constraint(model, con, [x; x] == [5; 5], Disjunct(y))
 
-    DP._reformulate_logical_variables(model)
-    bvref = DP._indicator_to_binary(model)[y]
+    bvref = binary_variable(y)
     ref = reformulate_disjunct_constraint(model, constraint_object(con), bvref, BigM(100, false))
     @test length(ref) == 2
     @test ref[1].func[1] == x - 5 + 100*(1-bvref)

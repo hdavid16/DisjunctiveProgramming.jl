@@ -68,7 +68,7 @@ function _disaggregate_variable(
     dvref = make_disaggregated_variable(model, vref, "$(vref)_$(lvref)", lb, ub)
     push!(_reformulation_variables(model), dvref)
     #get binary indicator variable
-    bvref = _indicator_to_binary(model)[lvref]
+    bvref = binary_variable(lvref)
     #temp storage
     push!(method.disjunction_variables[vref], dvref)
     method.disjunct_variables[vref, bvref] = dvref

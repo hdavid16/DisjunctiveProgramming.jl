@@ -13,7 +13,7 @@ function test_linear_gdp_example(m)
     @disjunction(m, inner, [W[1], W[2]], Disjunct(Y[1]))
     @disjunction(m, outer, [Y[1], Y[2]])
 
-    optimize!(m, method = BigM())
+    optimize!(m, gdp_method = BigM())
     @test termination_status(m) == MOI.OPTIMAL
     @test objective_value(m) ≈ 11
     @test value.(x) ≈ [9,2]

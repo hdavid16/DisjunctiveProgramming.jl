@@ -493,7 +493,6 @@ function test_extension_propositions()
     @variable(model, y[1:2], Logical(MyVar), start = true)
     cref = LogicalConstraintRef(model, LogicalConstraintIndex(1))
     @test @constraint(model, (y[1] && ¬y[2]) == y[1] := true) == cref
-    @test DP._reformulate_logical_variables(model) isa Nothing
     @test DP._reformulate_logical_constraints(model) isa Nothing
     @test length(DP._reformulation_constraints(model)) == 2
     @test length(model.cons) == 2

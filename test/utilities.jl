@@ -46,12 +46,13 @@ struct MyVar{I} <: JuMP.AbstractVariable
 end
 mutable struct MyModel <: AbstractModel
     vars::Vector{MyVar}
+    deleted::Set{Int}
     cons::Vector{Any}
     ext::Dict{Symbol, Any}
     optimize_hook::Any
     obj_dict::Dict{Symbol, Any}
     function MyModel()
-        return new(MyVar[], [], Dict{Symbol, Any}(), nothing, Dict{Symbol, Any}())
+        return new(MyVar[], Set{Int}(), [], Dict{Symbol, Any}(), nothing, Dict{Symbol, Any}())
     end
 end
 struct MyVarRef <: AbstractVariableRef
@@ -82,7 +83,7 @@ function JuMP.add_variable(model::MyModel, v::ScalarVariable, name::String = "")
     new_var.i[:name] = name
     return MyVarRef(model, length(model.vars))
 end
-JuMP.is_valid(m::MyModel, v::MyVarRef) = m === v.m && length(m.vars) >= v.i 
+JuMP.is_valid(m::MyModel, v::MyVarRef) = m === v.m && !(v.i in v.m.deleted)
 Base.broadcastable(v::MyVarRef) = Ref(v)
 Base.length(::MyVarRef) = 1
 Base.broadcastable(c::MyConRef) = Ref(c)
@@ -97,13 +98,22 @@ JuMP.upper_bound(v::MyVarRef) = v.m.vars[v.i].i[:upper_bound]
 JuMP.start_value(v::MyVarRef) = v.m.vars[v.i].i[:start]
 JuMP.set_start_value(v::MyVarRef, s) = setindex!(v.m.vars[v.i].i, s, :start)
 JuMP.fix_value(v::MyVarRef) = v.m.vars[v.i].i[:fix_value]
+JuMP.is_fixed(v::MyVarRef) = v.m.vars[v.i].i[:has_fix]
 function JuMP.fix(v::MyVarRef, s) 
     v.m.vars[v.i].i[:fix_value] = s
     v.m.vars[v.i].i[:has_fix] = true
 end
+function JuMP.unfix(v::MyVarRef) 
+    v.m.vars[v.i].i[:fix_value] = NaN
+    v.m.vars[v.i].i[:has_fix] = false
+end
 JuMP.name(v::MyVarRef) = v.m.vars[v.i].i[:name]
 JuMP.set_name(v::MyVarRef, n) = setindex!(v.m.vars[v.i].i, n, :name)
 JuMP.owner_model(v::MyVarRef) = v.m
+function JuMP.delete(m::MyModel, v::MyVarRef)
+    push!(v.m.deleted, v.i)
+    return
+end
 JuMP.is_valid(m::MyModel, v::MyConRef) = m === v.m && length(m.cons) >= v.i
 Base.:(==)(v::MyConRef, w::MyConRef) = v.m === w.m && v.i == w.i
 JuMP.owner_model(v::MyConRef) = v.m
