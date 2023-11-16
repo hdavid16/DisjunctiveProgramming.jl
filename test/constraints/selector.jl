@@ -47,7 +47,7 @@ function test_selector_add_array()
     model = GDPModel()
     @variable(model, y[1:2, 1:3, 1:4], Logical)
     @constraint(model, con[i=1:2, j=1:3], y[i,j,:] in Exactly(1))
-    @test con isa Matrix{LogicalConstraintRef}
+    @test con isa Matrix{LogicalConstraintRef{Model}}
     @test length(con) == 6
 end
 
@@ -60,7 +60,7 @@ function test_selector_add_dense_axis()
     @test con isa Containers.DenseAxisArray
     @test con.axes[1] == ["a","b","c"]
     @test con.axes[2] == [1,2]
-    @test con.data isa Matrix{LogicalConstraintRef}
+    @test con.data isa Matrix{LogicalConstraintRef{Model}}
 end
 
 function test_selector_add_sparse_axis()
@@ -102,7 +102,7 @@ function test_exactly_reformulation()
     @test is_valid(model, ref_con)
     ref_con_obj = constraint_object(ref_con)
     @test ref_con_obj.set == MOI.EqualTo(1.0)
-    @test ref_con_obj.func == sum(DP._reformulation_variables(model))
+    @test ref_con_obj.func == sum(binary_variable.(y))
 end
 
 function test_atleast_reformulation()
@@ -114,7 +114,7 @@ function test_atleast_reformulation()
     @test is_valid(model, ref_con)
     ref_con_obj = constraint_object(ref_con)
     @test ref_con_obj.set == MOI.GreaterThan(1.0)
-    @test ref_con_obj.func == sum(DP._reformulation_variables(model))
+    @test ref_con_obj.func == sum(binary_variable.(y))
 end
 
 function test_atmost_reformulation()
@@ -126,7 +126,7 @@ function test_atmost_reformulation()
     @test is_valid(model, ref_con)
     ref_con_obj = constraint_object(ref_con)
     @test ref_con_obj.set == MOI.LessThan(1.0)
-    @test ref_con_obj.func == sum(DP._reformulation_variables(model))
+    @test ref_con_obj.func == sum(binary_variable.(y))
 end
 
 function test_nested_exactly_reformulation()
@@ -174,6 +174,18 @@ function test_nested_atmost_reformulation()
         DP._indicator_to_binary(model)[y[3]]
 end
 
+function test_extension_variables()
+    model = GDPModel{MyModel, MyVarRef, MyConRef}()
+    @variable(model, y[1:2], Logical(MyVar), start = true)
+    cref = LogicalConstraintRef(model, LogicalConstraintIndex(1))
+    @test @constraint(model, y in AtLeast(1)) == cref
+    @test reformulate_model(model, DummyReformulation()) isa Nothing
+    ref_con = DP._reformulation_constraints(model)[1]
+    c = constraint_object(ref_con)
+    @test c.set == MOI.GreaterThan(1.0)
+    @test c.func == sum(binary_variable.(y))
+end
+
 @testset "Logical Selector Constraints" begin
     @testset "Add Selector" begin
         test_selector_add_fail()
@@ -196,5 +208,8 @@ end
         test_nested_exactly_reformulation()
         test_nested_atleast_reformulation()
         test_nested_atmost_reformulation()
+    end
+    @testset "Extension Selectors" begin 
+        test_extension_variables()
     end
 end

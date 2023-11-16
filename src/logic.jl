@@ -48,23 +48,23 @@ end
 function _eliminate_equivalence(lvar::LogicalVariableRef)
     return lvar
 end
-function _eliminate_equivalence(lexpr::_LogicalExpr)
+function _eliminate_equivalence(lexpr::_LogicalExpr{M}) where {M}
     if lexpr.head == :(==)
         A = _eliminate_equivalence(lexpr.args[1])
         if length(lexpr.args) > 2 
-            nested = _LogicalExpr(:(==), Vector{Any}(lexpr.args[2:end]))
+            nested = _LogicalExpr{M}(:(==), Vector{Any}(lexpr.args[2:end]))
             B = _eliminate_equivalence(nested)
         elseif length(lexpr.args) == 2
             B = _eliminate_equivalence(lexpr.args[2])
         else
             error("The equivalence logic operator must have at least two clauses.")
         end
-        new_lexpr = _LogicalExpr(:&&, Any[
-            _LogicalExpr(:(=>), Any[A, B]),
-            _LogicalExpr(:(=>), Any[B, A])
+        new_lexpr = _LogicalExpr{M}(:&&, Any[
+            _LogicalExpr{M}(:(=>), Any[A, B]),
+            _LogicalExpr{M}(:(=>), Any[B, A])
         ])
     else
-        new_lexpr = _LogicalExpr(lexpr.head, Any[
+        new_lexpr = _LogicalExpr{M}(lexpr.head, Any[
             _eliminate_equivalence(arg) for arg in lexpr.args
         ])
     end
@@ -75,19 +75,19 @@ end
 function _eliminate_implication(lvar::LogicalVariableRef)
     return lvar
 end
-function _eliminate_implication(lexpr::_LogicalExpr)
+function _eliminate_implication(lexpr::_LogicalExpr{M}) where {M}
     if lexpr.head == :(=>)
         if length(lexpr.args) != 2 
             error("The implication operator must have two clauses.")
         end
         A = _eliminate_implication(lexpr.args[1])
         B = _eliminate_implication(lexpr.args[2])
-        new_lexpr = _LogicalExpr(:||, Any[
-            _LogicalExpr(:!, Any[A]),
+        new_lexpr = _LogicalExpr{M}(:||, Any[
+            _LogicalExpr{M}(:!, Any[A]),
             B
         ])
     else
-        new_lexpr = _LogicalExpr(lexpr.head, Any[
+        new_lexpr = _LogicalExpr{M}(lexpr.head, Any[
             _eliminate_implication(arg) for arg in lexpr.args
         ])
     end
@@ -98,22 +98,22 @@ end
 function _move_negations_inward(lvar::LogicalVariableRef)
     return lvar
 end
-function _move_negations_inward(lexpr::_LogicalExpr)
+function _move_negations_inward(lexpr::_LogicalExpr{M}) where {M}
     if lexpr.head == :!
         if length(lexpr.args) != 1
             error("The negation operator can only have one clause.")
         end
         new_lexpr = _negate(lexpr.args[1])
     else
-        new_lexpr = _LogicalExpr(lexpr.head, Any[
+        new_lexpr = _LogicalExpr{M}(lexpr.head, Any[
             _move_negations_inward(arg) for arg in lexpr.args
         ])
     end
     return new_lexpr
 end
 
-function _negate(lvar::LogicalVariableRef)
-    return _LogicalExpr(:!, Any[lvar])
+function _negate(lvar::LogicalVariableRef{M}) where {M}
+    return _LogicalExpr{M}(:!, Any[lvar])
 end
 function _negate(lexpr::_LogicalExpr)
     if lexpr.head == :||
@@ -127,22 +127,22 @@ function _negate(lexpr::_LogicalExpr)
     end
 end
 
-function _negate_or(lexpr::_LogicalExpr)
+function _negate_or(lexpr::_LogicalExpr{M}) where {M}
     if length(lexpr.args) < 2 
         error("The OR operator must have at least two clauses.")
     end
-    return _LogicalExpr(:&&, Any[ #flip OR to AND
-        _move_negations_inward(_LogicalExpr(:!, Any[arg]))
+    return _LogicalExpr{M}(:&&, Any[ #flip OR to AND
+        _move_negations_inward(_LogicalExpr{M}(:!, Any[arg]))
         for arg in lexpr.args
     ])
 end
 
-function _negate_and(lexpr::_LogicalExpr)
+function _negate_and(lexpr::_LogicalExpr{M}) where {M}
     if length(lexpr.args) < 2 
         error("The AND operator must have at least two clauses.")
     end
-    return _LogicalExpr(:||, Any[ #flip AND to OR
-        _move_negations_inward(_LogicalExpr(:!, Any[arg]))
+    return _LogicalExpr{M}(:||, Any[ #flip AND to OR
+        _move_negations_inward(_LogicalExpr{M}(:!, Any[arg]))
         for arg in lexpr.args
     ])
 end
@@ -157,7 +157,7 @@ end
 function _distribute_and_over_or(lvar::LogicalVariableRef)
     return lvar
 end
-function _distribute_and_over_or(lexpr0::_LogicalExpr)
+function _distribute_and_over_or(lexpr0::_LogicalExpr{M}) where {M}
     lexpr = _flatten(lexpr0)
     if lexpr.head == :||
         if length(lexpr.args) < 2 
@@ -165,9 +165,9 @@ function _distribute_and_over_or(lexpr0::_LogicalExpr)
         end
         loc = findfirst(arg -> arg isa _LogicalExpr ? arg.head == :&& : false, lexpr.args)
         if !isnothing(loc)
-            new_lexpr = _LogicalExpr(:&&, Any[
+            new_lexpr = _LogicalExpr{M}(:&&, Any[
                 _distribute_and_over_or(
-                    _LogicalExpr(:||, Any[arg_i, lexpr.args[setdiff(1:end,loc)]...])
+                    _LogicalExpr{M}(:||, Any[arg_i, lexpr.args[setdiff(1:end,loc)]...])
                 )
                 for arg_i in lexpr.args[loc].args
             ])
@@ -175,7 +175,7 @@ function _distribute_and_over_or(lexpr0::_LogicalExpr)
             new_lexpr = lexpr
         end
     else
-        new_lexpr = _LogicalExpr(lexpr.head, Any[
+        new_lexpr = _LogicalExpr{M}(lexpr.head, Any[
             _distribute_and_over_or(arg) for arg in lexpr.args
         ])
     end
@@ -187,7 +187,7 @@ end
 function _flatten(lvar::LogicalVariableRef)
     return lvar
 end
-function _flatten(lexpr::_LogicalExpr)
+function _flatten(lexpr::_LogicalExpr{M}) where {M}
     if lexpr.head in (:&&, :||)
         nary_args = Set{Any}()
         for arg in lexpr.args
@@ -205,9 +205,9 @@ function _flatten(lexpr::_LogicalExpr)
                 push!(nary_args, arg_flat)
             end
         end
-        new_lexpr = _LogicalExpr(lexpr.head, collect(nary_args))
+        new_lexpr = _LogicalExpr{M}(lexpr.head, collect(nary_args))
     else 
-        new_lexpr = _LogicalExpr(lexpr.head, Any[
+        new_lexpr = _LogicalExpr{M}(lexpr.head, Any[
             _flatten(arg) for arg in lexpr.args
         ])
     end
@@ -218,18 +218,23 @@ end
 #                              SELECTOR REFORMULATION
 ################################################################################
 # cardinality constraint reformulation
-function _reformulate_selector(model::Model, func, set::Union{_MOIAtLeast, _MOIAtMost, _MOIExactly})
-    dict = _indicator_to_binary(model)
-    bvrefs = [dict[lvref] for lvref in func[2:end]]
-    # TODO better handle form of func[1]
-    c = first(func) isa Number ? first(func) : JuMP.constant(func[1])
+function _reformulate_selector(
+    model::JuMP.AbstractModel, 
+    func::Vector{AbstractJuMPScalar}, 
+    set::AbstractCardinalitySet
+    )
+    bvrefs = [binary_variable(lvref) for lvref in func[2:end]]
+    c = JuMP.constant(func[1])
     new_set = _vec_to_scalar_set(set)(c)
     cref = @constraint(model, sum(bvrefs) in new_set)
     push!(_reformulation_constraints(model), cref)
 end
-function _reformulate_selector(model::Model, func::Vector{LogicalVariableRef}, set::Union{_MOIAtLeast, _MOIAtMost, _MOIExactly})
-    dict = _indicator_to_binary(model)
-    bvref, bvrefs... = [dict[lvref] for lvref in func]
+function _reformulate_selector(
+    model::JuMP.AbstractModel, 
+    func::Vector{<:LogicalVariableRef}, 
+    set::AbstractCardinalitySet
+    )
+    bvref, bvrefs... = [binary_variable(lvref) for lvref in func]
     new_set = _vec_to_scalar_set(set)(0)
     cref = @constraint(model, sum(bvrefs) - bvref in new_set)
     push!(_reformulation_constraints(model), cref)
@@ -238,7 +243,7 @@ end
 ################################################################################
 #                              PROPOSITION REFORMULATION
 ################################################################################
-function _reformulate_proposition(model::Model, lexpr::_LogicalExpr)
+function _reformulate_proposition(model::JuMP.AbstractModel, lexpr::_LogicalExpr)
     expr = _to_cnf(lexpr)
     if expr.head == :&&
         for arg in expr.args
@@ -256,7 +261,10 @@ _isa_literal(v::LogicalVariableRef) = true
 _isa_literal(v::_LogicalExpr) = (v.head == :!) && (length(v.args) == 1) && _isa_literal(v.args[1])
 _isa_literal(v) = false
 
-function _add_reformulated_proposition(model::Model, arg::Union{LogicalVariableRef,_LogicalExpr})
+function _add_reformulated_proposition(
+    model::JuMP.AbstractModel, 
+    arg::Union{LogicalVariableRef, _LogicalExpr}
+    )
     func = _reformulate_clause(model, arg)
     if !isempty(func.terms) && !all(iszero.(values(func.terms)))
         cref = @constraint(model, func >= 1)
@@ -265,13 +273,13 @@ function _add_reformulated_proposition(model::Model, arg::Union{LogicalVariableR
     return
 end
 
-function _reformulate_clause(model::Model, lvref::LogicalVariableRef)
-    func = 1 * _indicator_to_binary(model)[lvref]
+function _reformulate_clause(model::JuMP.AbstractModel, lvref::LogicalVariableRef)
+    func = 1 * binary_variable(lvref)
     return func
 end
 
-function _reformulate_clause(model::Model, lexpr::_LogicalExpr)
-    func = zero(AffExpr) #initialize func expression
+function _reformulate_clause(model::M, lexpr::_LogicalExpr) where {M <: JuMP.AbstractModel}
+    func = zero(JuMP.GenericAffExpr{JuMP.value_type(M), JuMP.variable_ref_type(M)}) #initialize func expression
     if _isa_literal(lexpr)
         add_to_expression!(func, 1 - _reformulate_clause(model, lexpr.args[1]))
     elseif lexpr.head == :||

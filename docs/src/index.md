@@ -16,7 +16,7 @@ Pkg.add("DisjunctiveProgramming")
 
 ## Model
 
-A generalized disjunctive programming (GDP) model is created using `GDPModel()`, where the optimizer can be passed at model creation, along with other keyword arguments supported by JuMP Models. 
+A generalized disjunctive programming (GDP) model is created using [`GDPModel`](@ref), where the optimizer can be passed at model creation, along with other keyword arguments supported by JuMP Models. 
 
 ```julia
 using DisjunctiveProgramming
@@ -25,13 +25,13 @@ using HiGHS
 model = GDPModel(HiGHS.Optimizer)
 ```
 
-A `GDPModel` is a `JuMP Model` with a `GDPData` field in the model's `.ext` dictionary, which stores the following:
+A [`GDPModel`](@ref) is a `JuMP Model` with a [`GDPData`](@ref) field in the model's `.ext` dictionary, which stores the following:
 
 - `Logical Variables`: Indicator variables used for the various disjuncts involved in the model's disjunctions.
 - `Logical Constraints`: Selector (cardinality) or proposition (Boolean) constraints describing the relationships between the logical variables.
 - `Disjunct Constraints`: Constraints associated with each disjunct in the model.
 - `Disjunctions`: Disjunction constraints.
-- `Solution Method`: The reformulation technique or solution method. Currently supported methods include Big-M, Hull, and Indicator Constraints.
+- `Solution Method`: The reformulation technique or solution method. Currently, supported methods include Big-M, Hull, and Indicator Constraints.
 - `Reformulation Variables`: List of JuMP variables created when reformulating a GDP model into a MIP model.
 - `Reformulation Constraints`: List of constraints created when reformulating a GDP model into a MIP model.
 - `Ready to Optimize`: Flag indicating if the model can be optimized.
@@ -49,7 +49,7 @@ data = gdp_data(model)
 
 ## Logical Variables
 
-Logical variables are JuMP `AbstractVariable`s with two fields: `fix_value` and `start_value`. These can be optionally specified at variable creation. Logical variables are created with the `@variable` JuMP macro by adding the tag `Logical` as the last keyword argument. As with the regular `@variable` macro, variables can be named and indexed: 
+Logical variables are JuMP `AbstractVariable`s with two fields: `fix_value` and `start_value`. These can be optionally specified at variable creation. Logical variables are created with the `@variable` JuMP macro by adding the tag [`Logical`](@ref) as the last keyword argument. As with the regular `@variable` macro, variables can be named and indexed: 
 
 ```julia
 @variable(model, Y[1:3], Logical)
@@ -59,7 +59,7 @@ Logical variables are JuMP `AbstractVariable`s with two fields: `fix_value` and 
 
 Two types of logical constraints are supported:
 
-1. `Selector` or cardinality constraints: A subset of Logical variables is passed and `Exactly`, `AtMost`, or `AtLeast` `n` of these is allowed to be `True`. These constraints are specified with the `func` $\in$ `set` notation in `MathOptInterface` in a `@constraint` JuMP macro. It is not assumed that disjunctions have an `Exactly(1)` constraint enforced on their disjuncts upon creation. This constraint must be explicitly specified.
+1. `Selector` or cardinality constraints: A subset of Logical variables is passed and [`Exactly`](@ref), [`AtMost`](@ref), or [`AtLeast`](@ref) `n` of these is allowed to be `true`. These constraints are specified with the `func` $\in$ `set` notation in `MathOptInterface` in a `@constraint` JuMP macro. It is not assumed that disjunctions have an `Exactly(1)` constraint enforced on their disjuncts upon creation. This constraint must be explicitly specified.
 
     ```julia
     @constraint(model, [Y[1], Y[2]] in Exactly(1))
@@ -73,19 +73,19 @@ Two types of logical constraints are supported:
     - `⟹` of `implies` (Implication, typed with `\Longrightarrow + tab`).
     - `⇔` or `iff` or `==` (double implication or equivalence, typed with `\Leftrightarrow + tab`).
 
-    The `@constraint` JuMP macro is used to create these constraints with `:=`:
+The `@constraint` JuMP macro is used to create these constraints with `:=`:
 
-    ```julia
-    @constraint(model, Y[1] ⟹ Y[2] := true)
-    ```
+```julia
+@constraint(model, Y[1] ⟹ Y[2] := true)
+```
 
-    _Note_: The parenthesis in the example above around the implication clause are only required when the parent logical operator is `⟹` or `⇔` to avoid parsing errors.
+_Note_: The parenthesis in the example above around the implication clause are only required when the parent logical operator is `⟹` or `⇔` to avoid parsing errors.
 
-    Logical propositions can be reformulated to IP constraints by automatic reformulation to [Conjunctive Normal Form](https://en.wikipedia.org/wiki/Conjunctive_normal_form).
+Logical propositions can be reformulated to IP constraints by automatic reformulation to [Conjunctive Normal Form](https://en.wikipedia.org/wiki/Conjunctive_normal_form).
 
 ## Disjunctions
 
-Disjunctions are built by first defining the constraints associated with each disjunct. This is done via the `@constraint` JuMP macro with the extra `Disjunct` tag specifying the Logical variable associated with the constraint:
+Disjunctions are built by first defining the constraints associated with each disjunct. This is done via the `@constraint` JuMP macro with the extra [`Disjunct`](@ref) tag specifying the Logical variable associated with the constraint:
 
 ```julia
 @variable(model, x)
@@ -93,13 +93,13 @@ Disjunctions are built by first defining the constraints associated with each di
 @constraint(model, x ≥ 200, Disjunct(Y[2]))
 ```
 
-After all disjunct constraints associated with a disjunction have been defined, the disjunction is created with the `@disjunction` macro, where the disjunction is defined as a `Vector` of Logical variables associated with each disjunct:
+After all disjunct constraints associated with a disjunction have been defined, the disjunction is created with the [`@disjunction`](@ref) macro, where the disjunction is defined as a `Vector` of Logical variables associated with each disjunct:
 
 ```julia
 @disjunction(model, [Y[1], Y[2]])
 ```
 
-Disjunctions can be nested by passing an additional `Disjunct` tag. The Logical variable in the `Disjunct` tag specifies which disjunct, the nested disjunction belongs to:
+Disjunctions can be nested by passing an additional [`Disjunct`](@ref) tag. The Logical variable in the `Disjunct` tag specifies which disjunct, the nested disjunction belongs to:
 
 ```julia
 @disjunction(model, Y[1:2], Disjunct(Y[3]))
@@ -113,18 +113,11 @@ For convenience, the `Exactly(1)` selector constraint is added by default when a
 
 The following reformulation methods are currently supported:
 
-1. [Big-M](https://optimization.cbe.cornell.edu/index.php?title=Disjunctive_inequalities#Big-M_Reformulation[1][2]): The `BigM` struct is created with the following optional arguments:
+1. [Big-M](https://optimization.cbe.cornell.edu/index.php?title=Disjunctive_inequalities#Big-M_Reformulation[1][2]): The [`BigM`](@ref) struct is used.
 
-    - `value`: Big-M value to use. Default: `1e9`. Big-M values are currently global to the model. Constraint specific Big-M values can be supported in future releases.
-    - `tighten`: Boolean indicating if tightening the Big-M value should be attempted (currently supported only for linear disjunct constraints when variable bounds have been set or specified in the `variable_bounds` field). Default: `true`.
-    - `variable_bounds`: Dictionary specifying the lower and upper bounds for each `VariableRef` (e.g., `Dict(x => (lb, ub))`). Default: populate when calling the reformulation method.
+2. [Hull](https://optimization.cbe.cornell.edu/index.php?title=Disjunctive_inequalities#Convex-Hull_Reformulation[1][2]): The [`Hull`](@ref) struct is used.
 
-2. [Hull](https://optimization.cbe.cornell.edu/index.php?title=Disjunctive_inequalities#Convex-Hull_Reformulation[1][2]): The `Hull` struct is created with the following optional arguments:
-
-    - `value`: `ϵ` value to use when reformulating quadratic or nonlinear constraints via the perspective function proposed by [Furman, et al. [2020]](https://link.springer.com/article/10.1007/s10589-020-00176-0). Default: `1e-6`. `ϵ` values are currently global to the model. Constraint specific tolerances can be supported in future releases.
-    - `variable_bounds`: Dictionary specifying the lower and upper bounds for each `VariableRef` (e.g., `Dict(x => (lb, ub))`). Default: populate when calling the reformulation method.
-
-3. [Indicator](https://jump.dev/JuMP.jl/stable/manual/constraints/#Indicator-constraints): This method reformulates each disjunct constraint into an indicator constraint with the Boolean reformulation counterpart of the Logical variable used to define the disjunct constraint.
+3. [Indicator](https://jump.dev/JuMP.jl/stable/manual/constraints/#Indicator-constraints): This method reformulates each disjunct constraint into an indicator constraint with the Boolean reformulation counterpart of the Logical variable used to define the disjunct constraint. This is invoked with [`Indicator`](@ref).
 
 ## Release Notes
 
@@ -154,7 +147,7 @@ print(m)
 #  x[2] ≤ 20
 
 ##
-optimize!(m, method = BigM(100, false)) #specify M value and disable M-tightening
+optimize!(m, gdp_method = BigM(100, false)) #specify M value and disable M-tightening
 print(m)
 # Max x[1] + x[2]
 # Subject to
@@ -175,7 +168,7 @@ print(m)
 #  Y[2] binary
 
 ##
-optimize!(m, method = Hull())
+optimize!(m, gdp_method = Hull())
 print(m)
 # Max x[1] + x[2]
 # Subject to

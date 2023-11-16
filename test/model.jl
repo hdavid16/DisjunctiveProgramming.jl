@@ -1,10 +1,13 @@
 using HiGHS
 
 function test_GDPData()
-    @test GDPData() isa GDPData
+    @test GDPData{Model, VariableRef, ConstraintRef}() isa GDPData{Model, VariableRef, ConstraintRef, Float64}
 end
 
 function test_empty_model()
+    @test GDPModel{GenericModel{Float16}, GenericVariableRef{Float16}, ConstraintRef}() isa GenericModel{Float16}
+    @test GDPModel{Int}() isa GenericModel{Int}
+    @test GDPModel{MyModel, MyVarRef, MyConRef}() isa MyModel
     model = GDPModel()
     @test gdp_data(model) isa GDPData
     @test isempty(DP._logical_variables(model))
@@ -17,6 +20,7 @@ function test_empty_model()
     @test isempty(DP._constraint_to_indicator(model))
     @test isempty(DP._reformulation_variables(model))
     @test isempty(DP._reformulation_constraints(model))
+    @test isempty(DP._variable_bounds(model))
     @test isnothing(DP._solution_method(model))
     @test !DP._ready_to_optimize(model)
 end

@@ -9,19 +9,19 @@ _set_values(set::_MOI.EqualTo) = (set.value, set.value)
 _set_values(set::_MOI.Interval) = (set.lower, set.upper)
 
 # helper functions to reformulate vector constraints to indicator constraints
-_vec_to_scalar_set(set::_MOI.Nonpositives) = _MOI.LessThan(0)
-_vec_to_scalar_set(set::_MOI.Nonnegatives) = _MOI.GreaterThan(0)
-_vec_to_scalar_set(set::_MOI.Zeros) = _MOI.EqualTo(0)
+_vec_to_scalar_set(::_MOI.Nonpositives) = _MOI.LessThan(0)
+_vec_to_scalar_set(::_MOI.Nonnegatives) = _MOI.GreaterThan(0)
+_vec_to_scalar_set(::_MOI.Zeros) = _MOI.EqualTo(0)
 
 # helper functions to map jump selector to moi selector sets
-_jump_to_moi_selector(set::Exactly) = _MOIExactly
-_jump_to_moi_selector(set::AtLeast) = _MOIAtLeast
-_jump_to_moi_selector(set::AtMost) = _MOIAtMost
+_jump_to_moi_selector(::Exactly) = _MOIExactly
+_jump_to_moi_selector(::AtLeast) = _MOIAtLeast
+_jump_to_moi_selector(::AtMost) = _MOIAtMost
 
 # helper functions to map selectors to scalar sets
-_vec_to_scalar_set(set::_MOIExactly) = _MOI.EqualTo
-_vec_to_scalar_set(set::_MOIAtLeast) = _MOI.GreaterThan
-_vec_to_scalar_set(set::_MOIAtMost) = _MOI.LessThan
+_vec_to_scalar_set(::_MOIExactly) = _MOI.EqualTo
+_vec_to_scalar_set(::_MOIAtLeast) = _MOI.GreaterThan
+_vec_to_scalar_set(::_MOIAtMost) = _MOI.LessThan
 
 ################################################################################
 #                         BOILERPLATE EXTENSION METHODS
@@ -45,12 +45,12 @@ for (RefType, loc) in ((:DisjunctConstraintRef, :disjunct_constraints),
         JuMP.index(cref::$RefType) = cref.index
 
         @doc """
-            JuMP.is_valid(model::Model, cref::$($RefType))
+            JuMP.is_valid(model::JuMP.AbstractModel, cref::$($RefType))
 
         Return `true` if `cref` refers to a valid constraint in the `GDP model`.
         """
-        function JuMP.is_valid(model::Model, cref::$RefType) # TODO: generalize for AbstractModel
-            return model === owner_model(cref)
+        function JuMP.is_valid(model::JuMP.AbstractModel, cref::$RefType)
+            return model === owner_model(cref) && haskey(gdp_data(model).$loc, JuMP.index(cref))
         end
 
         # Get the ConstraintData object
@@ -105,11 +105,11 @@ for (RefType, loc) in ((:DisjunctConstraintRef, :disjunct_constraints),
 end
 
 """
-    JuMP.delete(model::Model, cref::DisjunctionRef)
+    JuMP.delete(model::JuMP.AbstractModel, cref::DisjunctionRef)
 
 Delete a disjunction constraint from the `GDP model`.
 """
-function JuMP.delete(model::Model, cref::DisjunctionRef)
+function JuMP.delete(model::JuMP.AbstractModel, cref::DisjunctionRef)
     @assert is_valid(model, cref) "Disjunction does not belong to model."
     if JuMP.constraint_object(cref).nested
         lvref = gdp_data(model).constraint_to_indicator[cref]
@@ -127,11 +127,11 @@ function JuMP.delete(model::Model, cref::DisjunctionRef)
 end
 
 """
-    JuMP.delete(model::Model, cref::DisjunctConstraintRef)
+    JuMP.delete(model::JuMP.AbstractModel, cref::DisjunctConstraintRef)
 
 Delete a disjunct constraint from the `GDP model`.
 """
-function JuMP.delete(model::Model, cref::DisjunctConstraintRef)
+function JuMP.delete(model::JuMP.AbstractModel, cref::DisjunctConstraintRef)
     @assert is_valid(model, cref) "Disjunctive constraint does not belong to model."
     delete!(_disjunct_constraints(model), index(cref))
     lvref = gdp_data(model).constraint_to_indicator[cref]
@@ -142,11 +142,11 @@ function JuMP.delete(model::Model, cref::DisjunctConstraintRef)
 end
 
 """
-    JuMP.delete(model::Model, cref::LogicalConstraintRef)
+    JuMP.delete(model::JuMP.AbstractModel, cref::LogicalConstraintRef)
 
 Delete a logical constraint from the `GDP model`.
 """
-function JuMP.delete(model::Model, cref::LogicalConstraintRef)
+function JuMP.delete(model::JuMP.AbstractModel, cref::LogicalConstraintRef)
     @assert is_valid(model, cref) "Logical constraint does not belong to model."
     delete!(_logical_constraints(model), index(cref))
     _set_ready_to_optimize(model, false)
@@ -156,14 +156,21 @@ end
 ################################################################################
 #                              Disjunct Constraints
 ################################################################################
-function _check_expression(expr)
-    vars = Set{VariableRef}()
+function _check_expression(expr::Ex) where {Ex <: JuMP.AbstractJuMPScalar}
+    vars = Set{JuMP.variable_ref_type(expr)}()
     _interrogate_variables(v -> push!(vars, v), expr) 
     if any(is_binary.(vars)) || any(is_integer.(vars))
         error("Disjunct constraints cannot contain binary or integer variables.")
     end
     return
 end
+function _check_expression(expr::AbstractVector)
+    for ex in expr
+        _check_expression(ex)
+    end
+    return 
+end
+
 """
     JuMP.build_constraint(
         _error::Function, 
@@ -235,7 +242,7 @@ end
 
 """
     JuMP.add_constraint(
-        model::Model,
+        model::JuMP.AbstractModel,
         con::_DisjunctConstraint,
         name::String = ""
     )::DisjunctConstraintRef
@@ -244,7 +251,7 @@ Extend `JuMP.add_constraint` to add a [`Disjunct`](@ref) to a [`GDPModel`](@ref)
 The constraint is added to the `GDPData` in the `.ext` dictionary of the `GDPModel`.
 """
 function JuMP.add_constraint(
-    model::Model,
+    model::JuMP.AbstractModel,
     con::_DisjunctConstraint,
     name::String = ""
 )
@@ -260,7 +267,7 @@ end
 ################################################################################
 # Add the variable mappings
 function _add_indicator_var(
-    con::_DisjunctConstraint{C, LogicalVariableRef}, 
+    con::_DisjunctConstraint{C, <:LogicalVariableRef}, 
     cref, 
     model
     ) where {C <: AbstractConstraint}
@@ -273,8 +280,8 @@ function _add_indicator_var(
     return
 end
 # check disjunction
-function _check_disjunction(_error, lvrefs::AbstractVector{LogicalVariableRef}, model::Model)
-    isequal(unique(lvrefs),lvrefs) || _error("Not all the logical indicator variables are unique.")
+function _check_disjunction(_error, lvrefs::AbstractVector{<:LogicalVariableRef}, model::JuMP.AbstractModel)
+    isequal(unique(lvrefs), lvrefs) || _error("Not all the logical indicator variables are unique.")
     for lvref in lvrefs
         if !is_valid(model, lvref)
             _error("`$lvref` is not a valid logical variable reference.")
@@ -283,19 +290,14 @@ function _check_disjunction(_error, lvrefs::AbstractVector{LogicalVariableRef}, 
     return lvrefs
 end
 
-# fallback
-function _check_disjunction(_error, lvrefs, model::Model)
-    _error("Unrecognized disjunction input structure.") # TODO add details on proper syntax
-end
-
 # Write the main function for creating disjunctions that is macro friendly
 function _create_disjunction(
     _error::Function,
-    model::Model, # TODO: generalize to AbstractModel
-    structure::AbstractVector, #generalize for containers
+    model::JuMP.AbstractModel,
+    structure::Vector{<:LogicalVariableRef},
     name::String,
     nested::Bool
-)
+    )
     is_gdp_model(model) || error("Can only add disjunctions to `GDPModel`s.")
 
     # build the disjunction
@@ -309,16 +311,26 @@ function _create_disjunction(
     _set_ready_to_optimize(model, false)
     return DisjunctionRef(model, idx)
 end
+function _create_disjunction(
+    _error::Function,
+    model::JuMP.AbstractModel,
+    structure::AbstractArray{<:LogicalVariableRef}, #generalize for containers
+    name::String,
+    nested::Bool
+    )
+    vect_structure = [v for v in Iterators.Flatten(structure)]
+    return _create_disjunction(_error, model, vect_structure, name, nested)
+end
 
 # Disjunction build for unnested disjunctions
 function _disjunction(
     _error::Function,
-    model::Model, # TODO: generalize to AbstractModel
-    structure::AbstractVector, #generalize for containers
+    model::M,
+    structure::AbstractArray{<:LogicalVariableRef}, #generalize for containers
     name::String;
     exactly1::Bool = true,
     extra_kwargs...
-)
+    ) where {M <: JuMP.AbstractModel}
     # check for unneeded keywords
     for (kwarg, _) in extra_kwargs
         _error("Unrecognized keyword argument $kwarg.")
@@ -328,7 +340,7 @@ function _disjunction(
     # add the exactly one constraint if desired
     if exactly1
         lvars = JuMP.constraint_object(dref).indicators
-        func = Union{Number, LogicalVariableRef}[1, lvars...]
+        func = JuMP.model_convert.(model, Any[1, lvars...])
         set = _MOIExactly(length(lvars) + 1)
         cref = JuMP.add_constraint(model, JuMP.VectorConstraint(func, set))
         gdp_data(model).exactly1_constraints[dref] = cref
@@ -339,24 +351,25 @@ end
 # Fallback disjunction build for nonvector structure
 function _disjunction(
     _error::Function,
-    model::Model, # TODO: generalize to AbstractModel
+    model::JuMP.AbstractModel,
     structure,
-    name::String;
+    name::String,
+    args...;
     kwargs...
-)
+    )
     _error("Unrecognized disjunction input structure.")
 end
 
 # Disjunction build for nested disjunctions
 function _disjunction(
     _error::Function,
-    model::Model, # TODO: generalize to AbstractModel
-    structure,
+    model::M,
+    structure::AbstractArray{<:LogicalVariableRef},
     name::String,
     tag::Disjunct;
     exactly1::Bool = true,
     extra_kwargs...
-)
+    ) where {M <: JuMP.AbstractModel}
     # check for unneeded keywords
     for (kwarg, _) in extra_kwargs
         _error("Unrecognized keyword argument $kwarg.")
@@ -368,7 +381,7 @@ function _disjunction(
     # add the exactly one constraint if desired
     if exactly1
         lvars = JuMP.constraint_object(dref).indicators
-        func = LogicalVariableRef[tag.indicator, lvars...]
+        func = LogicalVariableRef{M}[tag.indicator, lvars...]
         set = _MOIExactly(length(lvars) + 1)
         cref = JuMP.add_constraint(model, JuMP.VectorConstraint(func, set))
         gdp_data(model).exactly1_constraints[dref] = cref
@@ -379,12 +392,12 @@ end
 # General fallback for additional arguments
 function _disjunction(
     _error::Function,
-    model::Model, # TODO: generalize to AbstractModel
-    structure,
+    model::JuMP.AbstractModel,
+    structure::AbstractArray{<:LogicalVariableRef},
     name::String,
     extra...;
     kwargs...
-)
+    )
     for arg in extra
         _error("Unrecognized argument `$arg`.")
     end
@@ -392,7 +405,7 @@ end
 
 """
     disjunction(
-        model::Model, 
+        model::JuMP.AbstractModel, 
         disjunct_indicators::Vector{LogicalVariableRef},
         [nested_tag::Disjunct],
         [name::String = ""];
@@ -410,7 +423,7 @@ To conveniently generate many disjunctions at once, see [`@disjunction`](@ref)
 and [`@disjunctions`](@ref).
 """
 function disjunction(
-    model::Model, 
+    model::JuMP.AbstractModel, 
     disjunct_indicators, 
     name::String = "",
     extra...;
@@ -419,7 +432,7 @@ function disjunction(
     return _disjunction(error, model, disjunct_indicators, name, extra...; kwargs...)
 end
 function disjunction(
-    model::Model, 
+    model::JuMP.AbstractModel, 
     disjunct_indicators, 
     nested_tag::Disjunct,
     name::String = "",
@@ -460,9 +473,18 @@ function JuMP.build_constraint( # Cardinality logical constraint
     _error::Function, 
     func::AbstractVector{T}, # allow any vector-like JuMP container
     set::S # TODO: generalize to allow CP sets from MOI
+) where {T <: LogicalVariableRef, S <: Union{Exactly{Int}, AtLeast{Int}, AtMost{Int}}}
+    new_set = _jump_to_moi_selector(set)(length(func) + 1)
+    new_func = Union{Number, LogicalVariableRef}[set.value, func...]
+    return VectorConstraint(new_func, new_set) # model_convert will make it an AbstractJuMPScalar
+end
+function JuMP.build_constraint( # Cardinality logical constraint
+    _error::Function, 
+    func::AbstractVector{T}, # allow any vector-like JuMP container
+    set::S # TODO: generalize to allow CP sets from MOI
 ) where {T <: LogicalVariableRef, S <: Union{Exactly, AtLeast, AtMost}}
     new_set = _jump_to_moi_selector(set)(length(func) + 1)
-    new_func = Union{Number,LogicalVariableRef}[set.value, func...]
+    new_func = [set.value, func...] # will be a vector of type LogicalVariableRef
     return VectorConstraint(new_func, new_set)
 end
 function JuMP.build_constraint( # Cardinality logical constraint
@@ -476,7 +498,7 @@ end
 # Fallback for Affine/Quad expressions
 function JuMP.build_constraint(
     _error::Function,
-    expr::Union{GenericAffExpr{C, LogicalVariableRef}, GenericQuadExpr{C, LogicalVariableRef}},
+    expr::Union{GenericAffExpr{C, <:LogicalVariableRef}, GenericQuadExpr{C, <:LogicalVariableRef}},
     set::_MOI.AbstractScalarSet
 ) where {C}
     _error("Cannot add, subtract, or multiply with logical variables.")
@@ -489,6 +511,28 @@ function JuMP.build_constraint(
     set::_MOI.AbstractScalarSet
 )
     _error("Invalid set `$set` for logical constraint.")
+end
+
+# Helper function to enable proper dispatching
+function _add_logical_constraint(model::M, c, name) where {M}
+    # check the constraint out
+    is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")
+    set = JuMP.moi_set(c)
+    @assert set isa MOI.EqualTo{Bool} "Unexpected set `$set` for logical constraint."
+    func = JuMP.jump_function(c)
+    JuMP.check_belongs_to_model(func, model)
+    _check_logical_expression(func)
+    # add negation if needed
+    if !set.value
+        func = _LogicalExpr{M}(:!, func)
+        set = MOI.EqualTo{Bool}(true)
+    end
+    # add the constraint
+    new_c = JuMP.ScalarConstraint(func, set) # we have guarranteed that set.value = true
+    constr_data = ConstraintData(new_c, name)
+    idx = _MOIUC.add_item(_logical_constraints(model), constr_data)
+    _set_ready_to_optimize(model, false)
+    return LogicalConstraintRef(model, idx)
 end
 
 # Check that logical expression is valid
@@ -516,7 +560,7 @@ end
 
 """
     function JuMP.add_constraint(
-        model::JuMP.Model,
+        model::JuMP.GenericModel,
         c::JuMP.ScalarConstraint{_LogicalExpr, MOI.EqualTo{Bool}},
         name::String = ""
     )
@@ -526,74 +570,62 @@ for a [`GDPModel`](@ref) with the `@constraint` macro. Users should define
 logical constraints via the syntax `@constraint(model, logical_expr := true)`.
 """
 function JuMP.add_constraint(
-    model::JuMP.Model,
-    c::JuMP.ScalarConstraint{_LogicalExpr, S},
+    model::M,
+    c::JuMP.ScalarConstraint{_LogicalExpr{M}, S},
     name::String = ""
-    ) where {S} # S <: JuMP._DoNotConvertSet{MOI.EqualTo{Bool}} or MOI.EqualTo{Bool}
-    # check the constraint out
-    is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")
-    set = JuMP.moi_set(c)
-    @assert set isa MOI.EqualTo{Bool} "Unexpected set `$set` for logical constraint."
-    func = JuMP.jump_function(c)
-    JuMP.check_belongs_to_model(func, model)
-    _check_logical_expression(func)
-    # add negation if needed
-    if !set.value
-        func = _LogicalExpr(:!, func)
-        set = MOI.EqualTo{Bool}(true)
-    end
-    # add the constraint
-    new_c = JuMP.ScalarConstraint(func, set) # we have guarranteed that set.value = true
-    constr_data = ConstraintData(new_c, name)
-    idx = _MOIUC.add_item(_logical_constraints(model), constr_data)
-    _set_ready_to_optimize(model, false)
-    return LogicalConstraintRef(model, idx)
+    ) where {S, M <: JuMP.GenericModel} # S <: JuMP._DoNotConvertSet{MOI.EqualTo{Bool}} or MOI.EqualTo{Bool}
+   return _add_logical_constraint(model, c, name)
 end
+
 function JuMP.add_constraint(
-    model::JuMP.Model,
-    c::JuMP.ScalarConstraint{LogicalVariableRef, S},
+    model::M,
+    c::JuMP.ScalarConstraint{LogicalVariableRef{M}, S},
     name::String = ""
-    ) where {S} # S <: JuMP._DoNotConvertSet{MOI.EqualTo{Bool}} or MOI.EqualTo{Bool}
+    ) where {M <: JuMP.GenericModel, S} # S <: JuMP._DoNotConvertSet{MOI.EqualTo{Bool}} or MOI.EqualTo{Bool}
     error("Cannot define constraint on single logical variable, use `fix` instead.")
 end
 function JuMP.add_constraint(
-    model::JuMP.Model,
-    c::JuMP.ScalarConstraint{GenericAffExpr{C, LogicalVariableRef}, S},
+    model::M,
+    c::JuMP.ScalarConstraint{GenericAffExpr{C, LogicalVariableRef{M}}, S},
     name::String = ""
-    ) where {S, C}
+    ) where {M <: JuMP.GenericModel, S, C}
     error("Cannot add, subtract, or multiply with logical variables.")
 end
 function JuMP.add_constraint(
-    model::JuMP.Model,
-    c::JuMP.ScalarConstraint{GenericQuadExpr{C, LogicalVariableRef}, S},
+    model::M,
+    c::JuMP.ScalarConstraint{GenericQuadExpr{C, LogicalVariableRef{M}}, S},
     name::String = ""
-    ) where {S, C}
+    ) where {M <: JuMP.GenericModel, S, C}
     error("Cannot add, subtract, or multiply with logical variables.")
 end
 
-"""
-    function JuMP.add_constraint(
-        model::Model,
-        c::VectorConstraint{<:F, S, Shape},
-        name::String = ""
-    ) where {F <: Union{Number, LogicalVariableRef, _LogicalExpr}, S, Shape}
-
-Extend `JuMP.add_constraint` to allow creating logical cardinality constraints
-for a [`GDPModel`](@ref) with the `@constraint` macro.
-"""
-function JuMP.add_constraint(
-    model::JuMP.Model,
-    c::JuMP.VectorConstraint{F, S, Shape},
-    name::String = ""
-    ) where {F, S <: Union{_MOIAtLeast, _MOIAtMost, _MOIExactly}, Shape}
+# Define method for adding cardinality constraints (needed to define multiple methods to avoid ambiguous dispatch)
+function _add_cardinality_constraint(model, c, name)
     is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")
     func = JuMP.jump_function(c)
     JuMP.check_belongs_to_model.(filter(Base.Fix2(isa, JuMP.AbstractJuMPScalar), func), model)
-    # TODO maybe do some formatting on `c` to ensure the types are what we expect later
+    # TODO maybe do some formatting on `c` to ensure the types are what we expect later --> build_constraint forces formatting now
     constr_data = ConstraintData(c, name)
     idx = _MOIUC.add_item(_logical_constraints(model), constr_data)
     _set_ready_to_optimize(model, false)
     return LogicalConstraintRef(model, idx)
 end
 
+"""
+    function JuMP.add_constraint(
+        model::JuMP.GenericModel,
+        c::VectorConstraint{<:F, S},
+        name::String = ""
+    ) where {F <: Vector{<:LogicalVariableRef}, S <: AbstractCardinalitySet}
+
+Extend `JuMP.add_constraint` to allow creating logical cardinality constraints
+for a [`GDPModel`](@ref) with the `@constraint` macro.
+"""
+function JuMP.add_constraint(
+    model::JuMP.GenericModel,
+    c::JuMP.VectorConstraint{F, S},
+    name::String = ""
+    ) where {F, S <: AbstractCardinalitySet}
+    return _add_cardinality_constraint(model, c, name)
+end
 # TODO create bridges for MOI sets for and use BridgeableConstraint with build_constraint

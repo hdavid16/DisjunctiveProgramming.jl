@@ -92,7 +92,7 @@ function test_interrogate_proposition_constraint()
     ex = (implies(w[1], w[2]) ∧ w[3]) ⇔ (¬w[4] ∨ y)
     @constraint(m, con, ex := true)
     obj = constraint_object(con)
-    vars = DP._get_constraint_variables(m, obj)
+    vars = DP._get_logical_constraint_variables(m, obj)
     @test w[1] in vars
     @test w[2] in vars
     @test w[3] in vars
@@ -108,7 +108,7 @@ function test_interrogate_selector_constraint()
     @variable(m, w[1:5], Logical)
     @constraint(m, con, w[1:4] in AtMost(y))
     obj = constraint_object(con)
-    vars = DP._get_constraint_variables(m, obj)
+    vars = DP._get_logical_constraint_variables(m, obj)
     @test w[1] in vars
     @test w[2] in vars
     @test w[3] in vars

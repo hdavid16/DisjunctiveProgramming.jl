@@ -18,7 +18,7 @@ print(m)
 #  x[2] ≤ 20
 
 ##
-optimize!(m, method = BigM(100, false)) #specify M value and disable M-tightening
+optimize!(m, gdp_method = BigM(100, false)) #specify M value and disable M-tightening
 print(m)
 # Max x[1] + x[2]
 # Subject to
@@ -39,7 +39,7 @@ print(m)
 #  Y[2] binary
 
 ##
-optimize!(m, method = Hull())
+optimize!(m, gdp_method = Hull())
 print(m)
 # Max x[1] + x[2]
 # Subject to

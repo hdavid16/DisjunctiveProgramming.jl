@@ -1,37 +1,30 @@
 function test_default_hull()
-    method = Hull()
-    @test method.value == 1e-6
+    @test Hull().value == 1e-6
 end
 
 function test_set_hull()
-    method = Hull(0.001)
-    @test method.value == 0.001
+    @test Hull(0.001).value == 0.001
 end
 
 function test_query_variable_bounds()
     model = GDPModel()
     @variable(model, 10 <= x <= 100)
     @variable(model, -100 <= y <= -10)
-    method = Hull()
-    DP._query_variable_bounds(model, method)
-    @test haskey(method.variable_bounds, x)
-    @test haskey(method.variable_bounds, y)
-    @test method.variable_bounds[x] == (0, 100)
-    @test method.variable_bounds[y] == (-100, 0)
+    prep_bounds([x, y], model, Hull())
+    @test variable_bound_info(x) == (0, 100)
+    @test variable_bound_info(y) == (-100, 0)
 end
 
 function test_query_variable_bounds_error1()
     model = GDPModel()
     @variable(model, x <= 100)
-    method = Hull()
-    @test_throws ErrorException DP._query_variable_bounds(model, method)
+    @test_throws ErrorException set_variable_bound_info(x, Hull())
 end
 
 function test_query_variable_bounds_error2()
     model = GDPModel()
     @variable(model, -100 <= x)
-    method = Hull()
-    @test_throws ErrorException DP._query_variable_bounds(model, method)
+    @test_throws ErrorException set_variable_bound_info(x, Hull())
 end
 
 function test_disaggregate_variables()
@@ -39,16 +32,16 @@ function test_disaggregate_variables()
     @variable(model, 10 <= x <= 100)
     @variable(model, y, Bin)
     @variable(model, z, Logical)
-    vrefs = Set{VariableRef}() #initialize empty set to check if method.disjunct_variables has variables added to it in _disaggregate_variable call
-    DP._reformulate_logical_variables(model)
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.))), vrefs)
     vrefs = Set([x,y])
-    DP._disaggregate_variables(model, z, vrefs, method)
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    method = DP._Hull(Hull(1e-3), vrefs)
+    @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
+    @test haskey(method.disjunct_variables, (x, DP._indicator_to_binary(model)[z]))
 
     refvars = DP._reformulation_variables(model)
-    @test length(refvars) == 2
+    @test length(refvars) == 1
     zbin = variable_by_name(model, "z")
-    @test zbin in refvars
+    @test zbin == binary_variable(z)
     x_z = variable_by_name(model, "x_z")
     @test x_z in refvars
     @test has_lower_bound(x_z) && lower_bound(x_z) == 0
@@ -67,9 +60,9 @@ function test_aggregate_variable()
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
     vrefs = Set([x])
-    DP._reformulate_logical_variables(model)
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.))), vrefs)
-    DP._disaggregate_variables(model, z, vrefs, method)
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    method = DP._Hull(Hull(1e-3), vrefs)
+    @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
     refcons = Vector{JuMP.AbstractConstraint}() 
     DP._aggregate_variable(model, refcons, x, method)
     @test length(refcons) == 1
@@ -81,12 +74,12 @@ function test_disaggregate_expression_var()
     model = GDPModel()
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
-    DP._reformulate_logical_variables(model)
     bvrefs = DP._indicator_to_binary(model)
 
     vrefs = Set([x])
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.))), vrefs)
-    DP._disaggregate_variables(model, z, vrefs, method)
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    method = DP._Hull(Hull(1e-3), vrefs)
+    @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
     
     refexpr = DP._disaggregate_expression(model, x, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
@@ -97,12 +90,11 @@ function test_disaggregate_expression_var_binary()
     model = GDPModel()
     @variable(model, x, Bin)
     @variable(model, z, Logical)
-    DP._reformulate_logical_variables(model)
     bvrefs = DP._indicator_to_binary(model)
 
     vrefs = Set([x])
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 1.))), vrefs)
-    DP._disaggregate_variables(model, z, vrefs, method)
+    method = DP._Hull(Hull(1e-3), vrefs)
+    @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
     @test isnothing(variable_by_name(model, "x_z"))
     
     refexpr = DP._disaggregate_expression(model, x, bvrefs[z], method)
@@ -113,12 +105,12 @@ function test_disaggregate_expression_affine()
     model = GDPModel()
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
-    DP._reformulate_logical_variables(model)
     bvrefs = DP._indicator_to_binary(model)
 
     vrefs = Set([x])
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.))), vrefs)
-    DP._disaggregate_variables(model, z, vrefs, method)
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    method = DP._Hull(Hull(1e-3), vrefs)
+    @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
     
     refexpr = DP._disaggregate_expression(model, 2x + 1, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
@@ -131,12 +123,12 @@ function test_disaggregate_expression_affine_mip()
     @variable(model, 10 <= x <= 100)
     @variable(model, y, Bin)
     @variable(model, z, Logical)
-    DP._reformulate_logical_variables(model)
     bvrefs = DP._indicator_to_binary(model)
 
     vrefs = Set([x, y])
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.), y => (0., 1.))), vrefs)
-    DP._disaggregate_variables(model, z, vrefs, method)
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    method = DP._Hull(Hull(1e-3), vrefs)
+    @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
     
     refexpr = DP._disaggregate_expression(model, 2x + y + 1, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
@@ -148,12 +140,12 @@ function test_disaggregate_expression_quadratic()
     model = GDPModel()
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
-    DP._reformulate_logical_variables(model)
     bvrefs = DP._indicator_to_binary(model)
 
     vrefs = Set([x])
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.))), vrefs)
-    DP._disaggregate_variables(model, z, vrefs, method)
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    method = DP._Hull(Hull(1e-3), vrefs)
+    @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
     
     refexpr = DP._disaggregate_expression(model, 2x^2 + 1, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
@@ -171,12 +163,12 @@ function test_disaggregate_nl_expression_c()
     model = GDPModel()
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
-    DP._reformulate_logical_variables(model)
     bvrefs = DP._indicator_to_binary(model)
 
     vrefs = Set([x])
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.))), vrefs)
-    DP._disaggregate_variables(model, z, vrefs, method)
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    method = DP._Hull(Hull(1e-3), vrefs)
+    @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
     
     refexpr = DP._disaggregate_nl_expression(model, 1, bvrefs[z], method)
     @test refexpr == 1
@@ -186,12 +178,11 @@ function test_disaggregate_nl_expression_var_binary()
     model = GDPModel()
     @variable(model, x, Bin)
     @variable(model, z, Logical)
-    DP._reformulate_logical_variables(model)
     bvrefs = DP._indicator_to_binary(model)
 
     vrefs = Set([x])
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 1.))), vrefs)
-    DP._disaggregate_variables(model, z, vrefs, method)
+    method = DP._Hull(Hull(1e-3), vrefs)
+    @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
     
     refexpr = DP._disaggregate_nl_expression(model, x, bvrefs[z], method)
     ϵ = method.value
@@ -204,12 +195,12 @@ function test_disaggregate_nl_expression_var()
     model = GDPModel()
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
-    DP._reformulate_logical_variables(model)
     bvrefs = DP._indicator_to_binary(model)
 
     vrefs = Set([x])
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.))), vrefs)
-    DP._disaggregate_variables(model, z, vrefs, method)
+    method = DP._Hull(Hull(1e-3), vrefs)
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
     
     refexpr = DP._disaggregate_nl_expression(model, x, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
@@ -224,12 +215,12 @@ function test_disaggregate_nl_expression_aff()
     model = GDPModel()
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
-    DP._reformulate_logical_variables(model)
     bvrefs = DP._indicator_to_binary(model)
 
     vrefs = Set([x])
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.))), vrefs)
-    DP._disaggregate_variables(model, z, vrefs, method)
+    method = DP._Hull(Hull(1e-3), vrefs)
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
     
     refexpr = DP._disaggregate_nl_expression(model, 2x + 1, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
@@ -248,12 +239,12 @@ function test_disaggregate_nl_expression_aff_mip()
     @variable(model, 10 <= x <= 100)
     @variable(model, y, Bin)
     @variable(model, z, Logical)
-    DP._reformulate_logical_variables(model)
     bvrefs = DP._indicator_to_binary(model)
 
     vrefs = Set([x,y])
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.), y => (0., 1.))), vrefs)
-    DP._disaggregate_variables(model, z, vrefs, method)
+    method = DP._Hull(Hull(1e-3), vrefs)
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
     
     refexpr = DP._disaggregate_nl_expression(model, 2x + y + 1, bvrefs[z], method)
     flatten!(refexpr)
@@ -274,12 +265,12 @@ function test_disaggregate_nl_expression_quad()
     model = GDPModel()
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
-    DP._reformulate_logical_variables(model)
     bvrefs = DP._indicator_to_binary(model)
 
     vrefs = Set([x])
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.))), vrefs)
-    DP._disaggregate_variables(model, z, vrefs, method)
+    method = DP._Hull(Hull(1e-3), vrefs)
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
     
     refexpr = DP._disaggregate_nl_expression(model, 2x^2 + 1, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
@@ -297,12 +288,12 @@ function test_disaggregate_nl_expession()
     model = GDPModel()
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
-    DP._reformulate_logical_variables(model)
     bvrefs = DP._indicator_to_binary(model)
 
     vrefs = Set([x])
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.))), vrefs)
-    DP._disaggregate_variables(model, z, vrefs, method)
+    method = DP._Hull(Hull(1e-3), vrefs)
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
     
     refexpr = DP._disaggregate_nl_expression(model, 2x^3 + 1, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
@@ -326,10 +317,10 @@ function test_scalar_var_hull_1sided(moiset)
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
     @constraint(model, con, x in moiset(5), Disjunct(z))
-    DP._reformulate_logical_variables(model)
     zbin = variable_by_name(model, "z")
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.))), Set([x]))
-    DP._disaggregate_variables(model, z, Set([x]), method)
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    method = DP._Hull(Hull(1e-3), Set([x]))
+    @test DP._disaggregate_variables(model, z, Set([x]), method) isa Nothing
     x_z = variable_by_name(model, "x_z")
     ref = reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
     @test length(ref) == 1
@@ -343,10 +334,10 @@ function test_scalar_affine_hull_1sided(moiset)
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
     @constraint(model, con, 1x in moiset(5), Disjunct(z))
-    DP._reformulate_logical_variables(model)
     zbin = variable_by_name(model, "z")
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.))), Set([x]))
-    DP._disaggregate_variables(model, z, Set([x]), method)
+    method = DP._Hull(Hull(1e-3), Set([x]))
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, Set([x]), method) isa Nothing
     x_z = variable_by_name(model, "x_z")
     ref = reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
     @test length(ref) == 1
@@ -360,10 +351,10 @@ function test_vector_var_hull_1sided(moiset)
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
     @constraint(model, con, [x; x] in moiset(2), Disjunct(z))
-    DP._reformulate_logical_variables(model)
     zbin = variable_by_name(model, "z")
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.))), Set([x]))
-    DP._disaggregate_variables(model, z, Set([x]), method)
+    method = DP._Hull(Hull(1e-3), Set([x]))
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, Set([x]), method) isa Nothing
     x_z = variable_by_name(model, "x_z")
     ref = reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
     @test length(ref) == 1
@@ -376,10 +367,10 @@ function test_vector_affine_hull_1sided(moiset)
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
     @constraint(model, con, [x - 5; x - 5] in moiset(2), Disjunct(z))
-    DP._reformulate_logical_variables(model)
     zbin = variable_by_name(model, "z")
-    method = DP._Hull(Hull(1e-3, Dict(x => (0., 100.))), Set([x]))
-    DP._disaggregate_variables(model, z, Set([x]), method)
+    method = DP._Hull(Hull(1e-3), Set([x]))
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, Set([x]), method) isa Nothing
     x_z = variable_by_name(model, "x_z")
     ref = reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
     @test length(ref) == 1
@@ -392,11 +383,11 @@ function test_scalar_quadratic_hull_1sided(moiset)
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
     @constraint(model, con, x^2 in moiset(5), Disjunct(z))
-    DP._reformulate_logical_variables(model)
     zbin = variable_by_name(model, "z")
     ϵ = 1e-3
-    method = DP._Hull(Hull(ϵ, Dict(x => (0., 100.))), Set([x]))
-    DP._disaggregate_variables(model, z, Set([x]), method)
+    method = DP._Hull(Hull(ϵ), Set([x]))
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, Set([x]), method) isa Nothing
     x_z = variable_by_name(model, "x_z")
     ref = reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
     @test length(ref) == 1
@@ -417,11 +408,11 @@ function test_vector_quadratic_hull_1sided(moiset)
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
     @constraint(model, con, [x^2 - 5; x^2 - 5] in moiset(2), Disjunct(z))
-    DP._reformulate_logical_variables(model)
     zbin = variable_by_name(model, "z")
     ϵ = 1e-3
-    method = DP._Hull(Hull(ϵ, Dict(x => (0., 100.))), Set([x]))
-    DP._disaggregate_variables(model, z, Set([x]), method)
+    method = DP._Hull(Hull(ϵ), Set([x]))
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, Set([x]), method) isa Nothing
     x_z = variable_by_name(model, "x_z")
     ref = reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
     @test length(ref) == 1
@@ -442,11 +433,11 @@ function test_scalar_nonlinear_hull_1sided_error()
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
     @constraint(model, con, log(x) <= 10, Disjunct(z))
-    DP._reformulate_logical_variables(model)
     zbin = variable_by_name(model, "z")
     ϵ = 1e-3
-    method = DP._Hull(Hull(ϵ, Dict(x => (0., 100.))), Set([x]))
-    DP._disaggregate_variables(model, z, Set([x]), method)
+    method = DP._Hull(Hull(ϵ), Set([x]))
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, Set([x]), method) isa Nothing
     @test_throws ErrorException reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
 end
 function test_scalar_nonlinear_hull_1sided(moiset)
@@ -454,11 +445,11 @@ function test_scalar_nonlinear_hull_1sided(moiset)
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
     @constraint(model, con, x^3 in moiset(5), Disjunct(z))
-    DP._reformulate_logical_variables(model)
     zbin = variable_by_name(model, "z")
     ϵ = 1e-3
-    method = DP._Hull(Hull(ϵ, Dict(x => (0., 100.))), Set([x]))
-    DP._disaggregate_variables(model, z, Set([x]), method)
+    method = DP._Hull(Hull(ϵ), Set([x]))
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, Set([x]), method) isa Nothing
     x_z = variable_by_name(model, "x_z")
     ref = reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
     @test length(ref) == 1
@@ -484,11 +475,11 @@ function test_vector_nonlinear_hull_1sided_error()
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
     @constraint(model, con, [log(x),log(x)] <= [10,10], Disjunct(z))
-    DP._reformulate_logical_variables(model)
     zbin = variable_by_name(model, "z")
     ϵ = 1e-3
-    method = DP._Hull(Hull(ϵ, Dict(x => (0., 100.))), Set([x]))
-    DP._disaggregate_variables(model, z, Set([x]), method)
+    method = DP._Hull(Hull(ϵ), Set([x]))
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, Set([x]), method) isa Nothing
     @test_throws ErrorException reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
 end
 function test_vector_nonlinear_hull_1sided(moiset)
@@ -496,11 +487,11 @@ function test_vector_nonlinear_hull_1sided(moiset)
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
     @constraint(model, con, [x^3 - 5; x^3 - 5] in moiset(2), Disjunct(z))
-    DP._reformulate_logical_variables(model)
     zbin = variable_by_name(model, "z")
     ϵ = 1e-3
-    method = DP._Hull(Hull(ϵ, Dict(x => (0., 100.))), Set([x]))
-    DP._disaggregate_variables(model, z, Set([x]), method)
+    method = DP._Hull(Hull(ϵ), Set([x]))
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, Set([x]), method) isa Nothing
     x_z = variable_by_name(model, "x_z")
     ref = reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
     @test length(ref) == 1
@@ -529,11 +520,11 @@ function test_scalar_var_hull_2sided()
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
     @constraint(model, con, x in MOI.Interval(5,5), Disjunct(z))
-    DP._reformulate_logical_variables(model)
     zbin = variable_by_name(model, "z")
     ϵ = 1e-3
-    method = DP._Hull(Hull(ϵ, Dict(x => (0., 100.))), Set([x]))
-    DP._disaggregate_variables(model, z, Set([x]), method)
+    method = DP._Hull(Hull(ϵ), Set([x]))
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, Set([x]), method) isa Nothing
     x_z = variable_by_name(model, "x_z")
     ref = reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
     @test length(ref) == 2
@@ -549,11 +540,11 @@ function test_scalar_affine_hull_2sided()
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
     @constraint(model, con, 5 <= x <= 5, Disjunct(z))
-    DP._reformulate_logical_variables(model)
     zbin = variable_by_name(model, "z")
     ϵ = 1e-3
-    method = DP._Hull(Hull(ϵ, Dict(x => (0., 100.))), Set([x]))
-    DP._disaggregate_variables(model, z, Set([x]), method)
+    method = DP._Hull(Hull(ϵ), Set([x]))
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, Set([x]), method) isa Nothing
     x_z = variable_by_name(model, "x_z")
     ref = reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
     @test length(ref) == 2
@@ -569,11 +560,11 @@ function test_scalar_quadratic_hull_2sided()
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
     @constraint(model, con, 5 <= x^2 <= 5, Disjunct(z))
-    DP._reformulate_logical_variables(model)
     zbin = variable_by_name(model, "z")
     ϵ = 1e-3
-    method = DP._Hull(Hull(ϵ, Dict(x => (0., 100.))), Set([x]))
-    DP._disaggregate_variables(model, z, Set([x]), method)
+    method = DP._Hull(Hull(ϵ), Set([x]))
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, Set([x]), method) isa Nothing
     x_z = variable_by_name(model, "x_z")
     ref = reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
     @test length(ref) == 2
@@ -596,11 +587,11 @@ function test_scalar_nonlinear_hull_2sided_error()
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
     @constraint(model, con, 0 <= log(x) <= 10, Disjunct(z))
-    DP._reformulate_logical_variables(model)
     zbin = variable_by_name(model, "z")
     ϵ = 1e-3
-    method = DP._Hull(Hull(ϵ, Dict(x => (0., 100.))), Set([x]))
-    DP._disaggregate_variables(model, z, Set([x]), method)
+    method = DP._Hull(Hull(ϵ), Set([x]))
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, Set([x]), method) isa Nothing
     @test_throws ErrorException reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
 end
 function test_scalar_nonlinear_hull_2sided()
@@ -608,11 +599,11 @@ function test_scalar_nonlinear_hull_2sided()
     @variable(model, 10 <= x <= 100)
     @variable(model, z, Logical)
     @constraint(model, con, 5 <= x^3 <= 5, Disjunct(z))
-    DP._reformulate_logical_variables(model)
     zbin = variable_by_name(model, "z")
     ϵ = 1e-3
-    method = DP._Hull(Hull(ϵ, Dict(x => (0., 100.))), Set([x]))
-    DP._disaggregate_variables(model, z, Set([x]), method)
+    method = DP._Hull(Hull(ϵ), Set([x]))
+    @test prep_bounds(x, model, Hull()) isa Nothing
+    @test DP._disaggregate_variables(model, z, Set([x]), method) isa Nothing
     x_z = variable_by_name(model, "x_z")
     ref = reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
     @test length(ref) == 2
@@ -645,6 +636,30 @@ function test_exactly1_error()
     disjunction(model, z, exactly1 = false)
     @test requires_exactly1(Hull())
     @test_throws ErrorException reformulate_model(model, Hull())
+end
+
+function test_extension_hull()
+    # test error for hull
+    @test_throws ErrorException requires_disaggregation(BadVarRef())
+
+    # prepare extension model
+    model = GDPModel{MyModel, MyVarRef, MyConRef}()
+    @variable(model, -100 <= x <= 100)
+    @variable(model, y[1:2], Logical(MyVar))
+    @variable(model, z[1:2], Logical(MyVar))
+    @constraint(model, x <= 5, Disjunct(y[1]))
+    @constraint(model, x >= 5, Disjunct(y[2]))
+    @disjunction(model, inner, y, Disjunct(z[1]))
+    @constraint(model, x <= 10, Disjunct(z[1]))
+    @constraint(model, x >= 10, Disjunct(z[2]))
+    @disjunction(model, outer, z)
+
+    # test reformulation
+    @test reformulate_model(model, Hull()) isa Nothing
+    refcons = constraint_object.(DP._reformulation_constraints(model))
+    @test length(refcons) == 16
+    @test length(DP._reformulation_variables(model)) == 4
+    # TODO add more tests
 end
 
 @testset "Hull Reformulation" begin
@@ -687,4 +702,5 @@ end
     test_scalar_nonlinear_hull_2sided()
     test_scalar_nonlinear_hull_2sided_error()
     test_exactly1_error()
+    test_extension_hull()
 end

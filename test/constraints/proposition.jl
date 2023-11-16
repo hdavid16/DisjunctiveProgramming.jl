@@ -98,7 +98,7 @@ function test_proposition_add_array()
     model = GDPModel()
     @variable(model, y[1:2, 1:3, 1:4], Logical)
     @constraint(model, con[i=1:2,j=1:3], ∨(y[i,j,:]...) := true)
-    @test con isa Matrix{LogicalConstraintRef}
+    @test con isa Matrix{LogicalConstraintRef{Model}}
     @test length(con) == 6
 end
 
@@ -111,7 +111,7 @@ function test_proposition_add_dense_axis()
     @test con isa Containers.DenseAxisArray
     @test con.axes[1] == ["a","b","c"]
     @test con.axes[2] == [1,2]
-    @test con.data isa Matrix{LogicalConstraintRef}
+    @test con.data isa Matrix{LogicalConstraintRef{Model}}
 end
 
 function test_proposition_add_sparse_axis()
@@ -488,6 +488,18 @@ function test_reformulate_clause_error()
     @test_throws ErrorException DP._reformulate_clause(model, ex)
 end
 
+function test_extension_propositions()
+    model = GDPModel{MyModel, MyVarRef, MyConRef}()
+    @variable(model, y[1:2], Logical(MyVar), start = true)
+    cref = LogicalConstraintRef(model, LogicalConstraintIndex(1))
+    @test @constraint(model, (y[1] && ¬y[2]) == y[1] := true) == cref
+    @test DP._reformulate_logical_constraints(model) isa Nothing
+    @test length(DP._reformulation_constraints(model)) == 2
+    @test length(model.cons) == 2
+    @test model.cons[1] isa ScalarConstraint{GenericAffExpr{Float64, MyVarRef}, MOI.GreaterThan{Float64}}
+    @test model.cons[2] isa ScalarConstraint{GenericAffExpr{Float64, MyVarRef}, MOI.GreaterThan{Float64}}
+end
+
 @testset "Logical Proposition Constraints" begin
     @testset "Logical Operators" begin
         test_op_fallback()
@@ -534,5 +546,8 @@ end
         test_distribute_and_over_or_error()
         test_distribute_and_over_or_nested()
         test_to_cnf()
+    end
+    @testset "Extension Propositions" begin
+        test_extension_propositions()
     end
 end

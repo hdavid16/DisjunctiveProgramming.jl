@@ -1,9 +1,8 @@
 ################################################################################
 #                              LOGICAL VARIABLES
 ################################################################################
-
 """
-    LogicalVariable <: AbstractVariable
+    LogicalVariable <: JuMP.AbstractVariable
 
 A variable type the logical variables associated with disjuncts in a [`Disjunction`](@ref).
 
@@ -11,12 +10,46 @@ A variable type the logical variables associated with disjuncts in a [`Disjuncti
 - `fix_value::Union{Nothing, Bool}`: A fixed boolean value if there is one.
 - `start_value::Union{Nothing, Bool}`: An initial guess if there is one.
 """
-struct LogicalVariable <: AbstractVariable 
+struct LogicalVariable <: JuMP.AbstractVariable 
     fix_value::Union{Nothing, Bool}
     start_value::Union{Nothing, Bool}
 end
 
-const Logical = LogicalVariable
+# Wrapper variable type for including arbitrary tags that will be used for 
+# creating reformulation variables later on
+struct _TaggedLogicalVariable{T} <: JuMP.AbstractVariable
+    variable::LogicalVariable
+    tag_data::T
+end
+
+"""
+    Logical{T}
+
+Tag for creating logical variables using `@variable`. Most often this will 
+be used to enable the syntax:
+```julia
+@variable(model, var_expr, Logical, [kwargs...])
+```
+which creates a [`LogicalVariable`](@ref) that will ultimately be 
+reformulated into a binary variable of the form:
+```julia
+@variable(model, var_expr, Bin, [kwargs...])
+```
+
+To include a tag that is used to create the reformulated variables, the syntax 
+becomes:
+```julia
+@variable(model, var_expr, Logical(MyTag()), [kwargs...])
+```
+which creates a [`LogicalVariable`](@ref) that is associated with `MyTag()` such 
+that the reformulation binary variables are of the form:
+```julia
+@variable(model, var_expr, Bin, MyTag(), [kwargs...])
+```
+"""
+struct Logical{T}
+    tag_data::T
+end
 
 """
     LogicalVariableData
@@ -25,7 +58,7 @@ A type for storing [`LogicalVariable`](@ref)s and any meta-data they
 possess.
 
 **Fields**
-- `variable::LogicalVariable`: The variable object.
+- `variable::LogicalVariable`: The logical variable object.
 - `name::String`: The name of the variable.
 """
 mutable struct LogicalVariableData
@@ -46,12 +79,12 @@ struct LogicalVariableIndex
 end
 
 """
-    LogicalVariableRef
+    LogicalVariableRef{M <: JuMP.AbstractModel}
 
 A type for looking up logical variables.
 """
-struct LogicalVariableRef <: AbstractVariableRef
-    model::Model # TODO: generalize for AbstractModels
+struct LogicalVariableRef{M <:JuMP.AbstractModel} <: AbstractVariableRef
+    model::M
     index::LogicalVariableIndex
 end
 
@@ -66,29 +99,37 @@ end
 #    product between two vectors in the set
 #    is equivalent to LinearAlgebra.dot.
 """
-    _MOIAtLeast <: _MOI.AbstractVectorSet
+    AbstractCardinalitySet <: MOI.AbstractVectorSet
+
+An abstract type for cardinality sets [`_MOIAtLeast`](@ref), [`_MOIExactly`](@ref),
+and [`_MOIAtMost`](@ref).
+"""
+abstract type AbstractCardinalitySet <:_MOI.AbstractVectorSet end
+
+"""
+    _MOIAtLeast <: AbstractCardinalitySet
 
 MOI level set for AtLeast constraints, see [`AtLeast`](@ref) for recommended syntax.
 """
-struct _MOIAtLeast <: _MOI.AbstractVectorSet
+struct _MOIAtLeast <: AbstractCardinalitySet
     dimension::Int
 end
 
 """
-    _MOIAtMost <: _MOI.AbstractVectorSet
+    _MOIAtMost <: AbstractCardinalitySet
 
 MOI level set for AtMost constraints, see [`AtMost`](@ref) for recommended syntax.
 """
-struct _MOIAtMost <: _MOI.AbstractVectorSet
+struct _MOIAtMost <: AbstractCardinalitySet
     dimension::Int
 end
 
 """
-    _MOIExactly <: _MOI.AbstractVectorSet
+    _MOIExactly <: AbstractCardinalitySet
 
 MOI level set for Exactly constraints, see [`Exactly`](@ref) for recommended syntax.
 """
-struct _MOIExactly <: _MOI.AbstractVectorSet
+struct _MOIExactly <: AbstractCardinalitySet
     dimension::Int
 end
 
@@ -121,14 +162,14 @@ struct Exactly{T<:Union{Int,LogicalVariableRef}} <: AbstractVectorSet
 end
 
 # Extend JuMP.moi_set as needed
-JuMP.moi_set(set::AtLeast, dim::Int) = _MOIAtLeast(dim)
-JuMP.moi_set(set::AtMost, dim::Int) = _MOIAtMost(dim)
-JuMP.moi_set(set::Exactly, dim::Int) = _MOIExactly(dim)
+JuMP.moi_set(::AtLeast, dim::Int) = _MOIAtLeast(dim)
+JuMP.moi_set(::AtMost, dim::Int) = _MOIAtMost(dim)
+JuMP.moi_set(::Exactly, dim::Int) = _MOIExactly(dim)
 
 ################################################################################
 #                              LOGICAL CONSTRAINTS
 ################################################################################
-const _LogicalExpr = GenericNonlinearExpr{LogicalVariableRef}
+const _LogicalExpr{M} = JuMP.GenericNonlinearExpr{LogicalVariableRef{M}}
 
 """
     ConstraintData{C <: AbstractConstraint}
@@ -158,12 +199,12 @@ struct LogicalConstraintIndex
 end
 
 """
-    LogicalConstraintRef
+    LogicalConstraintRef{M <: JuMP.AbstractModel}
 
 A type for looking up logical constraints.
 """
-struct LogicalConstraintRef
-    model::Model # TODO: generalize for AbstractModels
+struct LogicalConstraintRef{M <: JuMP.AbstractModel}
+    model::M
     index::LogicalConstraintIndex
 end
 
@@ -184,8 +225,8 @@ where `lvref` is a [`LogicalVariableRef`](@ref) that will ultimately be associat
 with the disjunct the constraint is added to. If no `lvref` is given, then one is 
 generated when the disjunction is created.
 """
-struct Disjunct
-    indicator::LogicalVariableRef
+struct Disjunct{M <: JuMP.AbstractModel}
+    indicator::LogicalVariableRef{M}
 end
 
 # Create internal type for temporarily packaging constraints for disjuncts
@@ -207,12 +248,12 @@ struct DisjunctConstraintIndex
 end
 
 """
-    DisjunctConstraintRef
+    DisjunctConstraintRef{M <: JuMP.AbstractModel}
 
 A type for looking up disjunctive constraints.
 """
-struct DisjunctConstraintRef
-    model::Model # TODO: generalize for AbstractModels
+struct DisjunctConstraintRef{M <: JuMP.AbstractModel}
+    model::M
     index::DisjunctConstraintIndex
 end
 
@@ -220,18 +261,18 @@ end
 #                              DISJUNCTIONS
 ################################################################################
 """
-    Disjunction <: AbstractConstraint
+    Disjunction{M <: JuMP.AbstractModel} <: AbstractConstraint
 
 A type for a disjunctive constraint that is comprised of a collection of 
-disjuncts of indicated by a unique [`LogicalVariableRef`](@ref).
+disjuncts of indicated by a unique [`LogicalVariableIndex`](@ref).
 
 **Fields**
-- `indicators::Vector{LogicalVariableRef}`: The references to the logical variables 
+- `indicators::Vector{LogicalVariableref}`: The references to the logical variables 
 (indicators) that uniquely identify each disjunct in the disjunction.
 - `nested::Bool`: Is this disjunction nested within another disjunction?
 """
-struct Disjunction <: AbstractConstraint
-    indicators::Vector{LogicalVariableRef}
+struct Disjunction{M <: JuMP.AbstractModel} <: AbstractConstraint
+    indicators::Vector{LogicalVariableRef{M}}
     nested::Bool
 end
 
@@ -248,19 +289,18 @@ struct DisjunctionIndex
 end
 
 """
-    DisjunctionRef
+    DisjunctionRef{M <: JuMP.AbstractModel}
 
 A type for looking up disjunctive constraints.
 """
-struct DisjunctionRef
-    model::Model # TODO: generalize for AbstractModels
+struct DisjunctionRef{M <: JuMP.AbstractModel}
+    model::M
     index::DisjunctionIndex
 end
 
 ################################################################################
 #                              CLEVER DICTS
 ################################################################################
-
 ## Extend the CleverDicts key access methods
 # index_to_key
 function _MOIUC.index_to_key(::Type{LogicalVariableIndex}, index::Int64)
@@ -293,7 +333,6 @@ end
 ################################################################################
 #                              SOLUTION METHODS
 ################################################################################
-
 """
     AbstractSolutionMethod
 
@@ -309,56 +348,48 @@ An abstract type for reformulation approaches used to solve `GDPModel`s.
 abstract type AbstractReformulationMethod <: AbstractSolutionMethod end
 
 """
-    BigM <: AbstractReformulationMethod
+    BigM{T} <: AbstractReformulationMethod
 
 A type for using the big-M reformulation approach for disjunctive constraints.
 
 **Fields**
-- `value::Float64`: Big-M value (default = `1e9`).
+- `value::T`: Big-M value (default = `1e9`).
 - `tight::Bool`: Attempt to tighten the Big-M value (default = `true`)?
 """
-struct BigM <: AbstractReformulationMethod
-    value::Float64
+struct BigM{T} <: AbstractReformulationMethod
+    value::T
     tighten::Bool
-    variable_bounds::Dict{VariableRef, Tuple{Float64, Float64}} # TODO support other number types?
-    function BigM(val = 1e9, tight = true)
-        new(val, tight, Dict{VariableRef, Tuple{Float64, Float64}}())
+    function BigM(val::T = 1e9, tight = true) where {T}
+        new{T}(val, tight)
     end
-end # TODO add fields if needed
+end
 
 """
-    Hull <: AbstractReformulationMethod
+    Hull{T} <: AbstractReformulationMethod
 
 A type for using the convex hull reformulation approach for disjunctive 
 constraints.
 
 **Fields**
-- `value::Float64`: epsilon value for nonlinear hull reformulations (default = `1e-6`).
+- `value::T`: epsilon value for nonlinear hull reformulations (default = `1e-6`).
 """
-struct Hull <: AbstractReformulationMethod # TODO add fields if needed
-    value::Float64
-    variable_bounds::Dict{VariableRef, Tuple{Float64, Float64}} # TODO support other number types?
-    function Hull(ϵ::Float64 = 1e-6)
-        new(ϵ, Dict{VariableRef, Tuple{Float64, Float64}}())
-    end
-    function Hull(ϵ::Float64, v_bounds::Dict{VariableRef, Tuple{Float64, Float64}})
-        new(ϵ, v_bounds)
+struct Hull{T} <: AbstractReformulationMethod
+    value::T
+    function Hull(ϵ::T = 1e-6) where {T}
+        new{T}(ϵ)
     end
 end
 
-
 # temp struct to store variable disaggregations (reset for each disjunction)
-mutable struct _Hull <: AbstractReformulationMethod
-    value::Float64
-    variable_bounds::Dict{VariableRef, Tuple{Float64, Float64}} # TODO support other number types?
-    disjunction_variables::Dict{VariableRef, Vector{VariableRef}}
-    disjunct_variables::Dict{Tuple{VariableRef,VariableRef}, VariableRef}
-    function _Hull(method::Hull, vrefs::Set{VariableRef})
-        new(
+mutable struct _Hull{V <: JuMP.AbstractVariableRef, T} <: AbstractReformulationMethod
+    value::T
+    disjunction_variables::Dict{V, Vector{V}}
+    disjunct_variables::Dict{Tuple{V, V}, V}
+    function _Hull(method::Hull{T}, vrefs::Set{V}) where {T, V <: JuMP.AbstractVariableRef}
+        new{V, T}(
             method.value,
-            method.variable_bounds,
-            Dict{VariableRef, Vector{VariableRef}}(vref => Vector{VariableRef}() for vref in vrefs), 
-            Dict{Tuple{VariableRef,VariableRef}, VariableRef}()
+            Dict{V, Vector{V}}(vref => V[] for vref in vrefs), 
+            Dict{Tuple{V, V}, V}()
         )
     end
 end
@@ -374,47 +405,52 @@ struct Indicator <: AbstractReformulationMethod end
 #                              GDP Data
 ################################################################################
 """
-    GDPData
+    GDPData{M <: JuMP.AbstractModel, V <: JuMP.AbstractVariableRef, CrefType, ValueType}
 
 The core type for storing information in a [`GDPModel`](@ref).
 """
-mutable struct GDPData
+mutable struct GDPData{M <: JuMP.AbstractModel, V <: JuMP.AbstractVariableRef, C, T}
     # Objects
     logical_variables::_MOIUC.CleverDict{LogicalVariableIndex, LogicalVariableData}
     logical_constraints::_MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData}
     disjunct_constraints::_MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}
-    disjunctions::_MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}
+    disjunctions::_MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction{M}}}
 
     # Exactly one constraint mappings
-    exactly1_constraints::Dict{DisjunctionRef, LogicalConstraintRef}
+    exactly1_constraints::Dict{DisjunctionRef{M}, LogicalConstraintRef{M}}
 
     # Indicator variable mappings
-    indicator_to_binary::Dict{LogicalVariableRef, VariableRef}
-    indicator_to_constraints::Dict{LogicalVariableRef, Vector{Union{DisjunctConstraintRef, DisjunctionRef}}}
-    constraint_to_indicator::Dict{Union{DisjunctConstraintRef, DisjunctionRef}, LogicalVariableRef} # needed for deletion
+    indicator_to_binary::Dict{LogicalVariableRef{M}, V}
+    indicator_to_constraints::Dict{LogicalVariableRef{M}, Vector{Union{DisjunctConstraintRef{M}, DisjunctionRef{M}}}}
+    constraint_to_indicator::Dict{Union{DisjunctConstraintRef{M}, DisjunctionRef{M}}, LogicalVariableRef{M}} # needed for deletion
+
+    # Helpful metadata for most reformulations (not just one of them)
+    variable_bounds::Dict{V, Tuple{T, T}}
 
     # Reformulation variables and constraints
-    reformulation_variables::Vector{VariableRef}
-    reformulation_constraints::Vector{ConstraintRef}
+    reformulation_variables::Vector{V}
+    reformulation_constraints::Vector{C}
 
     # Solution data
     solution_method::Union{Nothing, AbstractSolutionMethod}
     ready_to_optimize::Bool
 
     # Default constructor
-    function GDPData()
-        new(_MOIUC.CleverDict{LogicalVariableIndex, LogicalVariableData}(),
+    function GDPData{M, V, C}() where {M <: JuMP.AbstractModel, V <: JuMP.AbstractVariableRef, C}
+        T = JuMP.value_type(M)
+        new{M, V, C, T}(_MOIUC.CleverDict{LogicalVariableIndex, LogicalVariableData}(),
             _MOIUC.CleverDict{LogicalConstraintIndex, ConstraintData}(),
             _MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}(),
-            _MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction}}(),
-            Dict{DisjunctionRef, LogicalConstraintRef}(),
-            Dict{LogicalVariableRef, VariableRef}(),
-            Dict{LogicalVariableRef, Vector{Union{DisjunctConstraintRef, DisjunctionRef}}}(),
-            Dict{Union{DisjunctConstraintRef, DisjunctionRef}, LogicalVariableRef}(),
-            Vector{VariableRef}(),
-            Vector{ConstraintRef}(),
+            _MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction{M}}}(),
+            Dict{DisjunctionRef{M}, LogicalConstraintRef{M}}(),
+            Dict{LogicalVariableRef{M}, V}(),
+            Dict{LogicalVariableRef{M}, Vector{Union{DisjunctConstraintRef{M}, DisjunctionRef{M}}}}(),
+            Dict{Union{DisjunctConstraintRef{M}, DisjunctionRef{M}}, LogicalVariableRef{M}}(),
+            Dict{V, Tuple{T, T}}(),
+            Vector{V}(),
+            Vector{C}(),
             nothing,
             false,
-            )
+        )
     end
 end
