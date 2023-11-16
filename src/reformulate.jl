@@ -2,12 +2,12 @@
 #                              REFORMULATE
 ################################################################################
 """
-    reformulate_model(model::JuMP.AbstractModel, method::AbstractSolutionMethod)::Nothing
+    reformulate_model(model::JuMP.AbstractModel, method::AbstractSolutionMethod = BigM())
 
 Reformulate a `GDPModel` using the specified `method`. Prior to reformulation,
 all previous reformulation variables and constraints are deleted.
 """
-function reformulate_model(model::JuMP.AbstractModel, method::AbstractSolutionMethod)
+function reformulate_model(model::JuMP.AbstractModel, method::AbstractSolutionMethod = BigM())
     #clear all previous reformulations
     _clear_reformulations(model)
     #reformulate

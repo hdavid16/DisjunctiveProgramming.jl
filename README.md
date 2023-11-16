@@ -70,7 +70,7 @@ Two types of logical constraints are supported:
     - `∨` or `logical_or` or `||` (OR, typed with `\vee + tab`).
     - `∧` or `logical_and` or `&&` (AND, typed with `\wedge + tab`).
     - `¬` or `logical_not` (NOT, typed with `\neg + tab`).
-    - `⟹` of `implies` (Implication, typed with `\Longrightarrow + tab`).
+    - `⟹` or `implies` (Implication, typed with `\Longrightarrow + tab`).
     - `⇔` or `iff` or `==` (double implication or equivalence, typed with `\Leftrightarrow + tab`).
 
     The `@constraint` JuMP macro is used to create these constraints using `:=`:
