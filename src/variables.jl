@@ -95,7 +95,7 @@ function JuMP.add_variable(
     idx = _MOIUC.add_item(_logical_variables(model), data)
     lvref = LogicalVariableRef(model, idx)
     _set_ready_to_optimize(model, false)
-    # add the assocviated binary variables
+    # add the associated binary variables
     bvref = _make_binary_variable(model, v, name)
     _add_logical_info(bvref, v)
     _indicator_to_binary(model)[lvref] = bvref
