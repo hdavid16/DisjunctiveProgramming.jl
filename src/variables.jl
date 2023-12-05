@@ -267,6 +267,16 @@ function binary_variable(vref::LogicalVariableRef)
 end
 
 """
+    JuMP.value(vref::LogicalVariableRef)::Number
+
+Returns the optimized value of `vref`. This simply dispatches on the 
+underlying [`binary_variable`](@ref).
+"""
+function JuMP.value(vref::LogicalVariableRef)
+    return JuMP.value(binary_variable(vref))
+end
+
+"""
     JuMP.delete(model::JuMP.AbstractModel, vref::LogicalVariableRef)::Nothing
 
 Delete the logical variable associated with `vref` from the `GDP model`.
