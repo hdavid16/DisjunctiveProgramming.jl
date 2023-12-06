@@ -13,25 +13,23 @@ function test_linear_gdp_example(m)
     @disjunction(m, inner, [W[1], W[2]], Disjunct(Y[1]))
     @disjunction(m, outer, [Y[1], Y[2]])
 
-    optimize!(m, gdp_method = BigM())
+    @test optimize!(m, gdp_method = BigM()) isa Nothing
     @test termination_status(m) == MOI.OPTIMAL
     @test objective_value(m) ≈ 11
     @test value.(x) ≈ [9,2]
-    bins = gdp_data(m).indicator_to_binary
-    @test value(bins[Y[1]]) ≈ 0
-    @test value(bins[Y[2]]) ≈ 1
-    @test value(bins[W[1]]) ≈ 0
-    @test value(bins[W[2]]) ≈ 0
+    @test !value(Y[1])
+    @test value(Y[2])
+    @test !value(W[1])
+    @test !value(W[2])
 
-    optimize!(m, gdp_method = Hull())
+    @test optimize!(m, gdp_method = Hull()) isa Nothing
     @test termination_status(m) == MOI.OPTIMAL
     @test objective_value(m) ≈ 11
     @test value.(x) ≈ [9,2]
-    bins = gdp_data(m).indicator_to_binary
-    @test value(bins[Y[1]]) ≈ 0
-    @test value(bins[Y[2]]) ≈ 1
-    @test value(bins[W[1]]) ≈ 0
-    @test value(bins[W[2]]) ≈ 0
+    @test !value(Y[1])
+    @test value(Y[2])
+    @test !value(W[1])
+    @test !value(W[2])
     @test value(variable_by_name(m, "x[1]_Y[1]")) ≈ 0
     @test value(variable_by_name(m, "x[1]_Y[2]")) ≈ 9
     @test value(variable_by_name(m, "x[1]_W[1]")) ≈ 0
@@ -55,8 +53,8 @@ function test_generic_model(m)
     @disjunction(m, inner, [W[1], W[2]], Disjunct(Y[1]))
     @disjunction(m, outer, [Y[1], Y[2]])
 
-    optimize!(m, gdp_method = BigM())
-    optimize!(m, gdp_method = Hull())
+    @test optimize!(m, gdp_method = BigM()) isa Nothing
+    @test optimize!(m, gdp_method = Hull()) isa Nothing
 
     # TODO add meaningful tests to check the constraints/variables
 end

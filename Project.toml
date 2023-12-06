@@ -8,10 +8,10 @@ JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 
 [compat]
+Aqua = "0.8"
 JuMP = "1.16"
 Reexport = "1"
 julia = "1.6"
-Aqua = "0.8"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
