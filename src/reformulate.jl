@@ -88,7 +88,7 @@ function _reformulate_disjunctions(model::JuMP.AbstractModel, method::AbstractRe
         ref_cons = reformulate_disjunction(model, disj.constraint, method)
         for (i, ref_con) in enumerate(ref_cons)
             name = isempty(disj.name) ? "" : string(disj.name,"_$i")
-            cref = add_constraint(model, ref_con, name)
+            cref = JuMP.add_constraint(model, ref_con, name)
             push!(_reformulation_constraints(model), cref)
         end
     end
@@ -127,7 +127,7 @@ function _reformulate_disjunct(
     bvref = binary_variable(lvref)
     !haskey(_indicator_to_constraints(model), lvref) && return #skip if disjunct is empty
     for cref in _indicator_to_constraints(model)[lvref]
-        con = constraint_object(cref)
+        con = JuMP.constraint_object(cref)
         append!(ref_cons, reformulate_disjunct_constraint(model, con, bvref, method))
     end
     return
@@ -162,7 +162,7 @@ end
 # reformulation fallback for individual disjunct constraints
 function reformulate_disjunct_constraint(
     model::JuMP.AbstractModel,  
-    con::AbstractConstraint, 
+    con::JuMP.AbstractConstraint, 
     bvref::JuMP.AbstractVariableRef,
     method::AbstractReformulationMethod
 )

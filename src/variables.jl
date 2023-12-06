@@ -2,7 +2,7 @@
 #                              LOGICAL VARIABLES
 ################################################################################
 """
-    JuMP.build_variable(_error::Function, info::VariableInfo, 
+    JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, 
                         ::Union{Type{Logical}, Logical})
 
 Extend `JuMP.build_variable` to work with logical variables. This in 
@@ -11,7 +11,7 @@ combination with `JuMP.add_variable` enables the use of
 """
 function JuMP.build_variable(
     _error::Function, 
-    info::VariableInfo, 
+    info::JuMP.VariableInfo, 
     tag::Type{Logical};
     kwargs...
     )
@@ -38,7 +38,7 @@ end
 # Logical variable with tag data
 function JuMP.build_variable(
     _error::Function, 
-    info::VariableInfo, 
+    info::JuMP.VariableInfo, 
     tag::Logical;
     kwargs...
     )
@@ -78,7 +78,7 @@ function _make_binary_variable(model, var::_TaggedLogicalVariable, name)
 end
 
 """
-    JuMP.add_variable(model::Model, v::LogicalVariable, 
+    JuMP.add_variable(model::JuMP.Model, v::LogicalVariable, 
                       name::String = "")::LogicalVariableRef
                 
 Extend `JuMP.add_variable` for [`LogicalVariable`](@ref)s. This 
@@ -165,8 +165,8 @@ end
 Get a logical variable's name attribute.
 """
 function JuMP.name(vref::LogicalVariableRef)
-    data = gdp_data(owner_model(vref))
-    return data.logical_variables[index(vref)].name
+    data = gdp_data(JuMP.owner_model(vref))
+    return data.logical_variables[JuMP.index(vref)].name
 end
 
 """
@@ -175,9 +175,9 @@ end
 Set a logical variable's name attribute.
 """
 function JuMP.set_name(vref::LogicalVariableRef, name::String)
-    model = owner_model(vref)
+    model = JuMP.owner_model(vref)
     data = gdp_data(model)
-    data.logical_variables[index(vref)].name = name
+    data.logical_variables[JuMP.index(vref)].name = name
     _set_ready_to_optimize(model, false)
     JuMP.set_name(binary_variable(vref), name)
     return
@@ -283,8 +283,8 @@ end
 Delete the logical variable associated with `vref` from the `GDP model`.
 """
 function JuMP.delete(model::JuMP.AbstractModel, vref::LogicalVariableRef)
-    @assert is_valid(model, vref) "Variable does not belong to model."
-    vidx = index(vref)
+    @assert JuMP.is_valid(model, vref) "Variable does not belong to model."
+    vidx = JuMP.index(vref)
     dict = _logical_variables(model)
     #delete any disjunct constraints associated with the logical variables in the disjunction
     if haskey(_indicator_to_constraints(model), vref)
@@ -322,7 +322,7 @@ function _get_disjunction_variables(model::M, disj::Disjunction) where {M <: JuM
     for vidx in disj.indicators
         !haskey(_indicator_to_constraints(model), vidx) && continue #skip if disjunct is empty
         for cref in _indicator_to_constraints(model)[vidx]
-            con = constraint_object(cref)
+            con = JuMP.constraint_object(cref)
             _interrogate_variables(Base.Fix1(push!, vars), con)
         end
     end
@@ -396,7 +396,7 @@ end
 
 # Nested disjunction
 function _interrogate_variables(interrogator::Function, disj::Disjunction)
-    model = owner_model(first(disj.indicators))
+    model = JuMP.owner_model(first(disj.indicators))
     dvars = _get_disjunction_variables(model, disj)
     _interrogate_variables(interrogator, dvars)
     return

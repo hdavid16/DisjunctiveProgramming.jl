@@ -220,13 +220,13 @@ end
 # cardinality constraint reformulation
 function _reformulate_selector(
     model::JuMP.AbstractModel, 
-    func::Vector{AbstractJuMPScalar}, 
+    func::Vector{JuMP.AbstractJuMPScalar}, 
     set::AbstractCardinalitySet
     )
     bvrefs = [binary_variable(lvref) for lvref in func[2:end]]
     c = JuMP.constant(func[1])
     new_set = _vec_to_scalar_set(set)(c)
-    cref = @constraint(model, sum(bvrefs) in new_set)
+    cref = JuMP.@constraint(model, sum(bvrefs) in new_set)
     push!(_reformulation_constraints(model), cref)
 end
 function _reformulate_selector(
@@ -236,7 +236,7 @@ function _reformulate_selector(
     )
     bvref, bvrefs... = [binary_variable(lvref) for lvref in func]
     new_set = _vec_to_scalar_set(set)(0)
-    cref = @constraint(model, sum(bvrefs) - bvref in new_set)
+    cref = JuMP.@constraint(model, sum(bvrefs) - bvref in new_set)
     push!(_reformulation_constraints(model), cref)
 end
 
@@ -267,7 +267,7 @@ function _add_reformulated_proposition(
     )
     func = _reformulate_clause(model, arg)
     if !isempty(func.terms) && !all(iszero.(values(func.terms)))
-        cref = @constraint(model, func >= 1)
+        cref = JuMP.@constraint(model, func >= 1)
         push!(_reformulation_constraints(model), cref)
     end
     return
@@ -281,13 +281,13 @@ end
 function _reformulate_clause(model::M, lexpr::_LogicalExpr) where {M <: JuMP.AbstractModel}
     func = zero(JuMP.GenericAffExpr{JuMP.value_type(M), JuMP.variable_ref_type(M)}) #initialize func expression
     if _isa_literal(lexpr)
-        add_to_expression!(func, 1 - _reformulate_clause(model, lexpr.args[1]))
+        JuMP.add_to_expression!(func, 1 - _reformulate_clause(model, lexpr.args[1]))
     elseif lexpr.head == :||
         for literal in lexpr.args
             if literal isa LogicalVariableRef
-                add_to_expression!(func, _reformulate_clause(model, literal))
+                JuMP.add_to_expression!(func, _reformulate_clause(model, literal))
             elseif _isa_literal(literal)
-                add_to_expression!(func, 1 - _reformulate_clause(model, literal.args[1]))
+                JuMP.add_to_expression!(func, 1 - _reformulate_clause(model, literal.args[1]))
             else
                 error("Expression was not converted to proper Conjunctive Normal Form:\n$literal is not a literal.")
             end
