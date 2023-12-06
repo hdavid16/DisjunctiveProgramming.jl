@@ -267,13 +267,14 @@ function binary_variable(vref::LogicalVariableRef)
 end
 
 """
-    JuMP.value(vref::LogicalVariableRef)::Number
+    JuMP.value(vref::LogicalVariableRef)::Bool
 
-Returns the optimized value of `vref`. This simply dispatches on the 
-underlying [`binary_variable`](@ref).
+Returns the optimized value of `vref`. This dispatches on 
+`value(binary_variable(vref))` and then rounds to the closest 
+`Bool` value.
 """
 function JuMP.value(vref::LogicalVariableRef)
-    return JuMP.value(binary_variable(vref))
+    return JuMP.value(binary_variable(vref)) >= 0.5
 end
 
 """
