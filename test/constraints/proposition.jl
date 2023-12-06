@@ -21,7 +21,7 @@ function test_proposition_add_fail()
     @test_throws ErrorException @constraint(m, sin(y[1]) := true)
     @test_throws ErrorException @constraint(m, logical_or(y...) == true)
     @test_throws VariableNotOwned @constraint(GDPModel(), logical_or(y...) := true)
-    @test_throws AssertionError add_constraint(m, ScalarConstraint(logical_or(y...), MOI.LessThan(42)))
+    @test_throws ErrorException add_constraint(m, ScalarConstraint(logical_or(y...), MOI.LessThan(42)))
 end
 
 function test_implication_add_success()
