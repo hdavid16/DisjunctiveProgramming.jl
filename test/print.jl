@@ -44,7 +44,7 @@ function test_disjunction_printing()
         show_test(MIME("text/plain"), d2, str) 
     else
         str = "[Y[1] ⟹ {2 x[1]² ≥ 1}] ⋁ [Y[2] ⟹ {x[2] = 3.1; x[1] ∈ [0, 1]}]"
-        show_test(MIME("text/plain"), d1, str)
+        show_test(MIME("text/plain"), d1, "d1 : " * str)
         show_test(MIME("text/plain"), d2, str) 
     end
 
