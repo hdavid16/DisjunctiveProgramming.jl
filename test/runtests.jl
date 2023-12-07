@@ -1,7 +1,6 @@
+import DisjunctiveProgramming as DP
 using DisjunctiveProgramming
 using Test
-
-const DP = DisjunctiveProgramming
 
 include("utilities.jl")
 

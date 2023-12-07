@@ -8,8 +8,8 @@ Reexport.@reexport using JuMP
 using Base.Meta
 
 # Create aliases
-const _MOI = JuMP.MOI
-const _MOIUC = JuMP.MOIU.CleverDicts
+import JuMP.MOI as _MOI
+import JuMP.MOIU.CleverDicts as _MOIUC
 
 # Load in the source files
 include("datatypes.jl")
