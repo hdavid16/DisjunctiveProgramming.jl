@@ -171,6 +171,11 @@ function _check_expression(expr::AbstractVector)
     return 
 end
 
+# Extend JuMP.model_convert for _DisjunctConstraint
+function JuMP.model_convert(model::JuMP.AbstractModel, con::_DisjunctConstraint)
+    return _DisjunctConstraint(JuMP.model_convert(model, con.constr), con.lvref)
+end
+
 """
     JuMP.build_constraint(
         _error::Function, 
@@ -450,7 +455,7 @@ end
         _error::Function, 
         func::AbstractVector{T},
         set::S
-    ) where {T <: Union{LogicalVariableRef, _LogicalExpr}, S <: Union{Exactly, AtLeast, AtMost}}
+    ) where {T <: LogicalVariableRef, S <: Union{Exactly, AtLeast, AtMost}}
 
 Extend `JuMP.build_constraint` to add logical cardinality constraints to a [`GDPModel`](@ref). 
 This in combination with `JuMP.add_constraint` enables the use of 
@@ -475,7 +480,7 @@ function JuMP.build_constraint( # Cardinality logical constraint
     set::S # TODO: generalize to allow CP sets from MOI
 ) where {T <: LogicalVariableRef, S <: Union{Exactly{Int}, AtLeast{Int}, AtMost{Int}}}
     new_set = _jump_to_moi_selector(set)(length(func) + 1)
-    new_func = Union{Number, LogicalVariableRef}[set.value, func...]
+    new_func = Union{Number, T}[set.value, func...]
     return VectorConstraint(new_func, new_set) # model_convert will make it an AbstractJuMPScalar
 end
 function JuMP.build_constraint( # Cardinality logical constraint
@@ -492,7 +497,7 @@ function JuMP.build_constraint( # Cardinality logical constraint
     func::AbstractVector, 
     set::S # TODO: generalize to allow CP sets from MOI
 ) where {S <: Union{Exactly, AtLeast, AtMost}}
-    _error("Selector constraints can only be applied to a Vector or Container of LogicalVariableRefs.")
+    _error("Selector constraints can only be applied to a Vector or Container of LogicalVariableRefs or logical expressions.")
 end
 
 # Fallback for Affine/Quad expressions
