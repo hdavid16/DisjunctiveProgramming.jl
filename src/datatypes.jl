@@ -83,7 +83,7 @@ end
 
 A type for looking up logical variables.
 """
-struct LogicalVariableRef{M <:JuMP.AbstractModel} <: AbstractVariableRef
+struct LogicalVariableRef{M <:JuMP.AbstractModel} <: JuMP.AbstractVariableRef
     model::M
     index::LogicalVariableIndex
 end
@@ -135,29 +135,29 @@ end
 
 # Create our own JuMP level sets to infer the dimension using the expression
 """
-    AtLeast{T<:Union{Int,LogicalVariableRef}} <: AbstractVectorSet
+    AtLeast{T<:Union{Int,LogicalVariableRef}} <: JuMP.AbstractVectorSet
 
 Convenient alias for using [`_MOIAtLeast`](@ref).
 """
-struct AtLeast{T<:Union{Int,LogicalVariableRef}} <: AbstractVectorSet
+struct AtLeast{T<:Union{Int, LogicalVariableRef}} <: JuMP.AbstractVectorSet
     value::T
 end
 
 """
-    AtMost{T<:Union{Int,LogicalVariableRef}} <: AbstractVectorSet
+    AtMost{T<:Union{Int,LogicalVariableRef}} <: JuMP.AbstractVectorSet
 
 Convenient alias for using [`_MOIAtMost`](@ref).
 """
-struct AtMost{T<:Union{Int,LogicalVariableRef}} <: AbstractVectorSet
+struct AtMost{T<:Union{Int, LogicalVariableRef}} <: JuMP.AbstractVectorSet
     value::T
 end
 
 """
-    Exactly <: AbstractVectorSet
+    Exactly <: JuMP.AbstractVectorSet
 
 Convenient alias for using [`_MOIExactly`](@ref).
 """
-struct Exactly{T<:Union{Int,LogicalVariableRef}} <: AbstractVectorSet
+struct Exactly{T<:Union{Int, LogicalVariableRef}} <: JuMP.AbstractVectorSet
     value::T 
 end
 
@@ -172,7 +172,7 @@ JuMP.moi_set(::Exactly, dim::Int) = _MOIExactly(dim)
 const _LogicalExpr{M} = JuMP.GenericNonlinearExpr{LogicalVariableRef{M}}
 
 """
-    ConstraintData{C <: AbstractConstraint}
+    ConstraintData{C <: JuMP.AbstractConstraint}
 
 A type for storing constraint objects in [`GDPData`](@ref) and any meta-data 
 they possess.
@@ -181,7 +181,7 @@ they possess.
 - `constraint::C`: The constraint.
 - `name::String`: The name of the proposition.
 """
-mutable struct ConstraintData{C <: AbstractConstraint}
+mutable struct ConstraintData{C <: JuMP.AbstractConstraint}
     constraint::C
     name::String
 end
@@ -261,7 +261,7 @@ end
 #                              DISJUNCTIONS
 ################################################################################
 """
-    Disjunction{M <: JuMP.AbstractModel} <: AbstractConstraint
+    Disjunction{M <: JuMP.AbstractModel} <: JuMP.AbstractConstraint
 
 A type for a disjunctive constraint that is comprised of a collection of 
 disjuncts of indicated by a unique [`LogicalVariableIndex`](@ref).
@@ -271,7 +271,7 @@ disjuncts of indicated by a unique [`LogicalVariableIndex`](@ref).
 (indicators) that uniquely identify each disjunct in the disjunction.
 - `nested::Bool`: Is this disjunction nested within another disjunction?
 """
-struct Disjunction{M <: JuMP.AbstractModel} <: AbstractConstraint
+struct Disjunction{M <: JuMP.AbstractModel} <: JuMP.AbstractConstraint
     indicators::Vector{LogicalVariableRef{M}}
     nested::Bool
 end

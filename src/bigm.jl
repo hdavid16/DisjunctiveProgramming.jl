@@ -2,7 +2,7 @@
 #                              BIG-M VALUE
 ################################################################################
 # Get Big-M value for a particular constraint
-function _get_M_value(func::AbstractJuMPScalar, set::_MOI.AbstractSet, method::BigM)
+function _get_M_value(func::JuMP.AbstractJuMPScalar, set::_MOI.AbstractSet, method::BigM)
     if method.tighten
         M = _get_tight_M(func, set, method)
     else
@@ -12,7 +12,7 @@ function _get_M_value(func::AbstractJuMPScalar, set::_MOI.AbstractSet, method::B
 end
 
 # Get the tightest Big-M value for a particular constraint
-function _get_tight_M(func::AbstractJuMPScalar, set::_MOI.AbstractSet, method::BigM)
+function _get_tight_M(func::JuMP.AbstractJuMPScalar, set::_MOI.AbstractSet, method::BigM)
     M = min.(method.value, _calculate_tight_M(func, set, method)) #broadcast for when S <: MOI.Interval or MOI.EqualTo or MOI.Zeros
     if any(isinf.(M))
         error("A finite Big-M value must be used. The value obtained was $M.")
@@ -22,7 +22,7 @@ end
 
 # Get user-specified Big-M value
 function _get_M(
-    ::AbstractJuMPScalar, 
+    ::JuMP.AbstractJuMPScalar, 
     ::Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.Nonnegatives, _MOI.Nonpositives}, 
     method::BigM
     )
@@ -33,7 +33,7 @@ function _get_M(
     return M
 end
 function _get_M(
-    ::AbstractJuMPScalar, 
+    ::JuMP.AbstractJuMPScalar, 
     ::Union{_MOI.Interval, _MOI.EqualTo, _MOI.Zeros}, 
     method::BigM
     )
@@ -153,62 +153,62 @@ requires_variable_bound_info(method::BigM) = method.tighten
 
 # get variable bounds for interval arithmetic (note these cannot be binary)
 function set_variable_bound_info(vref::JuMP.AbstractVariableRef, ::BigM)
-    if !has_lower_bound(vref)
+    if !JuMP.has_lower_bound(vref)
         lb = -Inf
     else
-        lb = lower_bound(vref)
+        lb = JuMP.lower_bound(vref)
     end
-    if !has_upper_bound(vref)
+    if !JuMP.has_upper_bound(vref)
         ub = Inf
     else
-        ub = upper_bound(vref)
+        ub = JuMP.upper_bound(vref)
     end
     return lb, ub
 end
 
 function reformulate_disjunct_constraint(
     model::JuMP.AbstractModel,
-    con::ScalarConstraint{T, S}, 
+    con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.AbstractVariableRef,
     method::BigM
 ) where {T, S <: _MOI.LessThan}
     M = _get_M_value(con.func, con.set, method)
-    new_func = @expression(model, con.func - M*(1-bvref))
-    reform_con = build_constraint(error, new_func, con.set)    
+    new_func = JuMP.@expression(model, con.func - M*(1-bvref))
+    reform_con = JuMP.build_constraint(error, new_func, con.set)    
     return [reform_con]
 end
 function reformulate_disjunct_constraint(
     model::JuMP.AbstractModel,
-    con::VectorConstraint{T, S, R}, 
+    con::JuMP.VectorConstraint{T, S, R}, 
     bvref::JuMP.AbstractVariableRef,
     method::BigM
 ) where {T, S <: _MOI.Nonpositives, R}
     M = [_get_M_value(func, con.set, method) for func in con.func]
-    new_func = @expression(model, [i=1:con.set.dimension], 
+    new_func = JuMP.@expression(model, [i=1:con.set.dimension], 
         con.func[i] - M[i]*(1-bvref)
     )
-    reform_con = build_constraint(error, new_func, con.set)    
+    reform_con = JuMP.build_constraint(error, new_func, con.set)    
     return [reform_con]
 end
 function reformulate_disjunct_constraint(
     model::JuMP.AbstractModel, 
-    con::ScalarConstraint{T, S}, 
+    con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.AbstractVariableRef,
     method::BigM
 ) where {T, S <: _MOI.GreaterThan}
     M = _get_M_value(con.func, con.set, method)
-    new_func = @expression(model, con.func + M*(1-bvref))
-    reform_con = build_constraint(error, new_func, con.set)
+    new_func = JuMP.@expression(model, con.func + M*(1-bvref))
+    reform_con = JuMP.build_constraint(error, new_func, con.set)
     return [reform_con]
 end
 function reformulate_disjunct_constraint(
     model::JuMP.AbstractModel, 
-    con::VectorConstraint{T, S, R}, 
+    con::JuMP.VectorConstraint{T, S, R}, 
     bvref::JuMP.AbstractVariableRef,
     method::BigM
 ) where {T, S <: _MOI.Nonnegatives, R}
     M = [_get_M_value(func, con.set, method) for func in con.func]
-    new_func = @expression(model, [i=1:con.set.dimension], 
+    new_func = JuMP.@expression(model, [i=1:con.set.dimension], 
         con.func[i] + M[i]*(1-bvref)
     )
     reform_con = build_constraint(error, new_func, con.set)
@@ -216,13 +216,13 @@ function reformulate_disjunct_constraint(
 end
 function reformulate_disjunct_constraint(
     model::JuMP.AbstractModel, 
-    con::ScalarConstraint{T, S}, 
+    con::JuMP.ScalarConstraint{T, S}, 
     bvref::JuMP.AbstractVariableRef,
     method::BigM
 ) where {T, S <: Union{_MOI.Interval, _MOI.EqualTo}}
     M = _get_M_value(con.func, con.set, method)
-    new_func_gt = @expression(model, con.func + M[1]*(1-bvref))
-    new_func_lt = @expression(model, con.func - M[2]*(1-bvref))
+    new_func_gt = JuMP.@expression(model, con.func + M[1]*(1-bvref))
+    new_func_lt = JuMP.@expression(model, con.func - M[2]*(1-bvref))
     set_values = _set_values(con.set)
     reform_con_gt = build_constraint(error, new_func_gt, _MOI.GreaterThan(set_values[1]))
     reform_con_lt = build_constraint(error, new_func_lt, _MOI.LessThan(set_values[2]))
@@ -230,18 +230,18 @@ function reformulate_disjunct_constraint(
 end
 function reformulate_disjunct_constraint(
     model::JuMP.AbstractModel, 
-    con::VectorConstraint{T, S, R}, 
+    con::JuMP.VectorConstraint{T, S, R}, 
     bvref::JuMP.AbstractVariableRef,
     method::BigM
 ) where {T, S <: _MOI.Zeros, R}
     M = [_get_M_value(func, con.set, method) for func in con.func]
-    new_func_nn = @expression(model, [i=1:con.set.dimension], 
+    new_func_nn = JuMP.@expression(model, [i=1:con.set.dimension], 
         con.func[i] + M[i][1]*(1-bvref)
     )
-    new_func_np = @expression(model, [i=1:con.set.dimension], 
+    new_func_np = JuMP.@expression(model, [i=1:con.set.dimension], 
         con.func[i] - M[i][2]*(1-bvref)
     )
-    reform_con_nn = build_constraint(error, new_func_nn, _MOI.Nonnegatives(con.set.dimension))
-    reform_con_np = build_constraint(error, new_func_np, _MOI.Nonpositives(con.set.dimension))
+    reform_con_nn = JuMP.build_constraint(error, new_func_nn, _MOI.Nonnegatives(con.set.dimension))
+    reform_con_np = JuMP.build_constraint(error, new_func_np, _MOI.Nonpositives(con.set.dimension))
     return [reform_con_nn, reform_con_np]
 end
