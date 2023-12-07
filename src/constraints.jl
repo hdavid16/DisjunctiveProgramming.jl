@@ -199,7 +199,7 @@ end
 # Allows for building DisjunctConstraints for VectorConstraints since these get parsed differently by JuMP (JuMP changes the set to a MOI.AbstractScalarSet)
 for SetType in (
     Nonnegatives, Nonpositives, Zeros,
-    MOI.Nonnegatives, MOI.Nonpositives, MOI.Zeros
+    _MOI.Nonnegatives, _MOI.Nonpositives, _MOI.Zeros
 )
     @eval begin
         @doc """
@@ -514,18 +514,21 @@ function JuMP.build_constraint(
 end
 
 # Helper function to enable proper dispatching
-function _add_logical_constraint(model::M, c, name) where {M}
+function _add_logical_constraint(
+    model::M, 
+    c::JuMP.ScalarConstraint{_LogicalExpr{M}, S}, 
+    name
+    ) where {M, S <: Union{MOI.EqualTo{Bool}, JuMP.SkipModelConvertScalarSetWrapper{MOI.EqualTo{Bool}}}}
     # check the constraint out
     is_gdp_model(model) || error("Can only add logical constraints to `GDPModel`s.")
     set = JuMP.moi_set(c)
-    @assert set isa MOI.EqualTo{Bool} "Unexpected set `$set` for logical constraint."
     func = JuMP.jump_function(c)
     JuMP.check_belongs_to_model(func, model)
     _check_logical_expression(func)
     # add negation if needed
     if !set.value
         func = _LogicalExpr{M}(:!, func)
-        set = MOI.EqualTo{Bool}(true)
+        set = _MOI.EqualTo{Bool}(true)
     end
     # add the constraint
     new_c = JuMP.ScalarConstraint(func, set) # we have guarranteed that set.value = true
@@ -533,6 +536,15 @@ function _add_logical_constraint(model::M, c, name) where {M}
     idx = _MOIUC.add_item(_logical_constraints(model), constr_data)
     _set_ready_to_optimize(model, false)
     return LogicalConstraintRef(model, idx)
+end
+
+function _add_logical_constraint(
+    model::M, 
+    c::JuMP.ScalarConstraint{_LogicalExpr{M}, S}, 
+    name
+    ) where {M, S}
+    error("Unexpected set `$(JuMP.moi_set(c))` for logical constraint. Use the syntax " *
+          "`@constraint(model, logical_expr := true)`.")
 end
 
 # Check that logical expression is valid
@@ -573,7 +585,7 @@ function JuMP.add_constraint(
     model::M,
     c::JuMP.ScalarConstraint{_LogicalExpr{M}, S},
     name::String = ""
-    ) where {S, M <: JuMP.GenericModel} # S <: JuMP._DoNotConvertSet{MOI.EqualTo{Bool}} or MOI.EqualTo{Bool}
+    ) where {S, M <: JuMP.GenericModel} # S <: JuMP.SkipModelConvertScalarSetWrapper{MOI.EqualTo{Bool}} or MOI.EqualTo{Bool}
    return _add_logical_constraint(model, c, name)
 end
 
@@ -581,7 +593,7 @@ function JuMP.add_constraint(
     model::M,
     c::JuMP.ScalarConstraint{LogicalVariableRef{M}, S},
     name::String = ""
-    ) where {M <: JuMP.GenericModel, S} # S <: JuMP._DoNotConvertSet{MOI.EqualTo{Bool}} or MOI.EqualTo{Bool}
+    ) where {M <: JuMP.GenericModel, S} # S <: JuMP.SkipModelConvertScalarSetWrapper{MOI.EqualTo{Bool}} or MOI.EqualTo{Bool}
     error("Cannot define constraint on single logical variable, use `fix` instead.")
 end
 function JuMP.add_constraint(
