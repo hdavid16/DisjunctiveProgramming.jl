@@ -1,4 +1,4 @@
-function test_disjunct_constraints()
+function test_disjunct_constraint_printing()
     # Set up the model
     model = GDPModel()
     @variable(model, x[1:2])
@@ -26,7 +26,7 @@ function test_disjunct_constraints()
     show_test(MIME("text/latex"), c2, "\$\$ $(c2_str) \$\$") 
 end
 
-function test_disjunctions()
+function test_disjunction_printing()
     # Set up the model
     model = GDPModel()
     @variable(model, x[1:2])
@@ -58,7 +58,7 @@ function test_disjunctions()
     show_test(MIME("text/latex"), d2, "\$\$ $(str) \$\$") 
 end
 
-function test_nested_disjunction()
+function test_nested_disjunction_printing()
     # Set up the model
     m = GDPModel()
     @variable(m, 1 ≤ x[1:2] ≤ 9)
@@ -87,7 +87,7 @@ function test_nested_disjunction()
     show_test(MIME("text/latex"), outer, str)
 end
 
-function test_logic_constraints()
+function test_logic_constraint_printing()
     # Set up the model
     model = GDPModel()
     @variable(model, x[1:2])
@@ -124,13 +124,13 @@ end
 
 @testset "Printing" begin
     @testset "Disjunct Constraints" begin
-        test_disjunct_constraints()
+        test_disjunct_constraint_printing()
     end
     @testset "Disjunctions" begin
-        test_disjunctions()
-        test_nested_disjunction()
+        test_disjunction_printing()
+        test_nested_disjunction_printing()
     end
     @testset "Logical Constraints" begin
-        test_logic_constraints()
+        test_logic_constraint_printing()
     end
 end
