@@ -94,24 +94,20 @@ function JuMP.constraint_string(
             "==" => "\\iff", 
             "\\textsf{=>}" => "\\implies"
             )
-    elseif Sys.iswindows()
-        return replace(
-            constr_str, 
-            "&&" => "and", 
-            "||" => "or", 
-            "!" => "!",
-            "==" => "<-->", 
-            "=>" => "-->"
-            )
     else
-        return replace(
-            constr_str, 
-            "&&" => "∧", 
-            "||" => "∨", 
-            "!" => "¬",
-            "==" => "⟺", 
-            "=>" => "⟹"
-            )
+        # return replace(
+        #     constr_str, 
+        #     "&&" => Sys.iswindows() ? "and" : "∧", 
+        #     "||" => Sys.iswindows() ? "or" : "∨", 
+        #     "!" => Sys.iswindows() ? "!" : "¬",
+        #     "==" => Sys.iswindows() ? "<-->" : "⟺", 
+        #     "=>" => Sys.iswindows() ? "-->" : "⟹" 
+        #     )
+        constr_str = replace(constr_str, "&&" => Sys.iswindows() ? "and" : "∧")
+        constr_str = replace(constr_str, "||" => Sys.iswindows() ? "or" : "∨")
+        constr_str = replace(constr_str, "!" => Sys.iswindows() ? "!" : "¬")
+        constr_str = replace(constr_str, "==" => Sys.iswindows() ? "<-->" : "⟺")
+        return replace(constr_str, "=>" => Sys.iswindows() ? "-->" : "⟹")
     end
 end
 
