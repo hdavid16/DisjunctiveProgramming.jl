@@ -153,7 +153,7 @@ function JuMP.constraint_string(
 end
 
 # Overload Base.show as needed
-for RefType in (:DisjunctionRef, DisjunctConstraintRef, :LogicalConstraintRef)
+for RefType in (:DisjunctionRef, :DisjunctConstraintRef, :LogicalConstraintRef)
     @eval begin
         function Base.show(io::IO, cref::$RefType)
             return print(io, JuMP.constraint_string(MIME("text/plain"), cref))
