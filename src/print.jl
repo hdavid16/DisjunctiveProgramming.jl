@@ -86,14 +86,19 @@ function JuMP.constraint_string(
     # temporary hack until JuMP provides a better solution for operator printing
     # TODO improve the printing of implications (not recognized by JuMP as two-sided operators)
     if mode == MIME("text/latex")
-        return replace(
-            constr_str, 
-            "&&" => "\\wedge", 
-            "||" => "\\vee", 
-            "\\textsf{!}" => "\\neg", 
-            "==" => "\\iff", 
-            "\\textsf{=>}" => "\\implies"
-            )
+        for p in ("&&" => "\\wedge", "||" => "\\vee", "\\textsf{!}" => "\\neg", 
+                  "==" => "\\iff", "\\textsf{=>}" => "\\implies")
+            constr_str = replace(constr_str, p)
+        end
+        return constr_str
+        # return replace(
+        #     constr_str, 
+        #     "&&" => "\\wedge", 
+        #     "||" => "\\vee", 
+        #     "\\textsf{!}" => "\\neg", 
+        #     "==" => "\\iff", 
+        #     "\\textsf{=>}" => "\\implies"
+        #     )
     else
         # return replace(
         #     constr_str, 
