@@ -7,7 +7,6 @@ _wrap_in_math_mode(str::String) = "\$\$ $str \$\$"
 _dor_symbol(::MIME"text/plain") = Sys.iswindows() ? "or" : "⋁"
 _dor_symbol(::MIME"text/latex") = "\\bigvee"
 _imply_symbol(::MIME"text/plain") = Sys.iswindows() ? "-->" : "⟹"
-_imply_symbol(::MIME"text/latex") = "\\implies"
 _left_pareth_symbol(::MIME"text/plain") = "("
 _left_pareth_symbol(::MIME"text/latex") = "\\left("
 _right_pareth_symbol(::MIME"text/plain") = ")"
@@ -91,23 +90,7 @@ function JuMP.constraint_string(
             constr_str = replace(constr_str, p)
         end
         return constr_str
-        # return replace(
-        #     constr_str, 
-        #     "&&" => "\\wedge", 
-        #     "||" => "\\vee", 
-        #     "\\textsf{!}" => "\\neg", 
-        #     "==" => "\\iff", 
-        #     "\\textsf{=>}" => "\\implies"
-        #     )
     else
-        # return replace(
-        #     constr_str, 
-        #     "&&" => Sys.iswindows() ? "and" : "∧", 
-        #     "||" => Sys.iswindows() ? "or" : "∨", 
-        #     "!" => Sys.iswindows() ? "!" : "¬",
-        #     "==" => Sys.iswindows() ? "<-->" : "⟺", 
-        #     "=>" => Sys.iswindows() ? "-->" : "⟹" 
-        #     )
         constr_str = replace(constr_str, "&&" => Sys.iswindows() ? "and" : "∧")
         constr_str = replace(constr_str, "||" => Sys.iswindows() ? "or" : "∨")
         constr_str = replace(constr_str, "!" => Sys.iswindows() ? "!" : "¬")
