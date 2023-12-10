@@ -8,7 +8,7 @@ into a variety of mixed-integer programs.
 
 | **Current Version**                     | **Documentation**                                                               | **Build Status**                                                                                | **Citation** |
 |:---------------------------------------:|:-------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|:--------------------------------------:|
-| [![](https://docs.juliahub.com/DisjunctiveProgramming/version.svg)](https://juliahub.com/ui/Packages/General/DisjunctiveProgramming) | [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://hdavid16.github.io/DisjunctiveProgramming.jl/stable/) | [![Build Status](https://github.com/infiniteopt/InfiniteOpt.jl/workflows/CI/badge.svg?branch=master)](https://github.com/hdavid16/DisjunctiveProgramming.jl/actions?query=workflow%3ACI) [![codecov.io](https://codecov.io/gh/hdavid16/DisjunctiveProgramming.jl/graph/badge.svg?token=3FRPGMWF0J)](https://codecov.io/gh/hdavid16/DisjunctiveProgramming.jl) | [![ArXiv](https://img.shields.io/badge/arXiv-2304.10492-b31b1b.svg)](https://arxiv.org/abs/2304.10492) |
+| [![](https://docs.juliahub.com/DisjunctiveProgramming/version.svg)](https://juliahub.com/ui/Packages/General/DisjunctiveProgramming) | [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://hdavid16.github.io/DisjunctiveProgramming.jl/stable/) | [![Build Status](https://github.com/infiniteopt/InfiniteOpt.jl/workflows/CI/badge.svg?branch=master)](https://github.com/hdavid16/DisjunctiveProgramming.jl/actions?query=workflow%3ACI) [![codecov.io](https://codecov.io/gh/hdavid16/DisjunctiveProgramming.jl/graph/badge.svg?token=3FRPGMWF0J)](https://codecov.io/gh/hdavid16/DisjunctiveProgramming.jl) | [![arXiv](https://img.shields.io/badge/arXiv-2304.10492-b31b1b.svg)](https://arxiv.org/abs/2304.10492) |
 
 `DisjunctiveProgramming` builds upon `JuMP` to add support GDP modeling objects which include:
 - Logical variables (``Y \in \{\text{False}, \text{True}\}``)
@@ -39,7 +39,7 @@ Please visit our [documentation pages](https://hdavid16.github.io/DisjunctivePro
 to learn more.
 
 ## Citing
-[![ArXiv](https://img.shields.io/badge/arXiv-2304.10492-b31b1b.svg)](https://arxiv.org/abs/2304.10492)
+[![arXiv](https://img.shields.io/badge/arXiv-2304.10492-b31b1b.svg)](https://arxiv.org/abs/2304.10492)
 
 If you use DisjunctiveProgramming.jl in your research, we would greatly appreciate your 
 citing it.
