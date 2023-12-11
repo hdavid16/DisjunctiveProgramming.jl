@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018/W32TeX) (preloaded format=pdflatex 2018.7.27)  13 OCT 2023 23:04
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018/W32TeX) (preloaded format=pdflatex 2018.7.27)  11 DEC 2023 18:42
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -574,11 +574,11 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 LaTeX Font Info:    Font shape `T1/ptm/bx/n' in size <10> not available
 (Font)              Font shape `T1/ptm/b/n' tried instead on input line 17.
 LaTeX Font Info:    Font shape `U/lasy/b/n' in size <9> not available
-(Font)              Font shape `U/lasy/m/n' tried instead on input line 39.
+(Font)              Font shape `U/lasy/m/n' tried instead on input line 38.
 LaTeX Font Info:    Font shape `U/lasy/b/n' in size <6> not available
-(Font)              Font shape `U/lasy/m/n' tried instead on input line 39.
+(Font)              Font shape `U/lasy/m/n' tried instead on input line 38.
 LaTeX Font Info:    Font shape `U/lasy/b/n' in size <5> not available
-(Font)              Font shape `U/lasy/m/n' tried instead on input line 39.
+(Font)              Font shape `U/lasy/m/n' tried instead on input line 38.
 
 Underfull \hbox (badness 10000) has occurred while \output is active
   
@@ -590,17 +590,22 @@ Non-PDF special ignored!
 
 
  <c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/logojuliacon.pdf>]
-<solnspace.png, id=150, 462.528pt x 346.896pt>
+<solnspace.png, id=137, 462.528pt x 346.896pt>
 File: solnspace.png Graphic file (type png)
 <use solnspace.png>
-Package pdftex.def Info: solnspace.png  used on input line 103.
+Package pdftex.def Info: solnspace.png  used on input line 85.
 (pdftex.def)             Requested size: 231.26343pt x 173.44757pt.
 LaTeX Font Info:    Font shape `U/lasy/b/n' in size <8> not available
-(Font)              Font shape `U/lasy/m/n' tried instead on input line 104.
-<bigm.png, id=157, 462.528pt x 346.896pt>
+(Font)              Font shape `U/lasy/m/n' tried instead on input line 86.
+<bigm.png, id=141, 462.528pt x 346.896pt>
 File: bigm.png Graphic file (type png)
 <use bigm.png>
-Package pdftex.def Info: bigm.png  used on input line 135.
+Package pdftex.def Info: bigm.png  used on input line 103.
+(pdftex.def)             Requested size: 231.26343pt x 173.44757pt.
+<chr.png, id=145, 462.528pt x 346.896pt>
+File: chr.png Graphic file (type png)
+<use chr.png>
+Package pdftex.def Info: chr.png  used on input line 123.
 (pdftex.def)             Requested size: 231.26343pt x 173.44757pt.
 
 Overfull \vbox (2.39996pt too high) has occurred while \output is active []
@@ -614,18 +619,37 @@ Underfull \hbox (badness 10000) has occurred while \output is active
 
 \AtBegShi@Output ...ipout \box \AtBeginShipoutBox 
                                                   \fi \fi 
-l.146 \end{equation}
+l.132 \begin{align*}
                     pdfTeX warning (ext4): destination with the same identifier (name{figure.2}) has been already used, duplicate ignored
 
 \AtBegShi@Output ...ipout \box \AtBeginShipoutBox 
                                                   \fi \fi 
-l.146 \end{equation}
+l.132 \begin{align*}
                      <c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/solnspace.png> <c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/bigm.png>]
-<chr.png, id=190, 462.528pt x 346.896pt>
-File: chr.png Graphic file (type png)
-<use chr.png>
-Package pdftex.def Info: chr.png  used on input line 174.
-(pdftex.def)             Requested size: 231.26343pt x 173.44757pt.
+LaTeX Font Info:    Font shape `T1/ptm/bx/n' in size <9> not available
+(Font)              Font shape `T1/ptm/b/n' tried instead on input line 157.
+
+
+LaTeX Warning: Reference `eq:simple_xor' on page 3 undefined on input line 157.
+
+<superstructure_pfd.png, id=160, 600.2425pt x 190.7125pt>
+File: superstructure_pfd.png Graphic file (type png)
+<use superstructure_pfd.png>
+Package pdftex.def Info: superstructure_pfd.png  used on input line 173.
+(pdftex.def)             Requested size: 360.14827pt x 114.42838pt.
+
+Underfull \hbox (badness 10000) in paragraph at lines 179--180
+\T1/ptm/m/n/9 The fol-low-ing sec-tion de-scribes the fea-tures of the
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 179--180
+[][]\T1/cmtt/m/n/9 DisjunctiveProgramming.jl []\T1/ptm/m/n/9 pack-age and il-lus-trates its
+ []
+
+
+Underfull \vbox (badness 6708) has occurred while \output is active []
+
 
 Overfull \vbox (2.39996pt too high) has occurred while \output is active []
 
@@ -638,24 +662,10 @@ Underfull \hbox (badness 10000) has occurred while \output is active
 
 \AtBegShi@Output ...ipout \box \AtBeginShipoutBox 
                                                   \fi \fi 
-l.219 
+l.180 
        <c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/chr.png>]
-Underfull \hbox (badness 10000) in paragraph at lines 224--225
-\T1/ptm/m/n/9 The fol-low-ing sec-tion de-scribes the fea-tures of the
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 224--225
-[][]\T1/cmtt/m/n/9 DisjunctiveProgramming.jl []\T1/ptm/m/n/9 pack-age and il-lus-trates its
- []
-
-<superstructure_pfd.png, id=218, 600.2425pt x 190.7125pt>
-File: superstructure_pfd.png Graphic file (type png)
-<use superstructure_pfd.png>
-Package pdftex.def Info: superstructure_pfd.png  used on input line 241.
-(pdftex.def)             Requested size: 240.09274pt x 76.28363pt.
 LaTeX Font Info:    Font shape `T1/cmtt/bx/n' in size <7> not available
-(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 307.
+(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 233.
 
 Overfull \vbox (2.39996pt too high) has occurred while \output is active []
 
@@ -668,39 +678,36 @@ Underfull \hbox (badness 10000) has occurred while \output is active
 
 \AtBegShi@Output ...ipout \box \AtBeginShipoutBox 
                                                   \fi \fi 
-l.319 # 
-        add global constraints to model <c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/superstructure_pfd.png>]
+l.254 \begin{lstlisting}[language = Julia]
+                                           <c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/superstructure_pfd.png>]
 LaTeX Font Info:    Font shape `U/lasy/b/n' in size <7> not available
-(Font)              Font shape `U/lasy/m/n' tried instead on input line 331.
+(Font)              Font shape `U/lasy/m/n' tried instead on input line 257.
 
-Underfull \hbox (badness 10000) in paragraph at lines 331--332
+Underfull \hbox (badness 10000) in paragraph at lines 257--258
 [][][][][][][][][][][][][][][][][][][][][][]
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 335--336
+Underfull \hbox (badness 10000) in paragraph at lines 261--262
 [][][][][][][][][][][][][][][][][][][][][][]
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 344--345
+Underfull \hbox (badness 10000) in paragraph at lines 270--271
 [][][][][][][][][][][][][][][][][][][][][][]
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 345--346
+Underfull \hbox (badness 10000) in paragraph at lines 271--272
 [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 350--351
+Underfull \hbox (badness 10000) in paragraph at lines 276--277
 [][][][][][][][][][][][][][][][][][][][][][]
  []
 
-
-Underfull \vbox (badness 2828) has occurred while \output is active []
-
- (c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/bib.tex (c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.bbl
+(c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/bib.tex (c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.bbl
 Underfull \hbox (badness 10000) in paragraph at lines 4--9
 []\T1/ptm/m/n/9 Anshul Agar-wal. A novel minlp re-for-mu-la-tion for
  []
@@ -844,7 +851,7 @@ Underfull \hbox (badness 1237) in paragraph at lines 163--167
  []
 
 ))
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 380.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 306.
 
 Overfull \vbox (2.39996pt too high) has occurred while \output is active []
 
@@ -854,27 +861,31 @@ Underfull \hbox (badness 10000) has occurred while \output is active
  []
 
 [6]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 380.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 306.
  (c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 380.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 380.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 306.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 306.
 Package rerunfilecheck Info: File `paper.out' has not changed.
 (rerunfilecheck)             Checksum: 1F68AA287EAF7868C2396C35550B552D;1369.
-Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 380.
+
+
+LaTeX Warning: There were undefined references.
+
+Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 306.
  ) 
 Here is how much of TeX's memory you used:
- 10232 strings out of 492646
- 139958 string characters out of 6133325
- 359689 words of memory out of 5000000
- 13800 multiletter control sequences out of 15000+600000
- 49036 words of font info for 110 fonts, out of 8000000 for 9000
+ 10175 strings out of 492646
+ 139207 string characters out of 6133325
+ 336350 words of memory out of 5000000
+ 13776 multiletter control sequences out of 15000+600000
+ 51839 words of font info for 112 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 40i,14n,44p,1244b,2610s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 40i,20n,44p,1237b,1894s stack positions out of 5000i,500n,10000p,200000b,80000s
 {c:/texlive/2018/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}{c:/texlive/2018/texmf-dist/fonts/enc/dvips/base/8r.enc}<c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmex9.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi9.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/latxfont/lcircle1.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/cm-super/sftt0800.pfb><c:/texlive/2018/texmf-dist/fonts/type1/public/cm-super/sftt0900.pfb><c:/texlive/2018/texmf-dist/fonts/type1/urw/times/utmb8a.pfb><c:/texlive/2018/texmf-dist/fonts/type1/urw/times/utmr8a.pfb><c:/texlive/2018/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.pdf (6 pages, 349604 bytes).
+Output written on c:/Users/HD/Downloads/DisjunctiveProgramming.jl/paper/paper.pdf (6 pages, 348356 bytes).
 PDF statistics:
- 436 PDF objects out of 1000 (max. 8388607)
- 399 compressed objects within 4 object streams
- 149 named destinations out of 1000 (max. 500000)
+ 377 PDF objects out of 1000 (max. 8388607)
+ 340 compressed objects within 4 object streams
+ 115 named destinations out of 1000 (max. 500000)
  186 words of extra memory for PDF output out of 10000 (max. 10000000)
 
