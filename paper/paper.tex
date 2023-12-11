@@ -22,22 +22,20 @@ JuMP, Mathematical Optimization, Generalized Disjunctive Programming
 
 \section{Introduction}
 The modeling of systems with discrete and continuous decisions is commonly done in algebraic form with mixed-integer programming (MIP) models. When the problems can be defined by purely linear constraints and a linear objective function, they are referred to as mixed-integer linear programs (MILP). When nonlinearities arrise in either the feasible space or the objective function, they are called mixed-integer nonlinear programs (MINLP).
-\vskip 6pt
+
 A more systematic approach to modeling such systems is to use Generalized Disjunctive Programming (GDP) \cite{chen_grossmann_2019, grossmann_trespalacios_2013}, which generalizes the Disjunctive Programming paradigm proposed by Balas \cite{balas_2018}. GDP enables the modeling of systems from a logic-based level of abstraction that captures the fundamental rules governing such systems via algebraic constraints and logic. This formulation is useful for expressing problems in an intuitive way that relies on their logical underpinnings without needing to introduce mixed-integer constraints. GDP models are often easier to understand as related constraints are grouped into disjuncts that describe clearly defined subsets of the feasible space. The models obtained via GDP can be reformulated into the pure algebraic form best suited for the application of interest.  It is also often possible to exploit the explicit logical structure of a GDP model to provide tighter relaxations than corresponding MIP models, which may improve convergence speed and robustness for solutions via advanced solution algorithms \cite{chen_grossmann_2019}.
-\vskip 6pt
+
 Within the optimization community, there is a high volume of ongoing research that relies on GDP to formulate models for a variety of applications. Due to the combinatorial nature of system design problems, the GDP paradigm has been applied to the synthesis of complex processes and networks \cite{MATOVU2022107856, ZHOU202269}, the planning and optimal control of energy systems \cite{CHO2022841}, and the modeling of chemical synthesis under uncertainty \cite{CHEN2022107616}. These and numerous other applications of GDP illustrate the benefit of having a robust package for GDP that removes much of the overhead associated with developing and testing GDP models. Although packages with GDP capabilities exist for \verb|Pyomo| \cite{chen2022pyomo} and \verb|GAMS| \cite{vecchietti1999logmip}, having such a package available in Julia can greatly accelerate research in optimization, where packages like \verb|JuMP.jl| \cite{dunning_huchette_lubin_2017} are gaining significant traction.
-\vskip 6pt
+
 This paper provides background on the GDP paradigm, and the techniques for reformulating and solving such models. It then presents the package \verb|DisjunctiveProgramming.jl| as an extension to \verb|JuMP.jl| for creating models for optimization that follow the GDP modeling paradigm and can be solved using the vast list of supported solvers \cite{dunning_huchette_lubin_2017}. A case study demonstrates the use of the package for chemical process superstructure optimization.
 
 \section{Generalized Disjunctive Programming}
 The GDP form of modeling is an abstraction that uses both algebraic and logical constraints to capture the fundamental rules governing a system. The two main reformulation strategies to transform GDP models into their equivalent MIP models are the Big-M reformulation \cite{nemhauser_1999, TRESPALACIOS201598} and the Hull reformulation \cite{LEE20002125}, the latter of which yields tighter models at the expense of larger model sizes \cite{grossmann_lee_2003}. 
-\vskip 6pt
 
 \subsection{Model}
 
-The general notation for a GDP problem is given in Eq. \eqref{eq:general_gdp} - \eqref{eq:general_gdp1}.
-\begin{align}
-    \label{eq:general_gdp}
+The general notation for a GDP problem is given below,
+\begin{align*}
     \min \ &f(x) \\
     \text{s.t.} \ &g(x) \leq 0 \\
     &\bigvee_{i \in J_k}
@@ -47,15 +45,12 @@ The general notation for a GDP problem is given in Eq. \eqref{eq:general_gdp} - 
     \end{bmatrix} \quad \forall k \in K \\
     & \Omega(Y) = true \\
     & Y_{ik} \in \{true, false\} \quad \forall i \in J_k, k \in K\\
-    \label{eq:general_gdp1}
     & x \in X \subseteq \mathbb{R}^n
-\end{align}
+\end{align*}
 Here $f(x)$ is the objective function to be minimized over the continuous variable $x$, $g(x)$ represents the global constraints, $h(x)$ represents the disjunct-specific constraints, and $Y$ is the Boolean variable governing each disjunction. In this notation, there are $k$ disjunctions with $i$ disjuncts in each. Constraints $h_{ik}(x) \le 0$, are applied only if the Boolean indicator variable for the respective disjunct, $Y_{ik}$, is denoted as being active (i.e., \textit{true}) \cite{chen_grossmann_2019}. The set of logical constraints, $\Omega(Y)$, describe the logical relationships between the selections of indicator variables. These can take the form of logical propositions or constraint programming expressions.
-\vskip 6pt
 
-In the case of a linear objective function and constraint set, the GDP model can be written as Eq. \eqref{eq:lgdp} - \eqref{eq:lgdp2}.
-\begin{align}
-    \label{eq:lgdp}
+In the case of a linear objective function and constraint set, the GDP model can be written as,
+\begin{align*}
     \min \ & c^Tx \\
     \text{s.t.} \ &Ax \leq b \\
     &\bigvee_{i \in J_k}
@@ -64,39 +59,26 @@ In the case of a linear objective function and constraint set, the GDP model can
        B_{ik}x \leq d_{ik}
     \end{bmatrix}, \quad \forall k \in K \\
     & \Omega(Y) = true \\
-    \label{eq:lgdp2}
     & Y_{ik} \in \{true, false\} \quad \forall i \in J_k, k \in K
-\end{align}
-\vskip 6pt
+\end{align*}
 
 \subsection{Solution Technique: Reformulation to Mixed-Integer Program}
-The simplest example of a linear GDP system is given in \eqref{eq:ex} - \eqref{eq:y}, where $Y_i$ is a Boolean indicator variable that enforces the constraints in the disjunct ($Ax \le b$ or $Cx \le d$) when $true$.
-\vskip 6pt
-\begin{equation}
-    \label{eq:ex}
-    \begin{bmatrix}
+The simplest example of a linear GDP system is given below, where $Y_i$ is a Boolean indicator variable that enforces the constraints in the disjunct ($Ax \le b$ or $Cx \le d$) when $true$,
+
+\begin{align*}
+    & \begin{bmatrix}
     Y_1 \\ Ax \leq b
     \end{bmatrix}
     \lor
     \begin{bmatrix}
         Y_2 \\ Cx \leq d
-    \end{bmatrix}
-\end{equation}
-\begin{equation}
-    \label{eq:x}
-    0 \leq x \leq U
-\end{equation}
-\begin{equation}
-    \label{eq:simple_xor}
-    Y_1 \ \underline{\vee} \ Y_2
-\end{equation}
-\begin{equation}
-    \label{eq:y}
-    Y_1, Y_2 \in \{true, false\}
-\end{equation}
-\vskip 6pt
+    \end{bmatrix} \\
+    & 0 \leq x \leq U \\
+    & Y_1 \ \underline{\vee} \ Y_2 \\
+    & Y_1, Y_2 \in \{true, false\}
+\end{align*}
 
-For visualization purposes and without loss of generality, the simple linear example is used to illustrate the Big-M and Hull reformulations. Figure \ref{fig:reform_figure} illustrates the feasible space of a simple linear GDP with one disjunction and two continuous variables, $x_1$ and $x_2$. The rectangle on the left is described by the constraints in the left disjunct, $Ax \leq b$. The rectangle on the right is defined by the constraints in the right disjunct, $Cx \le d$. The non-overlapping nature of the two regions is supported by the exclusive-OR relationship in Eq. \eqref{eq:simple_xor}.
+For visualization purposes and without loss of generality, the simple linear example is used to illustrate the Big-M and Hull reformulations. Figure \ref{fig:reform_figure} illustrates the feasible space of a simple linear GDP with one disjunction and two continuous variables, $x_1$ and $x_2$. The rectangle on the left is described by the constraints in the left disjunct, $Ax \leq b$. The rectangle on the right is defined by the constraints in the right disjunct, $Cx \le d$. The non-overlapping nature of the two regions is supported by the exclusive-OR relationship above.
 
 \begin{figure}
     \centering
@@ -104,31 +86,17 @@ For visualization purposes and without loss of generality, the simple linear exa
     \caption{Feasible solution space for example disjunction}
     \label{fig:reform_figure}
 \end{figure}
-\vskip 6pt
 
  \subsubsection{Big-M Reformulation}
- The Big-M reformulation for this problem is given by \eqref{eq:ex_bigm1} - \eqref{eq:ex_bigm5}, where $M$ is a sufficiently large scalar that makes the particular constraint redundant when its indicator variable is not selected (i.e., $y_i = 0$). Note that the Boolean variables, $Y_i$, are replaced by binary variables, $y_i$. When the integrality constraint in Eq. \eqref{eq:ex_bigm4} is relaxed to $0 \leq x_1, x_2 \leq 1$, the resulting feasible region can be visualized by projecting the relaxed model onto the $x_1, x_2$ plane. This results in the region encapsulated by the dashed line in Figure \ref{fig:bigm}. It should be noted that the relaxed feasible region is not as tight as possible around the original feasible solution space. The choice of the large $M$ value determines the tightness of this relaxation, and the minimal value of $M$ for the optimal relaxation can be found through interval arithmetic when the model is linear. For nonlinear models, the tightest $M$ can be obtained by solving the maximization problem $\{\max h_{ik}(x): x \in X\}$. An alternate method for tight Big-M relaxations is given in \cite{TRESPALACIOS201598}.
+ The Big-M reformulation for this problem is given below, where $M$ is a sufficiently large scalar that makes the particular constraint redundant when its indicator variable is not selected (i.e., $y_i = 0$). Note that the Boolean variables, $Y_i$, are replaced by binary variables, $y_i$. When the integrality constraint $y_1,y_2 \in \{0,1\}$ is relaxed to $0 \leq x_1, x_2 \leq 1$, the resulting feasible region can be visualized by projecting the relaxed model onto the $x_1, x_2$ plane. This results in the region encapsulated by the dashed line in Figure \ref{fig:bigm}. It should be noted that the relaxed feasible region is not as tight as possible around the original feasible solution space. The choice of the large $M$ value determines the tightness of this relaxation, and the minimal value of $M$ for the optimal relaxation can be found through interval arithmetic when the model is linear. For nonlinear models, the tightest $M$ can be obtained by solving the maximization problem $\{\max h_{ik}(x): x \in X\}$. An alternate method for tight Big-M relaxations is given in \cite{TRESPALACIOS201598}.
  
-\begin{equation}
-    \label{eq:ex_bigm1}
-    Ax \leq b + M \cdot (1 - y_1)
-\end{equation}
-\begin{equation}
-    \label{eq:ex_bigm2}
-    Cx \leq d + M \cdot (1 - y_2)
-\end{equation}
-\begin{equation}
-    \label{eq:ex_bigm3}
-    y_1 + y_2 = 1
-\end{equation}
-\begin{equation}
-    \label{eq:ex_bigm4}
-    0 \leq x \leq U
-\end{equation}
-\begin{equation}
-    \label{eq:ex_bigm5}
-    y_1, y_2 \in \{0,1\}
-\end{equation}
+\begin{align*}
+    & Ax \leq b + M \cdot (1 - y_1) \\
+    & Cx \leq d + M \cdot (1 - y_2) \\
+    & y_1 + y_2 = 1 \\
+    & 0 \leq x \leq U \\
+    & y_1, y_2 \in \{0,1\}
+\end{align*}
 
 \begin{figure}
     \centering
@@ -138,44 +106,24 @@ For visualization purposes and without loss of generality, the simple linear exa
 \end{figure}
 
 \subsubsection{Hull Reformulation}
-The Hull reformulation is given by \eqref{eq:ex_hull0} - \eqref{eq:ex_hull6}, which requires lifting the model to a higher-dimensional space. When projected to the original space, the continuous relaxation of the model is tighter than its Big-M equivalent \cite{grossmann_trespalacios_2013}. The reformulation relaxation can be visualized by the region encapsulated by the dashed line in Figure \ref{fig:chr}. Note that this reformulation provides a tighter relaxation than the Big-M reformulation in Figure \ref{fig:bigm}. Also note that describing the geometry of this relaxation is more complex than the Big-M relaxation, which is made possible by the increased number of constraints and variables in the model.
+The Hull reformulation is given below. This formulation requires lifting the model to a higher-dimensional space. When projected to the original space, the continuous relaxation of the model is tighter than its Big-M equivalent \cite{grossmann_trespalacios_2013}. The reformulation relaxation can be visualized by the region encapsulated by the dashed line in Figure \ref{fig:chr}. Note that this reformulation provides a tighter relaxation than the Big-M reformulation in Figure \ref{fig:bigm}. Also note that describing the geometry of this relaxation is more complex than the Big-M relaxation, which is made possible by the increased number of constraints and variables in the model.
 
-\begin{equation}
-    \label{eq:ex_hull0}
-    Ax_1 \leq by_1
-\end{equation}
-\begin{equation}
-    \label{eq:ex_hull1}
-    Cx_2 \leq dy_2
-\end{equation}
-\begin{equation}
-    \label{eq:ex_hull2}
-    x = x_1 + x_2
-\end{equation}
-\begin{equation}
-    \label{eq:ex_hull4}
-    y_1 + y_2 = 1
-\end{equation}
-\begin{equation}
-    \label{eq:ex_hull5}
-    0 \leq x \leq U
-\end{equation}
-\begin{equation}
-    \label{eq:ex_hull3}
-    0 \leq x_i \leq U y_i \quad \forall i \in \{1,2\}
-\end{equation}
-\begin{equation}
-    \label{eq:ex_hull6}
-    y_1, y_2 \in \{0,1\}
-\end{equation}
+\begin{align*}
+    & Ax_1 \leq by_1 \\
+    & Cx_2 \leq dy_2 \\
+    & x = x_1 + x_2 \\ 
+    & y_1 + y_2 = 1 \\ 
+    & 0 \leq x \leq U \\
+    & 0 \leq x_i \leq U y_i \quad \forall i \in \{1,2\} \\
+    & y_1, y_2 \in \{0,1\}
+\end{align*}
 
-\begin{figure}%[H]
+\begin{figure}
     \centering
     \includegraphics[scale=0.5]{chr.png}
     \caption{Relaxed solution space using Hull Reformulation}
     \label{fig:chr}
 \end{figure}
-\vskip 6pt
 
 \subsection{Logic constraint reformulation}
 
@@ -220,36 +168,30 @@ Each sub-problem is solved to obtain an upper bound and a feasible point, about 
 \subsubsection{Hybrid cutting planes}
 The cutting planes method is an algorithm for tightening the relaxed solution space of a problem reformulated with Big-M before solving it by adding additional constraints which remove parts of the relaxed space that are disjoint from the actual feasible solution space. These "cuts" to the relaxed solution space are derived from the tighter, hull relaxation of the problem. This algorithm provides a middle-ground for the tradeoff between the complexity and corresponding computational expense of the Hull reformulation with the less tight Big-M reformulation. \cite{trespalacios_grossmann_2016}. 
 
+\begin{figure*}
+    \centering
+    \includegraphics[scale=0.6]{superstructure_pfd.png}
+    \caption{Illustrative superstructure optimization problem}
+    \label{fig:superstruct_opt_diagram}
+\end{figure*}
+
 \section{DisjunctiveProgramming.jl}
 The following section describes the features of the \verb|DisjunctiveProgramming.jl| package and illustrates its syntax with an example from the chemical processing industry for superstructure optimization. The use of nested disjunctions is also shown.
 
 \subsection{Features}
 \verb|DisjunctiveProgramming.jl| allows for defining JuMP models with disjunctions that are directly reformulated via Big-M or Hull methods via the \verb|@disjunction| macro or \verb|add_disjunction!| function. Big-M values can be specified either for the entire disjunction, for each disjunct, or for each constraint in each disjunct. Alternately, if the constraints are linear, the code can use the variable bounds to perform interval arithmetic on each constraint to determine the tightest possible $M$ value to use \cite{agarwal2010automating}. For nonlinear GDP constraints, the epsilon approximation formulation for the perspective function in the Hull reformulation is used \cite{furman_sawaya_grossmann_2020}. Users can specify an epsilon tolerance value to use. Perspective functions are generated by relying on manipulation of symbolic expressions via \verb|Symbolics.jl| \cite{10.1145/3511528.3511535}.
 
-\vskip 6pt
 Logical propositions can be added to JuMP models using expressions involving the disjunction indicator variables and the standard Boolean operators ($\Leftrightarrow, \Rightarrow, \vee, \wedge, \text{ and } \neg$) in an \verb|@proposition| macro. These are automatically converted into CNF and added as integer algebraic constraints to the model. The constraint programming constraints can also be added using the \verb|choose!| function. The expressions are also automatically reformulated into integer algebraic constraints.
 
-\vskip 6pt
 Nesting of disjunctions is also supported.
 
 \subsection{Example}
-To illustrate the syntax in \verb|DisjunctiveProgramming.jl| (Version 0.4.1), consider the simple superstructure optimization problem for the chemical process given in Figure \ref{fig:superstruct_opt_diagram}. In this problem a chemical plant with two candidate reactor technologies ($R_1$ and $R_2$) must be designed. If the second reactor technology is chosen, a separation system must also be installed, for which two separation technologies ($S_1$ and $S_2$) are available. The GDP model seeks to maximize the product flow ($F_7$), while discounting for reactor ($C_R$) and separator ($C_S$) installation costs as given in \eqref{eq:example_obj}, subject to the nested disjunction in \eqref{eq:example_gdp} and the global mass balances in \eqref{eq:example_global}
-- \eqref{eq:example_global1}. The system variables are the flows on each stream $i$ ($F_i$) and the installation costs, with their respective bounds given in \eqref{eq:example_var1} - \eqref{eq:example_var3}. The fixed cost and process yield parameters are given by $\gamma$ and $\beta$, respectively.
+To illustrate the syntax in \verb|DisjunctiveProgramming.jl| (Version 0.4.1), consider the simple superstructure optimization problem for the chemical process given in Figure \ref{fig:superstruct_opt_diagram}. In this problem a chemical plant with two candidate reactor technologies ($R_1$ and $R_2$) must be designed. If the second reactor technology is chosen, a separation system must also be installed, for which two separation technologies ($S_1$ and $S_2$) are available. The GDP model seeks to maximize the final product flow ($F_7$), while discounting for reactor and separator installation costs ($C_R$ and $C_S$, respectively), subject to the nested disjunction and the global mass balances on the stream flows $F_i$. The system variables are the flows on each stream $i$ ($F_i$) and the installation costs, with their respective bounds given in problem formulation. The fixed cost and process yield parameters are given by $\gamma$ and $\beta$, respectively.
 
-\begin{figure}
-    \centering
-    \includegraphics[scale=0.4]{superstructure_pfd.png}
-    \caption{Illustrative superstructure optimization problem}
-    \label{fig:superstruct_opt_diagram}
-\end{figure}
-
-\begin{equation}
-    \label{eq:example_obj}
-    \max F_7 - C_R - C_S
-\end{equation}
-\begin{equation}
-    \label{eq:example_gdp}
-    \begin{bmatrix}
+\begin{align*}
+    \max \ &  F_7 - C_R - C_S \\
+    \text{s.t.} \ & \\
+    &\begin{bmatrix}
         Y_{R1} \\
         F_6 = \beta_{R1} F_2 \\
         F_3 = 0 \\
@@ -274,29 +216,13 @@ To illustrate the syntax in \verb|DisjunctiveProgramming.jl| (Version 0.4.1), co
             F5 = \beta_{S2} F_4 \\
             C_S = \gamma_{S2}
         \end{bmatrix}
-    \end{bmatrix}
-\end{equation}
-\begin{equation}
-    \label{eq:example_global}
-    F_1 = F_2 + F_3
-\end{equation}
-\begin{equation}
-    \label{eq:example_global1}
-    F_7 = F_5 + F_6
-\end{equation}
-\begin{equation}
-    \label{eq:example_var1}
-    0 \leq F_i \leq 10 \quad \forall i \in \{1,...,7\}
-\end{equation}
-\begin{equation}
-    \label{eq:example_var2}
-    0 \leq C_S \leq C_S^{max}
-\end{equation}
-\begin{equation}
-    \label{eq:example_var3}
-    C_R^{min} \leq C_R \leq C_R^{max}
-\end{equation}
-\vskip 6pt
+    \end{bmatrix} \\
+    & F_1 = F_2 + F_3 \\
+    & F_7 = F_5 + F_6 \\
+    & 0 \leq F_i \leq 10 \quad \forall i \in \{1,...,7\} \\
+    & 0 \leq C_S \leq C_S^{max} \\
+    & C_R^{min} \leq C_R \leq C_R^{max}
+\end{align*}
 
 The above system can be modeled and reformulated via the Big-M reformulation using \verb|DisjunctiveProgramming.jl|. The resulting JuMP model is then optimized using the HiGHS open-source MILP solver \cite{huangfu2018parallelizing} as shown below.
 
@@ -337,7 +263,7 @@ YS2_disjunct = DisjunctConstraint(YS[2])
 # define disjunction (specify parent disjunct)
 @disjunction(m, YS, YS2_disjunct)
 \end{lstlisting}
-    \item Define the outer disjunctions.
+    \item Define the outer disjunctions for the reaction pathway selection.
 \begin{lstlisting}[language = Julia]
 # define constraints in left YR disjunct
 YR1_disjunct = DisjunctConstraint(YR[1])
