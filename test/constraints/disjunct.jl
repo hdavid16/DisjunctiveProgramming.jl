@@ -3,11 +3,19 @@ function test_disjunct_add_fail()
     @variable(model, x)
     @variable(GDPModel(), y, Logical)
     @test_macro_throws UndefVarError @constraint(model, x == 1, Disjunct(y)) # logical variable from another model
-    
+
     @variable(model, w, Logical)
     @variable(model, z, Bin)
     @test_macro_throws UndefVarError @constraint(model, z == 1, Disjunct(w)) # binary variable
     @test_throws ErrorException build_constraint(error, 1z, MOI.EqualTo(1), Disjunct(w)) # binary variable
+end
+
+function test_disjunct_add_ip_constraint()
+    model = GDPModel()
+    @variable(model, w, Logical)
+    @variable(model, z, Int)
+    c1 = @constraint(model, z == 1, Disjunct(w))
+    @test is_valid(model, c1)
 end
 
 function test_disjunct_add_success()
@@ -49,7 +57,7 @@ function test_disjunct_add_dense_axis()
     J = [1, 2]
     @variable(model, y[I, J], Logical)
     @constraint(model, con[i=I, j=J], x == 1, Disjunct(y[i,j]))
-    
+
     @test con isa Containers.DenseAxisArray
     @test con.axes[1] == ["a","b","c"]
     @test con.axes[2] == [1,2]
@@ -93,6 +101,7 @@ end
 
 @testset "Disjunct Constraints" begin
     test_disjunct_add_fail()
+    test_disjunct_add_ip_constraint()
     test_disjunct_add_success()
     test_disjunct_add_array()
     test_disjunct_add_dense_axis()
