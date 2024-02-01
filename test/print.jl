@@ -105,7 +105,7 @@ function test_logic_constraint_printing()
     end
 
     # Test LaTeX printing
-    str = "\$\$ {\\neg\\left({{Y[1]} \\wedge {Y[2]}}\\right)} \\iff {\\left({Y[1]} \\vee {Y[2]}\\right)} = \\text{True} \$\$"
+    str = "\$\$ {\\textsf{\\neg}\\left({{Y_{1}} \\wedge {Y_{2}}}\\right)} \\iff {\\left({Y_{1}} \\vee {Y_{2}}\\right)} = \\text{True} \$\$"
     show_test(MIME("text/latex"), c1, str)
     show_test(MIME("text/latex"), c2, str)
 

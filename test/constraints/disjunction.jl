@@ -1,11 +1,5 @@
 function test_macro_helpers()
     @test DP._esc_non_constant(1) == 1
-    @test DP._get_name(:x) == :x
-    @test DP._get_name("x") == "x"
-    @test DP._get_name(nothing) == ()
-    @test DP._get_name(Expr(:string,"x")) == Expr(:string,"x")
-    @test DP._name_call("",[]) == ""
-    @test DP._name_call("name",[]) == "name"
 end
 
 function test_disjunction_add_fail()
@@ -17,7 +11,7 @@ function test_disjunction_add_fail()
     @test_macro_throws ErrorException @disjunction(model) #not enough arguments
     @test_macro_throws UndefVarError @disjunction(model, y) #unassociated indicator
     @test_macro_throws UndefVarError @disjunction(GDPModel(), y) #wrong model
-    @test_macro_throws ErrorException @disjunction(Model(), y) #not a GDPModel
+    @test_throws ErrorException disjunction(Model(), y) #not a GDPModel
     @test_macro_throws UndefVarError @disjunction(model, [y[1], y[1]]) #duplicate indicator
     @test_macro_throws UndefVarError @disjunction(model, y[1]) #unrecognized disjunction expression
     @test_throws ErrorException disjunction(model, y[1]) #unrecognized disjunction expression
