@@ -158,10 +158,10 @@ macro disjunction(args...)
         error_fn("Unrecognized syntax, please see docs for accepted `@disjunction` syntax.")
     end
 
-    # make sure param is something reasonable
-    if !(c isa Union{Nothing, Symbol, Expr})
-        error_fn("Expected `$c` to be a disjunction name.")
-    end
+    # make sure param is something reasonable (I don't think this is needed)
+    # if !(c isa Union{Nothing, Symbol, Expr})
+    #     error_fn("Expected `$c` to be a disjunction name.")
+    # end
 
     # process the container input
     name, idxvars, inds = Containers.parse_ref_sets(

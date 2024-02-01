@@ -1,5 +1,6 @@
 function test_macro_helpers()
     @test DP._esc_non_constant(1) == 1
+    @test_throws ErrorException DP._error_if_cannot_register(error, Model(), 42)
 end
 
 function test_disjunction_add_fail()
@@ -9,6 +10,8 @@ function test_disjunction_add_fail()
     @constraint(model, x == 5, Disjunct(y[1]))
     
     @test_macro_throws ErrorException @disjunction(model) #not enough arguments
+    @test_macro_throws ErrorException @disjunction(42, y) #a model was not given
+    @test_macro_throws ErrorException @disjunction(model, "bob"[i = 1:1], y[1:1]) #bad name
     @test_macro_throws UndefVarError @disjunction(model, y) #unassociated indicator
     @test_macro_throws UndefVarError @disjunction(GDPModel(), y) #wrong model
     @test_throws ErrorException disjunction(Model(), y) #not a GDPModel
@@ -24,6 +27,7 @@ function test_disjunction_add_fail()
 
     @constraint(model, x == 10, Disjunct(y[2]))
     @disjunction(model, disj, y)
+    @test model[:disj] isa DisjunctionRef
     @test_macro_throws UndefVarError @disjunction(model, disj, y) #duplicate name
     @test_throws ErrorException DP._error_if_cannot_register(error, model, :disj) #duplicate name
 
