@@ -10,6 +10,7 @@ using Base.Meta
 # Create aliases
 import JuMP.MOI as _MOI
 import JuMP.MOIU.CleverDicts as _MOIUC
+import JuMP.Containers as _JuMPC
 
 # Load in the source files
 include("datatypes.jl")

@@ -94,20 +94,25 @@ function test_logic_constraint_printing()
     @variable(model, Y[1:2], Logical)
     @constraint(model, c1, ¬(Y[1] && Y[2]) == (Y[1] || Y[2]) := true)
     c2 = @constraint(model, ¬(Y[1] && Y[2]) == (Y[1] || Y[2]) := true)
+    c3 = @constraint(model, Y[1] ⟹ Y[2] := true)
     
     # Test plain printing
     if Sys.iswindows()
         show_test(MIME("text/plain"), c1, "c1 : !(Y[1] and Y[2]) <--> (Y[1] or Y[2]) = True")
         show_test(MIME("text/plain"), c2, "!(Y[1] and Y[2]) <--> (Y[1] or Y[2]) = True") 
+        show_test(MIME("text/plain"), c3, "-->(Y[1], Y[2]) = True") 
     else
         show_test(MIME("text/plain"), c1, "c1 : ¬(Y[1] ∧ Y[2]) ⟺ (Y[1] ∨ Y[2]) = True")
         show_test(MIME("text/plain"), c2, "¬(Y[1] ∧ Y[2]) ⟺ (Y[1] ∨ Y[2]) = True") 
+        show_test(MIME("text/plain"), c3, "⟹(Y[1], Y[2]) = True") 
     end
 
     # Test LaTeX printing
-    str = "\$\$ {\\neg\\left({{Y[1]} \\wedge {Y[2]}}\\right)} \\iff {\\left({Y[1]} \\vee {Y[2]}\\right)} = \\text{True} \$\$"
+    str = "\$\$ {\\textsf{\\neg}\\left({{Y_{1}} \\wedge {Y_{2}}}\\right)} \\iff {\\left({Y_{1}} \\vee {Y_{2}}\\right)} = \\text{True} \$\$"
     show_test(MIME("text/latex"), c1, str)
     show_test(MIME("text/latex"), c2, str)
+    str = "\$\$ \\textsf{\\implies}\\left({Y_{1}}, {Y_{2}}\\right) = \\text{True} \$\$"
+    show_test(MIME("text/latex"), c3, str) == str
 
     # Test cardinality constraints
     for (Set, s) in ((Exactly, "exactly"), (AtMost, "atmost"), (AtLeast, "atleast"))
