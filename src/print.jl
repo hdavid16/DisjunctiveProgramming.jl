@@ -21,6 +21,19 @@ _card_func_str(::MIME"text/plain", ::_MOIExactly) = "exactly"
 _card_func_str(::MIME"text/latex", ::_MOIExactly) = "\\text{exactly}"
 
 ################################################################################
+#                               LOGICAL PRINTING
+################################################################################
+# Extend op_string to correct print _LogicalExpr
+JuMP.op_string(::MIME"text/latex", ::_LogicalExpr, ::Val{:!}) =  "\\neg"
+JuMP.op_string(::MIME"text/latex", ::_LogicalExpr, ::Val{:(==)}) =  "\\iff"
+JuMP.op_string(::MIME"text/latex", ::_LogicalExpr, ::Val{:(=>)}) =  "\\implies"
+JuMP.op_string(::MIME"text/plain", ::_LogicalExpr, ::Val{:&&}) =  Sys.iswindows() ? "and" : "∧"
+JuMP.op_string(::MIME"text/plain", ::_LogicalExpr, ::Val{:||}) =  Sys.iswindows() ? "or" : "∨"
+JuMP.op_string(::MIME"text/plain", ::_LogicalExpr, ::Val{:!}) =  Sys.iswindows() ? "!" : "¬"
+JuMP.op_string(::MIME"text/plain", ::_LogicalExpr, ::Val{:(==)}) =  Sys.iswindows() ? "<-->" : "⟺"
+JuMP.op_string(::MIME"text/plain", ::_LogicalExpr, ::Val{:(=>)}) =  Sys.iswindows() ? "-->" : "⟹"
+
+################################################################################
 #                               CONSTRAINT PRINTING
 ################################################################################
 # Return the string of a DisjunctConstraintRef
@@ -76,27 +89,12 @@ function JuMP.constraint_string(
     cref::LogicalConstraintRef; 
     in_math_mode = false
     )
-    constr_str = JuMP.constraint_string(
+    return JuMP.constraint_string(
         mode, 
         JuMP.name(cref), 
         JuMP.constraint_object(cref); 
         in_math_mode = in_math_mode
     )
-    # temporary hack until JuMP provides a better solution for operator printing
-    # TODO improve the printing of implications (not recognized by JuMP as two-sided operators)
-    if mode == MIME("text/latex")
-        for p in ("&&" => "\\wedge", "||" => "\\vee", "\\textsf{!}" => "\\neg", 
-                  "==" => "\\iff", "\\textsf{=>}" => "\\implies")
-            constr_str = replace(constr_str, p)
-        end
-        return constr_str
-    else
-        constr_str = replace(constr_str, "&&" => Sys.iswindows() ? "and" : "∧")
-        constr_str = replace(constr_str, "||" => Sys.iswindows() ? "or" : "∨")
-        constr_str = replace(constr_str, "!" => Sys.iswindows() ? "!" : "¬")
-        constr_str = replace(constr_str, "==" => Sys.iswindows() ? "<-->" : "⟺")
-        return replace(constr_str, "=>" => Sys.iswindows() ? "-->" : "⟹")
-    end
 end
 
 # Return the string of a Disjunction for plain printing
