@@ -161,8 +161,11 @@ function _check_expression(expr::Ex) where {Ex <: JuMP.AbstractJuMPScalar}
     _interrogate_variables(v -> push!(vars, v), expr)
     if any(JuMP.is_binary.(vars))
         error(
-            "Disjunct constraints should not contain binary variables. " *
-            "Instead, use Logical variables to express any binary decisions."
+            "Disjunct constraints can only contain continuous or integer variables, " *
+            "not binary variables. If you are modeling binary decisions, " *
+            "you should express these using the Logical variables that serve as indicators " *
+            "to each of the disjuncts. If these are lower-level decisions to the disjunct " *
+            "being defined, these can be modeled using nested disjunctions."
         )
     end
     return
