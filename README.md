@@ -16,7 +16,7 @@ Pkg.add("DisjunctiveProgramming")
 
 ## Model
 
-A generalized disjunctive programming (GDP) model is created using `GDPModel()`, where the optimizer can be passed at model creation, along with other keyword arguments supported by JuMP Models. 
+A generalized disjunctive programming (GDP) model is created using `GDPModel()`, where the optimizer can be passed at model creation, along with other keyword arguments supported by JuMP Models.
 
 ```julia
 using DisjunctiveProgramming
@@ -49,7 +49,7 @@ data = gdp_data(model)
 
 ## Logical Variables
 
-Logical variables are JuMP `AbstractVariable`s with two fields: `fix_value` and `start_value`. These can be optionally specified at variable creation. Logical variables are created with the `@variable` JuMP macro by adding the tag `Logical` as the last keyword argument. As with the regular `@variable` macro, variables can be named and indexed: 
+Logical variables are JuMP `AbstractVariable`s with two fields: `fix_value` and `start_value`. These can be optionally specified at variable creation. Logical variables are created with the `@variable` JuMP macro by adding the tag `Logical` as the last keyword argument. As with the regular `@variable` macro, variables can be named and indexed:
 
 ```julia
 @variable(model, Y[1:3], Logical)
@@ -79,9 +79,19 @@ Two types of logical constraints are supported:
     @constraint(model, Y[1] ⟹ Y[2] := true)
     ```
 
-    _Note_: The parenthesis in the example above around the implication clause are only required when the parent logical operator is `⟹` or `⇔` to avoid parsing errors.
+    _DisjunctiveProgramming.jl_ will automatically reformulate Logical propositions to integer programming constraints by converting these expressions to [Conjunctive Normal Form](https://en.wikipedia.org/wiki/Conjunctive_normal_form), and then to algebraic constraints.
 
-    Logical propositions can be reformulated to IP constraints by automatic reformulation to [Conjunctive Normal Form](https://en.wikipedia.org/wiki/Conjunctive_normal_form).
+    Variable splatting is supported in the logical operator functions `logical_or`, `logical_and`, `logical_not`, `implies`, and `iff` such that
+
+    ```julia
+    @constraint(model, logical_and(Y...) := true)
+    ```
+
+    is equivalent to
+
+    ```julia
+    @constraint(model, Y[1] ∧ Y[2] := true)
+    ```
 
 ## Disjunctions
 
