@@ -24,6 +24,7 @@ Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
 InfiniteOpt = "20393b10-9daf-11e9-18c9-8db751c92c57"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 
 [targets]
-test = ["Aqua", "InfiniteOpt", "HiGHS", "Test"]
+test = ["Aqua", "InfiniteOpt", "HiGHS", "Pkg", "Test"]
