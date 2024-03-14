@@ -2,13 +2,13 @@ import DisjunctiveProgramming as DP
 using DisjunctiveProgramming
 using Test
 
-# import Pkg
-# Pkg.add(url = "https://github.com/infiniteopt/InfiniteOpt.jl", rev = "master")
+import Pkg
+Pkg.add(url = "https://github.com/infiniteopt/InfiniteOpt.jl", rev = "master")
 
 include("utilities.jl")
 
 # RUN ALL THE TESTS
-include("aqua.jl")
+# include("aqua.jl") # temporary ignore until compat is finalized
 include("model.jl")
 include("jump.jl")
 include("variables/query.jl")
