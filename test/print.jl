@@ -72,7 +72,8 @@ function test_empty_disjunct_printing()
     show_test(MIME("text/plain"), d, str)
 
     # Test LaTeX printing
-    show_test(MIME("text/latex"), d, "\$\$ $(str) \$\$")
+    str = "\$\$ \\begin{bmatrix}\n Y_{1}\\\\\n x \\geq 0\\end{bmatrix} \\bigvee \\begin{bmatrix}\n Y_{2}\\\\\n \\end{bmatrix} \$\$"
+    show_test(MIME("text/latex"), d, str)
 end
 
 function test_nested_disjunction_printing()
