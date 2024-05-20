@@ -19,9 +19,30 @@ Pkg.add("DisjunctiveProgramming")
 
 The theory behind the GDP modeling paradigm is described in the following references:
 
-- [Perez and Grossmann, 2023](https://arxiv.org/abs/2303.04375)
+- [JuliaCon 2022 Proceedings](https://proceedings.juliacon.org/papers/10.21105/jcon.00117)
+- [Perez and Grossmann (2023)](https://arxiv.org/abs/2303.04375)
 - [Generalized Disjunctive Programming](https://optimization.cbe.cornell.edu/index.php?title=Convex_generalized_disjunctive_programming_(GDP))
 - [Disjunctive Inequalities](https://optimization.cbe.cornell.edu/index.php?title=Disjunctive_inequalities)
+
+## Citing
+
+[![DOI](https://proceedings.juliacon.org/papers/10.21105/jcon.00117/status.svg)](https://doi.org/10.21105/jcon.00117)
+
+If you use DisjunctiveProgramming.jl in your research, we would greatly appreciate your
+citing it.
+
+```latex
+@article{Perez2023,
+  title = {DisjunctiveProgramming.jl: Generalized Disjunctive Programming Models and Algorithms for JuMP},
+  author = {Hector D. Perez and Shivank Joshi and Ignacio E. Grossmann},
+  journal = {Proceedings of the JuliaCon Conferences},
+  year = {2023},
+  publisher = {The Open Journal},
+  volume = {1},
+  number = {1},
+  pages = {117}
+}
+```
 
 ## Model
 
