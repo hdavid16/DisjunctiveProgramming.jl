@@ -9,10 +9,10 @@ function test_disjunct_constraint_printing()
     # Test plain printing
     if Sys.iswindows()
         show_test(MIME("text/plain"), c1, "c1 : x[1]² >= 3.2, if Y[1] = True")
-        show_test(MIME("text/plain"), c2, "x[2] <= 2, if Y[2] = True") 
+        show_test(MIME("text/plain"), c2, "x[2] <= 2, if Y[2] = True")
     else
         show_test(MIME("text/plain"), c1, "c1 : x[1]² ≥ 3.2, if Y[1] = True")
-        show_test(MIME("text/plain"), c2, "x[2] ≤ 2, if Y[2] = True") 
+        show_test(MIME("text/plain"), c2, "x[2] ≤ 2, if Y[2] = True")
     end
 
     # Test math mode string
@@ -23,7 +23,7 @@ function test_disjunct_constraint_printing()
 
     # Test LaTeX printing
     show_test(MIME("text/latex"), c1, "\$\$ $(c1_str) \$\$")
-    show_test(MIME("text/latex"), c2, "\$\$ $(c2_str) \$\$") 
+    show_test(MIME("text/latex"), c2, "\$\$ $(c2_str) \$\$")
 end
 
 function test_disjunction_printing()
@@ -40,13 +40,11 @@ function test_disjunction_printing()
     # Test plain printing
     if Sys.iswindows()
         str = "[Y[1] --> {2 x[1]² >= 1}] or [Y[2] --> {x[2] == 3.1; x[1] in [0, 1]}]"
-        show_test(MIME("text/plain"), d1, "d1 : " * str)
-        show_test(MIME("text/plain"), d2, str) 
     else
         str = "[Y[1] ⟹ {2 x[1]² ≥ 1}] ⋁ [Y[2] ⟹ {x[2] = 3.1; x[1] ∈ [0, 1]}]"
-        show_test(MIME("text/plain"), d1, "d1 : " * str)
-        show_test(MIME("text/plain"), d2, str) 
     end
+    show_test(MIME("text/plain"), d1, "d1 : " * str)
+    show_test(MIME("text/plain"), d2, str)
 
     # Test math mode string
     str = "\\begin{bmatrix}\n Y_{1}\\\\\n 2 x_{1}^2 \\geq 1\\end{bmatrix} \\bigvee \\begin{bmatrix}\n Y_{2}\\\\\n x_{2} = 3.1\\\\\n x_{1} \\in [0, 1]\\end{bmatrix}"
@@ -55,7 +53,26 @@ function test_disjunction_printing()
 
     # Test LaTeX printing
     show_test(MIME("text/latex"), d1, "\$\$ $(str) \$\$")
-    show_test(MIME("text/latex"), d2, "\$\$ $(str) \$\$") 
+    show_test(MIME("text/latex"), d2, "\$\$ $(str) \$\$")
+end
+
+function test_empty_disjunct_printing()
+    m = GDPModel()
+    @variable(m, x)
+    @variable(m, Y[1:2], Logical)
+    @constraint(m, x >= 0, Disjunct(Y[1]))
+    d = disjunction(m, Y)
+
+    # Test plain printing
+    if Sys.iswindows()
+        str = "[Y[1] --> {x >= 0}] or [Y[2] --> {}]"
+    else
+        str = "[Y[1] ⟹ {x ≥ 0}] ⋁ [Y[2] ⟹ {}]"
+    end
+    show_test(MIME("text/plain"), d, str)
+
+    # Test LaTeX printing
+    show_test(MIME("text/latex"), d, "\$\$ $(str) \$\$")
 end
 
 function test_nested_disjunction_printing()
@@ -76,12 +93,13 @@ function test_nested_disjunction_printing()
     if Sys.iswindows()
         inner = "[W[1] --> {x[1] in [1, 2]; x[2] in [5, 6]}] or [W[2] --> {x[1] in [2, 3]; x[2] in [4, 5]}]"
         str = "outer : [Y[1] --> {x[1] in [1, 3]; x[2] in [4, 6]; $(inner)}] or [Y[2] --> {x[1] in [8, 9]; x[2] in [1, 2]}]"
-        show_test(MIME("text/plain"), outer, str)
     else
         inner = "[W[1] ⟹ {x[1] ∈ [1, 2]; x[2] ∈ [5, 6]}] ⋁ [W[2] ⟹ {x[1] ∈ [2, 3]; x[2] ∈ [4, 5]}]"
         str = "outer : [Y[1] ⟹ {x[1] ∈ [1, 3]; x[2] ∈ [4, 6]; $(inner)}] ⋁ [Y[2] ⟹ {x[1] ∈ [8, 9]; x[2] ∈ [1, 2]}]"
-        show_test(MIME("text/plain"), outer, str)
     end
+    show_test(MIME("text/plain"), outer, str)
+
+    # Test LaTeX printing
     inner = "\\begin{bmatrix}\n W_{1}\\\\\n x_{1} \\in [1, 2]\\\\\n x_{2} \\in [5, 6]\\end{bmatrix} \\bigvee \\begin{bmatrix}\n W_{2}\\\\\n x_{1} \\in [2, 3]\\\\\n x_{2} \\in [4, 5]\\end{bmatrix}"
     str = "\$\$ \\begin{bmatrix}\n Y_{1}\\\\\n x_{1} \\in [1, 3]\\\\\n x_{2} \\in [4, 6]\\\\\n $(inner)\\end{bmatrix} \\bigvee \\begin{bmatrix}\n Y_{2}\\\\\n x_{1} \\in [8, 9]\\\\\n x_{2} \\in [1, 2]\\end{bmatrix} \$\$"
     show_test(MIME("text/latex"), outer, str)
@@ -95,16 +113,16 @@ function test_logic_constraint_printing()
     @constraint(model, c1, ¬(Y[1] && Y[2]) == (Y[1] || Y[2]) := true)
     c2 = @constraint(model, ¬(Y[1] && Y[2]) == (Y[1] || Y[2]) := true)
     c3 = @constraint(model, Y[1] ⟹ Y[2] := true)
-    
+
     # Test plain printing
     if Sys.iswindows()
         show_test(MIME("text/plain"), c1, "c1 : !(Y[1] and Y[2]) <--> (Y[1] or Y[2]) = True")
-        show_test(MIME("text/plain"), c2, "!(Y[1] and Y[2]) <--> (Y[1] or Y[2]) = True") 
-        show_test(MIME("text/plain"), c3, "-->(Y[1], Y[2]) = True") 
+        show_test(MIME("text/plain"), c2, "!(Y[1] and Y[2]) <--> (Y[1] or Y[2]) = True")
+        show_test(MIME("text/plain"), c3, "-->(Y[1], Y[2]) = True")
     else
         show_test(MIME("text/plain"), c1, "c1 : ¬(Y[1] ∧ Y[2]) ⟺ (Y[1] ∨ Y[2]) = True")
-        show_test(MIME("text/plain"), c2, "¬(Y[1] ∧ Y[2]) ⟺ (Y[1] ∨ Y[2]) = True") 
-        show_test(MIME("text/plain"), c3, "⟹(Y[1], Y[2]) = True") 
+        show_test(MIME("text/plain"), c2, "¬(Y[1] ∧ Y[2]) ⟺ (Y[1] ∨ Y[2]) = True")
+        show_test(MIME("text/plain"), c3, "⟹(Y[1], Y[2]) = True")
     end
 
     # Test LaTeX printing
@@ -133,6 +151,7 @@ end
     end
     @testset "Disjunctions" begin
         test_disjunction_printing()
+        test_empty_disjunct_printing()
         test_nested_disjunction_printing()
     end
     @testset "Logical Constraints" begin
