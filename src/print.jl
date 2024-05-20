@@ -127,7 +127,11 @@ function JuMP.constraint_string(
     disjuncts = Vector{String}(undef, length(d.indicators))
     for (i, lvar) in enumerate(d.indicators)
         disjunct = string("\\begin{bmatrix}\n ", JuMP.function_string(mode, lvar), "\\\\\n ")
-        cons = (JuMP.constraint_string(mode, JuMP.constraint_object(cref)) for cref in mappings[lvar])
+        if haskey(mappings, lvar)
+            cons = (JuMP.constraint_string(mode, JuMP.constraint_object(cref)) for cref in mappings[lvar])
+        else
+            cons = ""
+        end
         disjuncts[i] = string(disjunct, join(cons, "\\\\\n "), "\\end{bmatrix}")
     end
     return join(disjuncts, " $(_dor_symbol(mode)) ")
