@@ -1,7 +1,8 @@
 # DisjunctiveProgramming.jl
-Generalized Disjunctive Programming (GDP) extension to JuMP, based on the GDP modeling paradigm described in [Perez and Grossmann, 2023](https://arxiv.org/abs/2303.04375).
 
-![](logo.png)
+A Generalized Disjunctive Programming (GDP) extension to JuMP.
+
+![logo](logo.png)
 
 [![codecov](https://codecov.io/gh/hdavid16/DisjunctiveProgramming.jl/graph/badge.svg?token=3FRPGMWF0J)](https://codecov.io/gh/hdavid16/DisjunctiveProgramming.jl)
 [![Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://hdavid16.github.io/DisjunctiveProgramming.jl/stable/)
@@ -13,6 +14,14 @@ Generalized Disjunctive Programming (GDP) extension to JuMP, based on the GDP mo
 using Pkg
 Pkg.add("DisjunctiveProgramming")
 ```
+
+## Reference
+
+The theory behind the GDP modeling paradigm is described in the following references:
+
+- [Perez and Grossmann, 2023](https://arxiv.org/abs/2303.04375)
+- [Generalized Disjunctive Programming](https://optimization.cbe.cornell.edu/index.php?title=Convex_generalized_disjunctive_programming_(GDP))
+- [Disjunctive Inequalities](https://optimization.cbe.cornell.edu/index.php?title=Disjunctive_inequalities)
 
 ## Model
 
@@ -223,5 +232,6 @@ print(m)
 ```
 
 ## Contributing
+
 `DisjunctiveProgramming` is being actively developed and suggestions or other forms of contribution are encouraged.
 There are many ways to contribute to this package. Feel free to create an issue to address questions or provide feedback.
