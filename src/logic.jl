@@ -219,24 +219,26 @@ end
 ################################################################################
 # cardinality constraint reformulation
 function _reformulate_selector(
-    model::JuMP.AbstractModel, 
+    model::M, 
     func::Vector{JuMP.AbstractJuMPScalar}, 
     set::AbstractCardinalitySet
-    )
+    ) where {M <: JuMP.AbstractModel}
     bvrefs = [binary_variable(lvref) for lvref in func[2:end]]
     c = JuMP.constant(func[1])
     new_set = _vec_to_scalar_set(set)(c)
-    cref = JuMP.@constraint(model, sum(bvrefs) in new_set)
+    init = zero(JuMP.value_type(M))
+    cref = JuMP.@constraint(model, sum(bvrefs, init = init) in new_set)
     push!(_reformulation_constraints(model), cref)
 end
 function _reformulate_selector(
-    model::JuMP.AbstractModel, 
+    model::M, 
     func::Vector{<:LogicalVariableRef}, 
     set::AbstractCardinalitySet
-    )
+    ) where {M <: JuMP.AbstractModel}
     bvref, bvrefs... = [binary_variable(lvref) for lvref in func]
     new_set = _vec_to_scalar_set(set)(0)
-    cref = JuMP.@constraint(model, sum(bvrefs) - bvref in new_set)
+    init = zero(JuMP.value_type(M))
+    cref = JuMP.@constraint(model, sum(bvrefs, init = init) - bvref in new_set)
     push!(_reformulation_constraints(model), cref)
 end
 

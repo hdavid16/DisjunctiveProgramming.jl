@@ -76,7 +76,8 @@ function _reformulate_disjunctions(model::JuMP.AbstractModel, method::AbstractRe
     for (idx, disj) in _disjunctions(model)
         disj.constraint.nested && continue #only reformulate top level disjunctions
         dref = DisjunctionRef(model, idx)
-        if requires_exactly1(method) && !haskey(gdp_data(model).exactly1_constraints, dref)
+        if requires_exactly1(method) && !haskey(gdp_data(model).exactly1_constraints, dref) &&
+            !any(has_logical_compliment.(disj.constraint.indicators))
             error("Reformulation method `$method` requires disjunctions where only 1 disjunct is selected, " *
                   "but `exactly1 = false` for disjunction `$dref`.")
         end
@@ -94,7 +95,7 @@ function _reformulate_disjunctions(model::JuMP.AbstractModel, method::AbstractRe
     end
 end
 
-# disjuncts
+# individual disjunctions
 """
     reformulate_disjunction(
         model::JuMP.AbstractModel, 
@@ -137,7 +138,7 @@ end
     reformulate_disjunct_constraint(
         model::JuMP.AbstractModel,  
         con::JuMP.AbstractConstraint, 
-        bvref::JuMP.AbstractVariableRef,
+        bvref::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr},
         method::AbstractReformulationMethod
     )
 
@@ -148,7 +149,7 @@ constraint. If `method` needs to specify how to reformulate the entire disjuncti
 function reformulate_disjunct_constraint(
     model::JuMP.AbstractModel,  
     con::Disjunction, 
-    bvref::JuMP.AbstractVariableRef,
+    bvref::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr},
     method::AbstractReformulationMethod
 )
     ref_cons = reformulate_disjunction(model, con, method)
@@ -163,7 +164,7 @@ end
 function reformulate_disjunct_constraint(
     model::JuMP.AbstractModel,  
     con::JuMP.AbstractConstraint, 
-    bvref::JuMP.AbstractVariableRef,
+    bvref::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr},
     method::AbstractReformulationMethod
 )
     error("$(typeof(method)) reformulation for constraint $con is not supported yet.")

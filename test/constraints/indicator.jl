@@ -131,6 +131,47 @@ function test_extension_indicator()
     @test all([cobj.set isa MOI.Indicator for cobj in ref_cons_obj])
 end
 
+function test_indicator_compliment()
+    model = GDPModel()
+    @variable(model, x)
+    @variable(model, y1, Logical)
+    @variable(model, y2, Logical, logical_compliment = y1)
+    y = [y1, y2]
+    @constraint(model, x == 5, Disjunct(y[1]))
+    @constraint(model, x <= 5, Disjunct(y[1]))
+    @constraint(model, x >= 5, Disjunct(y[1]))
+    @constraint(model, x == 10, Disjunct(y[2]))
+    @constraint(model, x <= 10, Disjunct(y[2]))
+    @constraint(model, x >= 10, Disjunct(y[2]))
+    @disjunction(model, y)
+    reformulate_model(model, Indicator())
+    
+    ref_cons = DP._reformulation_constraints(model)
+    ref_cons_obj = constraint_object.(ref_cons)
+    @test length(ref_cons) == 6
+    @test all(is_valid.(model, ref_cons))
+    @test all(isa.(ref_cons_obj[1:6], VectorConstraint))
+    @test all([cobj.set isa MOI.Indicator for cobj in ref_cons_obj[1:6]])
+
+    model = GDPModel()
+    A = [1 0; 0 1]
+    @variable(model, x)
+    @variable(model, y1, Logical)
+    @variable(model, y2, Logical, logical_compliment = y1)
+    y = [y1, y2]
+    @constraint(model, A*[x,x] == [5,5], Disjunct(y[1]))
+    @constraint(model, A*[x,x] <= [0,0], Disjunct(y[2]))
+    @disjunction(model, y)
+    reformulate_model(model, Indicator())
+    
+    ref_cons = DP._reformulation_constraints(model)
+    ref_cons_obj = constraint_object.(ref_cons)
+    @test length(ref_cons) == 4
+    @test all(is_valid.(model, ref_cons))
+    @test all(isa.(ref_cons_obj, VectorConstraint))
+    @test all([cobj.set isa MOI.Indicator for cobj in ref_cons_obj])
+end
+
 @testset "Indicator" begin
     test_indicator_scalar_constraints()
     test_indicator_vector_constraints()
@@ -139,4 +180,5 @@ end
     test_indicator_sparse_axis()
     test_indicator_nested()
     test_extension_indicator()
+    test_indicator_compliment()
 end

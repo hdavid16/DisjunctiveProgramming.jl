@@ -38,6 +38,11 @@ function test_disjunction_add_fail()
     @variable(model, w[1:3], Logical)
     @constraint(model, [i = 1:2], x == 5, Disjunct(w[i]))
     @test_throws ErrorException disjunction(model, w, Disjunct(w[3]), bad_key = 42)
+
+    @variable(model, yc[i = 1:2], Logical, logical_compliment = y[i])
+    @test_throws ErrorException disjunction(model, [yc[1]])
+    @test_throws ErrorException disjunction(model, [yc[1], y[2]])
+    @test_throws ErrorException disjunction(model, [y[1], yc[1]], Disjunct(y[2]))
 end
 
 function test_disjunction_add_success()

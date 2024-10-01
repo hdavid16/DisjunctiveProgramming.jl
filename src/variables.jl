@@ -2,17 +2,24 @@
 #                              LOGICAL VARIABLES
 ################################################################################
 """
-    JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, 
-                        ::Union{Type{Logical}, Logical})
+    JuMP.build_variable(
+        _error::Function,
+        info::JuMP.VariableInfo, 
+        ::Union{Type{Logical}, Logical};
+        [logical_compliment::Union{Nothing, LogicalVariableRef} = nothing]
+        )::LogicalVariable
 
 Extend `JuMP.build_variable` to work with logical variables. This in 
 combination with `JuMP.add_variable` enables the use of 
-`@variable(model, [var_expr], Logical)`.
+`@variable(model, [var_expr], Logical)`. Optionally, a `logical_compliment`
+can be given which provides a logical variable that is the compliment of this
+one (common for disjunctions with two disjuncts).
 """
 function JuMP.build_variable(
     _error::Function, 
     info::JuMP.VariableInfo, 
     tag::Type{Logical};
+    logical_compliment::Union{Nothing, LogicalVariableRef} = nothing,
     kwargs...
     )
     # check for invalid input
@@ -27,12 +34,18 @@ function JuMP.build_variable(
         _error("Invalid fix value, must be false or true.")
     elseif info.has_start && !isone(info.start) && !iszero(info.start)
         _error("Invalid start value, must be false or true.")
+    elseif (info.has_start || info.has_fix) && !isnothing(logical_compliment)
+        _error("Cannot fix or provide a start value for logical variable " *
+               "that has a logical compliment variable.")
+    elseif !isnothing(logical_compliment) && has_logical_compliment(logical_compliment)
+        _error("Cannot specify a logical compliment that itself is a " *
+               "logical compliment.")
     end
 
     # create the variable
     fix = info.has_fix ? Bool(info.fixed_value) : nothing
     start = info.has_start ? Bool(info.start) : nothing
-    return LogicalVariable(fix, start)
+    return LogicalVariable(fix, start, logical_compliment)
 end
 
 # Logical variable with tag data
@@ -78,8 +91,11 @@ function _make_binary_variable(model, var::_TaggedLogicalVariable, name)
 end
 
 """
-    JuMP.add_variable(model::JuMP.Model, v::LogicalVariable, 
-                      name::String = "")::LogicalVariableRef
+    JuMP.add_variable(
+        model::JuMP.Model,
+        v::LogicalVariable, 
+        name::String = ""
+        )::LogicalVariableRef
                 
 Extend `JuMP.add_variable` for [`LogicalVariable`](@ref)s. This 
 helps enable `@variable(model, [var_expr], Logical)`.
@@ -96,9 +112,14 @@ function JuMP.add_variable(
     lvref = LogicalVariableRef(model, idx)
     _set_ready_to_optimize(model, false)
     # add the associated binary variables
-    bvref = _make_binary_variable(model, v, name)
-    _add_logical_info(bvref, v)
-    _indicator_to_binary(model)[lvref] = bvref
+    if isnothing(_get_variable(v).logical_compliment)
+        bvref = _make_binary_variable(model, v, name)
+        _add_logical_info(bvref, v)
+        jump_expr = bvref
+    else
+        jump_expr = 1 - binary_variable(v.logical_compliment)
+    end
+    _indicator_to_binary(model)[lvref] = jump_expr
     return lvref
 end
 
@@ -179,7 +200,9 @@ function JuMP.set_name(vref::LogicalVariableRef, name::String)
     data = gdp_data(model)
     data.logical_variables[JuMP.index(vref)].name = name
     _set_ready_to_optimize(model, false)
-    JuMP.set_name(binary_variable(vref), name)
+    if !has_logical_compliment(vref)
+        JuMP.set_name(binary_variable(vref), name)
+    end
     return
 end
 
@@ -203,7 +226,10 @@ function JuMP.set_start_value(
     vref::LogicalVariableRef, 
     value::Union{Nothing, Bool}
     )
-    new_var = LogicalVariable(JuMP.fix_value(vref), value)
+    if has_logical_compliment(vref)
+        error("Cannot set the start value of a variable with a logical compliment.")
+    end
+    new_var = LogicalVariable(JuMP.fix_value(vref), value, nothing)
     _set_variable_object(vref, new_var)
     JuMP.set_start_value(binary_variable(vref), value)
     return
@@ -236,7 +262,10 @@ constraint if one exists, otherwise create a
 new one.
 """
 function JuMP.fix(vref::LogicalVariableRef, value::Bool)
-    new_var = LogicalVariable(value, JuMP.start_value(vref))
+    if has_logical_compliment(vref)
+        error("Cannot fix value of a variable with a logical compliment.")
+    end
+    new_var = LogicalVariable(value, JuMP.start_value(vref), nothing)
     _set_variable_object(vref, new_var)
     JuMP.fix(binary_variable(vref), value)
     return
@@ -248,22 +277,37 @@ end
 Delete the fixed value of a logical variable.
 """
 function JuMP.unfix(vref::LogicalVariableRef)
-    new_var = LogicalVariable(nothing, JuMP.start_value(vref))
+    has_logical_compliment(vref) && return
+    new_var = LogicalVariable(nothing, JuMP.start_value(vref), nothing)
     _set_variable_object(vref, new_var)
     JuMP.unfix(binary_variable(vref))
     return
 end
 
 """
-    binary_variable(vref::LogicalVariableRef)::JuMP.AbstractVariableRef
+    binary_variable(
+        vref::LogicalVariableRef
+        )::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr}
 
 Returns the underlying binary variable for the logical variable `vref` which 
 is used in the reformulated model. This is helpful to embed logical variables 
-in algebraic constraints.
+in algebraic constraints. If `vref` has a logical compliment then an expression
+of the form `1 - bvref` is returned where `bvref` is the binary variable of the
+logical compliment variable.
 """
 function binary_variable(vref::LogicalVariableRef)
     model = JuMP.owner_model(vref)
     return _indicator_to_binary(model)[vref]
+end
+
+"""
+    has_logical_compliment(vref::LogicalVariableRef)::Bool
+
+Return a `Bool` whether a `vref` is a logical compliment of
+another logical variable.
+"""
+function has_logical_compliment(vref::LogicalVariableRef)
+    return !isnothing(_variable_object(vref).logical_compliment)
 end
 
 """
@@ -286,30 +330,32 @@ function JuMP.delete(model::JuMP.AbstractModel, vref::LogicalVariableRef)
     @assert JuMP.is_valid(model, vref) "Variable does not belong to model."
     vidx = JuMP.index(vref)
     dict = _logical_variables(model)
-    #delete any disjunct constraints associated with the logical variables in the disjunction
+    # delete any disjunct constraints associated with the logical variables in the disjunction
     if haskey(_indicator_to_constraints(model), vref)
         crefs = _indicator_to_constraints(model)[vref]
         JuMP.delete.(model, crefs)
         delete!(_indicator_to_constraints(model), vref)
     end
-    #delete any disjunctions that have the logical variable
+    # delete any disjunctions that have the logical variable
     for (didx, ddata) in _disjunctions(model)
         if vref in ddata.constraint.indicators
             JuMP.delete(model, DisjunctionRef(model, didx))
         end
     end
-    #delete any logical constraints involving the logical variables
+    # delete any logical constraints involving the logical variables
     for (cidx, cdata) in _logical_constraints(model)
         lvars = _get_logical_constraint_variables(model, cdata.constraint)
         if vref in lvars
             JuMP.delete(model, LogicalConstraintRef(model, cidx))
         end
     end
-    #delete the logical variable
+    # delete the logical variable
+    if !has_logical_compliment(vref)
+        JuMP.delete(model, binary_variable(vref))
+    end
     delete!(dict, vidx)
-    JuMP.delete(model, binary_variable(vref))
     delete!(_indicator_to_binary(model), vref)
-    #not ready to optimize
+    # not ready to optimize
     _set_ready_to_optimize(model, false)
     return 
 end

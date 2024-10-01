@@ -1,9 +1,15 @@
 using HiGHS
 
-function test_linear_gdp_example(m)
+function test_linear_gdp_example(m, use_compliments = false)
     set_attribute(m, MOI.Silent(), true)
     @variable(m, 1 ≤ x[1:2] ≤ 9)
-    @variable(m, Y[1:2], Logical)
+    if use_compliments
+        @variable(m, Y1, Logical)
+        @variable(m, Y2, Logical, logical_compliment = Y1)
+        Y = [Y1, Y2]
+    else
+        @variable(m, Y[1:2], Logical)
+    end
     @variable(m, W[1:2], Logical)
     @objective(m, Max, sum(x))
     @constraint(m, y1[i=1:2], [1,4][i] ≤ x[i] ≤ [3,6][i], Disjunct(Y[1]))
@@ -30,14 +36,16 @@ function test_linear_gdp_example(m)
     @test value(Y[2])
     @test !value(W[1])
     @test !value(W[2])
-    @test value(variable_by_name(m, "x[1]_Y[1]")) ≈ 0
-    @test value(variable_by_name(m, "x[1]_Y[2]")) ≈ 9
     @test value(variable_by_name(m, "x[1]_W[1]")) ≈ 0
     @test value(variable_by_name(m, "x[1]_W[2]")) ≈ 0
-    @test value(variable_by_name(m, "x[2]_Y[1]")) ≈ 0
-    @test value(variable_by_name(m, "x[2]_Y[2]")) ≈ 2
     @test value(variable_by_name(m, "x[2]_W[1]")) ≈ 0
     @test value(variable_by_name(m, "x[2]_W[2]")) ≈ 0
+    if !use_compliments
+        @test value(variable_by_name(m, "x[1]_Y[1]")) ≈ 0
+        @test value(variable_by_name(m, "x[1]_Y[2]")) ≈ 9
+        @test value(variable_by_name(m, "x[2]_Y[1]")) ≈ 0
+        @test value(variable_by_name(m, "x[2]_Y[2]")) ≈ 2
+    end
 end
 
 function test_generic_model(m)
@@ -55,12 +63,14 @@ function test_generic_model(m)
 
     @test optimize!(m, gdp_method = BigM()) isa Nothing
     @test optimize!(m, gdp_method = Hull()) isa Nothing
+    @test optimize!(m, gdp_method = Indicator()) isa Nothing
 
     # TODO add meaningful tests to check the constraints/variables
 end
 
 @testset "Solve Linear GDP" begin
     test_linear_gdp_example(GDPModel(HiGHS.Optimizer))
+    test_linear_gdp_example(GDPModel(HiGHS.Optimizer), true)
     mockoptimizer = () -> MOI.Utilities.MockOptimizer(
         MOI.Utilities.UniversalFallback(MOIU.Model{Float32}()),
         eval_objective_value = false

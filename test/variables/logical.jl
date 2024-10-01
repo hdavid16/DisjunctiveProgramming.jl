@@ -30,7 +30,7 @@ function test_lvar_add_success()
     @test isnothing(fix_value(y))
     @test isequal_canonical(y, copy(y))
     @test haskey(DP._logical_variables(model), index(y))
-    @test DP._logical_variables(model)[index(y)].variable == LogicalVariable(nothing, nothing)
+    @test DP._logical_variables(model)[index(y)].variable == LogicalVariable(nothing, nothing, nothing)
     @test DP._logical_variables(model)[index(y)].name == "y"
     @test binary_variable(y) isa VariableRef
     @test is_binary(binary_variable(y))
@@ -131,6 +131,30 @@ function test_lvar_delete()
     @test !is_valid(model, bvar)
 end
 
+function test_lvar_logical_compliment()
+    model = GDPModel()
+    @variable(model, y1, Logical)
+    # test addition
+    @test_throws ErrorException @variable(model, y2 == true, Logical, logical_compliment = y1)
+    @test_throws ErrorException @variable(model, y2, Logical, logical_compliment = y1, start = false)
+    @variable(model, y2, Logical, logical_compliment = y1)
+    # test queries
+    @test binary_variable(y2) == 1 - binary_variable(y1)
+    @test name(y2) == "y2"
+    @test set_name(y2, "new_name") isa Nothing
+    @test name(y2) == "new_name"
+    @test_throws ErrorException set_start_value(y2, false)
+    @test_throws ErrorException fix(y2, false)
+    @test unfix(y2) isa Nothing
+    @test has_logical_compliment(y2)
+    @test !has_logical_compliment(y1)
+    # test error for logical of logical
+    @test_throws ErrorException @variable(model, y3, Logical, logical_compliment = y2)
+    # test deletion
+    @test delete(model, y2) isa Nothing
+    @test !is_valid(model, y2)
+end
+
 function test_tagged_variables()
     model = GDPModel{MyModel, MyVarRef, MyConRef}()
     y = [LogicalVariableRef(model, LogicalVariableIndex(i)) for i in 1:2]
@@ -176,6 +200,9 @@ end
     end
     @testset "Delete Logical Variables" begin
         test_lvar_delete()
+    end
+    @testset "Logical Compliment Variables" begin
+        test_lvar_logical_compliment()
     end
     @testset "Tagged Logical Variables" begin
         test_tagged_variables()

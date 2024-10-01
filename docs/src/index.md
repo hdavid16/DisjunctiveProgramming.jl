@@ -85,6 +85,14 @@ Logical variables are JuMP `AbstractVariable`s with two fields: `fix_value` and 
 @variable(model, Y[1:3], Logical)
 ```
 
+When making logical variables for disjunctions with only two disjuncts, we can use the `logical_compliment` argument to prevent creating uncessary binary variables when reformulating:
+
+```julia
+
+@variable(model, Y1, Logical)
+@variable(model, Y2, Logical, logical_compliment = Y1) # Y2 ⇔ ¬Y1
+```
+
 ## Logical Constraints
 
 Two types of logical constraints are supported:

@@ -2,6 +2,28 @@
 #                              LOGICAL VARIABLES
 ################################################################################
 """
+    LogicalVariableIndex
+
+A type for storing the index of a [`LogicalVariable`](@ref).
+
+**Fields**
+- `value::Int64`: The index value.
+"""
+struct LogicalVariableIndex
+    value::Int64
+end
+
+"""
+    LogicalVariableRef{M <: JuMP.AbstractModel}
+
+A type for looking up logical variables.
+"""
+struct LogicalVariableRef{M <:JuMP.AbstractModel} <: JuMP.AbstractVariableRef
+    model::M
+    index::LogicalVariableIndex
+end
+
+"""
     LogicalVariable <: JuMP.AbstractVariable
 
 A variable type the logical variables associated with disjuncts in a [`Disjunction`](@ref).
@@ -9,10 +31,13 @@ A variable type the logical variables associated with disjuncts in a [`Disjuncti
 **Fields**
 - `fix_value::Union{Nothing, Bool}`: A fixed boolean value if there is one.
 - `start_value::Union{Nothing, Bool}`: An initial guess if there is one.
+- `logical_compliment::Union{Nothing, LogicalVariableRef}`: The logical compliment of
+   this variable if there is one.
 """
 struct LogicalVariable <: JuMP.AbstractVariable 
     fix_value::Union{Nothing, Bool}
     start_value::Union{Nothing, Bool}
+    logical_compliment::Union{Nothing, LogicalVariableRef}
 end
 
 # Wrapper variable type for including arbitrary tags that will be used for 
@@ -64,28 +89,6 @@ possess.
 mutable struct LogicalVariableData
     variable::LogicalVariable
     name::String
-end
-
-"""
-    LogicalVariableIndex
-
-A type for storing the index of a [`LogicalVariable`](@ref).
-
-**Fields**
-- `value::Int64`: The index value.
-"""
-struct LogicalVariableIndex
-    value::Int64
-end
-
-"""
-    LogicalVariableRef{M <: JuMP.AbstractModel}
-
-A type for looking up logical variables.
-"""
-struct LogicalVariableRef{M <:JuMP.AbstractModel} <: JuMP.AbstractVariableRef
-    model::M
-    index::LogicalVariableIndex
 end
 
 ################################################################################
@@ -384,12 +387,12 @@ end
 mutable struct _Hull{V <: JuMP.AbstractVariableRef, T} <: AbstractReformulationMethod
     value::T
     disjunction_variables::Dict{V, Vector{V}}
-    disjunct_variables::Dict{Tuple{V, V}, V}
+    disjunct_variables::Dict{Tuple{V, Union{V, JuMP.GenericAffExpr{T, V}}}, V}
     function _Hull(method::Hull{T}, vrefs::Set{V}) where {T, V <: JuMP.AbstractVariableRef}
         new{V, T}(
             method.value,
             Dict{V, Vector{V}}(vref => V[] for vref in vrefs), 
-            Dict{Tuple{V, V}, V}()
+            Dict{Tuple{V, Union{V, JuMP.GenericAffExpr{T, V}}}, V}()
         )
     end
 end
@@ -420,7 +423,7 @@ mutable struct GDPData{M <: JuMP.AbstractModel, V <: JuMP.AbstractVariableRef, C
     exactly1_constraints::Dict{DisjunctionRef{M}, LogicalConstraintRef{M}}
 
     # Indicator variable mappings
-    indicator_to_binary::Dict{LogicalVariableRef{M}, V}
+    indicator_to_binary::Dict{LogicalVariableRef{M}, Union{V, JuMP.GenericAffExpr{T, V}}}
     indicator_to_constraints::Dict{LogicalVariableRef{M}, Vector{Union{DisjunctConstraintRef{M}, DisjunctionRef{M}}}}
     constraint_to_indicator::Dict{Union{DisjunctConstraintRef{M}, DisjunctionRef{M}}, LogicalVariableRef{M}} # needed for deletion
 
@@ -443,7 +446,7 @@ mutable struct GDPData{M <: JuMP.AbstractModel, V <: JuMP.AbstractVariableRef, C
             _MOIUC.CleverDict{DisjunctConstraintIndex, ConstraintData}(),
             _MOIUC.CleverDict{DisjunctionIndex, ConstraintData{Disjunction{M}}}(),
             Dict{DisjunctionRef{M}, LogicalConstraintRef{M}}(),
-            Dict{LogicalVariableRef{M}, V}(),
+            Dict{LogicalVariableRef{M}, Union{V, JuMP.GenericAffExpr{T, V}}}(),
             Dict{LogicalVariableRef{M}, Vector{Union{DisjunctConstraintRef{M}, DisjunctionRef{M}}}}(),
             Dict{Union{DisjunctConstraintRef{M}, DisjunctionRef{M}}, LogicalVariableRef{M}}(),
             Dict{V, Tuple{T, T}}(),
