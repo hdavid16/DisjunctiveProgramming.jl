@@ -131,11 +131,11 @@ function test_extension_indicator()
     @test all([cobj.set isa MOI.Indicator for cobj in ref_cons_obj])
 end
 
-function test_indicator_compliment()
+function test_indicator_complement()
     model = GDPModel()
     @variable(model, x)
     @variable(model, y1, Logical)
-    @variable(model, y2, Logical, logical_compliment = y1)
+    @variable(model, y2, Logical, logical_complement = y1)
     y = [y1, y2]
     @constraint(model, x == 5, Disjunct(y[1]))
     @constraint(model, x <= 5, Disjunct(y[1]))
@@ -157,7 +157,7 @@ function test_indicator_compliment()
     A = [1 0; 0 1]
     @variable(model, x)
     @variable(model, y1, Logical)
-    @variable(model, y2, Logical, logical_compliment = y1)
+    @variable(model, y2, Logical, logical_complement = y1)
     y = [y1, y2]
     @constraint(model, A*[x,x] == [5,5], Disjunct(y[1]))
     @constraint(model, A*[x,x] <= [0,0], Disjunct(y[2]))
@@ -180,5 +180,5 @@ end
     test_indicator_sparse_axis()
     test_indicator_nested()
     test_extension_indicator()
-    test_indicator_compliment()
+    test_indicator_complement()
 end
