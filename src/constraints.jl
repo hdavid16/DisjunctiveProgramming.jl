@@ -302,17 +302,17 @@ function _check_disjunction(
             _error("`$lvref` is not a valid logical variable reference.")
         end
     end
-    if length(lvrefs) != 2 && any(has_logical_compliment.(lvrefs))
-        _error("Can only use logical compliment variables in Disjunctions " *
+    if length(lvrefs) != 2 && any(has_logical_complement.(lvrefs))
+        _error("Can only use logical complement variables in Disjunctions " *
                "with two disjuncts.")
-    elseif length(lvrefs) == 2 && any(has_logical_compliment.(lvrefs))
+    elseif length(lvrefs) == 2 && any(has_logical_complement.(lvrefs))
         T = JuMP.value_type(M)
         V = JuMP.variable_ref_type(M)
         expr1 = convert(JuMP.GenericAffExpr{T, V}, binary_variable(first(lvrefs)))
         expr2 = 1 - binary_variable(last(lvrefs))
         if !JuMP.isequal_canonical(expr1, expr2)
-            _error("When using logical compliment variables in a disjunction, " *
-                   "both logical variables must be the compliment of one another.")
+            _error("When using logical complement variables in a disjunction, " *
+                   "both logical variables must be the complement of one another.")
         end
     end
     return lvrefs
@@ -366,7 +366,7 @@ function _disjunction(
     # create the disjunction
     dref = _create_disjunction(_error, model, structure, name, false)
     # add the exactly one constraint if desired
-    if exactly1 && !any(has_logical_compliment.(structure))
+    if exactly1 && !any(has_logical_complement.(structure))
         lvars = JuMP.constraint_object(dref).indicators
         func = JuMP.model_convert.(model, Any[1, lvars...])
         set = _MOIExactly(length(lvars) + 1)
@@ -402,9 +402,9 @@ function _disjunction(
     for (kwarg, _) in extra_kwargs
         _error("Unrecognized keyword argument $kwarg.")
     end
-    # check that no logical compliment is used
-    if any(has_logical_compliment.(structure))
-        _error("Logical compliment variables are not supported for " *
+    # check that no logical complement is used
+    if any(has_logical_complement.(structure))
+        _error("Logical complement variables are not supported for " *
                "use in nested disjunctions.")
     end
     # create the disjunction
@@ -412,7 +412,7 @@ function _disjunction(
     obj = constraint_object(dref)
     _add_indicator_var(_DisjunctConstraint(obj, tag.indicator), dref, model)
     # add the exactly one constraint if desired
-    if exactly1 && !any(has_logical_compliment.(structure))
+    if exactly1 && !any(has_logical_complement.(structure))
         lvars = JuMP.constraint_object(dref).indicators
         func = LogicalVariableRef{M}[tag.indicator, lvars...]
         set = _MOIExactly(length(lvars) + 1)

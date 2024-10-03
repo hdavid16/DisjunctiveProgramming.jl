@@ -131,13 +131,13 @@ function test_lvar_delete()
     @test !is_valid(model, bvar)
 end
 
-function test_lvar_logical_compliment()
+function test_lvar_logical_complement()
     model = GDPModel()
     @variable(model, y1, Logical)
     # test addition
-    @test_throws ErrorException @variable(model, y2 == true, Logical, logical_compliment = y1)
-    @test_throws ErrorException @variable(model, y2, Logical, logical_compliment = y1, start = false)
-    @variable(model, y2, Logical, logical_compliment = y1)
+    @test_throws ErrorException @variable(model, y2 == true, Logical, logical_complement = y1)
+    @test_throws ErrorException @variable(model, y2, Logical, logical_complement = y1, start = false)
+    @variable(model, y2, Logical, logical_complement = y1)
     # test queries
     @test binary_variable(y2) == 1 - binary_variable(y1)
     @test name(y2) == "y2"
@@ -146,10 +146,10 @@ function test_lvar_logical_compliment()
     @test_throws ErrorException set_start_value(y2, false)
     @test_throws ErrorException fix(y2, false)
     @test unfix(y2) isa Nothing
-    @test has_logical_compliment(y2)
-    @test !has_logical_compliment(y1)
+    @test has_logical_complement(y2)
+    @test !has_logical_complement(y1)
     # test error for logical of logical
-    @test_throws ErrorException @variable(model, y3, Logical, logical_compliment = y2)
+    @test_throws ErrorException @variable(model, y3, Logical, logical_complement = y2)
     # test deletion
     @test delete(model, y2) isa Nothing
     @test !is_valid(model, y2)
@@ -202,7 +202,7 @@ end
         test_lvar_delete()
     end
     @testset "Logical Compliment Variables" begin
-        test_lvar_logical_compliment()
+        test_lvar_logical_complement()
     end
     @testset "Tagged Logical Variables" begin
         test_tagged_variables()

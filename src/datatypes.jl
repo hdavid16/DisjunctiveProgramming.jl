@@ -31,13 +31,13 @@ A variable type the logical variables associated with disjuncts in a [`Disjuncti
 **Fields**
 - `fix_value::Union{Nothing, Bool}`: A fixed boolean value if there is one.
 - `start_value::Union{Nothing, Bool}`: An initial guess if there is one.
-- `logical_compliment::Union{Nothing, LogicalVariableRef}`: The logical compliment of
+- `logical_complement::Union{Nothing, LogicalVariableRef}`: The logical complement of
    this variable if there is one.
 """
 struct LogicalVariable <: JuMP.AbstractVariable 
     fix_value::Union{Nothing, Bool}
     start_value::Union{Nothing, Bool}
-    logical_compliment::Union{Nothing, LogicalVariableRef}
+    logical_complement::Union{Nothing, LogicalVariableRef}
 end
 
 # Wrapper variable type for including arbitrary tags that will be used for 

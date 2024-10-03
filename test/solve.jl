@@ -1,11 +1,11 @@
 using HiGHS
 
-function test_linear_gdp_example(m, use_compliments = false)
+function test_linear_gdp_example(m, use_complements = false)
     set_attribute(m, MOI.Silent(), true)
     @variable(m, 1 ≤ x[1:2] ≤ 9)
-    if use_compliments
+    if use_complements
         @variable(m, Y1, Logical)
-        @variable(m, Y2, Logical, logical_compliment = Y1)
+        @variable(m, Y2, Logical, logical_complement = Y1)
         Y = [Y1, Y2]
     else
         @variable(m, Y[1:2], Logical)
@@ -40,7 +40,7 @@ function test_linear_gdp_example(m, use_compliments = false)
     @test value(variable_by_name(m, "x[1]_W[2]")) ≈ 0
     @test value(variable_by_name(m, "x[2]_W[1]")) ≈ 0
     @test value(variable_by_name(m, "x[2]_W[2]")) ≈ 0
-    if !use_compliments
+    if !use_complements
         @test value(variable_by_name(m, "x[1]_Y[1]")) ≈ 0
         @test value(variable_by_name(m, "x[1]_Y[2]")) ≈ 9
         @test value(variable_by_name(m, "x[2]_Y[1]")) ≈ 0

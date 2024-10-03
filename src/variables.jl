@@ -6,20 +6,20 @@
         _error::Function,
         info::JuMP.VariableInfo, 
         ::Union{Type{Logical}, Logical};
-        [logical_compliment::Union{Nothing, LogicalVariableRef} = nothing]
+        [logical_complement::Union{Nothing, LogicalVariableRef} = nothing]
         )::LogicalVariable
 
 Extend `JuMP.build_variable` to work with logical variables. This in 
 combination with `JuMP.add_variable` enables the use of 
-`@variable(model, [var_expr], Logical)`. Optionally, a `logical_compliment`
-can be given which provides a logical variable that is the compliment of this
+`@variable(model, [var_expr], Logical)`. Optionally, a `logical_complement`
+can be given which provides a logical variable that is the complement of this
 one (common for disjunctions with two disjuncts).
 """
 function JuMP.build_variable(
     _error::Function, 
     info::JuMP.VariableInfo, 
     tag::Type{Logical};
-    logical_compliment::Union{Nothing, LogicalVariableRef} = nothing,
+    logical_complement::Union{Nothing, LogicalVariableRef} = nothing,
     kwargs...
     )
     # check for invalid input
@@ -34,21 +34,21 @@ function JuMP.build_variable(
         _error("Invalid fix value, must be false or true.")
     elseif info.has_start && !isone(info.start) && !iszero(info.start)
         _error("Invalid start value, must be false or true.")
-    elseif (info.has_start || info.has_fix) && !isnothing(logical_compliment)
+    elseif (info.has_start || info.has_fix) && !isnothing(logical_complement)
         _error("Cannot fix or provide a start value for a logical variable " *
-               "that is a logical compliment variable. Try adding these " *
-               "properties to the variable it is the compliment of.")
-    elseif !isnothing(logical_compliment) && has_logical_compliment(logical_compliment)
-        _error("Cannot specify a logical compliment that itself is a " *
-               "logical compliment. For two logical variables that " *
-               "are the compliment of one another, only use the " * 
-               "`logical_compliment` argument on one of them.")
+               "that is a logical complement variable. Add these " *
+               "properties to the variable that is its complement.")
+    elseif !isnothing(logical_complement) && has_logical_complement(logical_complement)
+        _error("Cannot specify a logical complement that itself is a " *
+               "logical complement. For two logical variables that " *
+               "are the complement of one another, only use the " * 
+               "`logical_complement` argument on one of them.")
     end
 
     # create the variable
     fix = info.has_fix ? Bool(info.fixed_value) : nothing
     start = info.has_start ? Bool(info.start) : nothing
-    return LogicalVariable(fix, start, logical_compliment)
+    return LogicalVariable(fix, start, logical_complement)
 end
 
 # Logical variable with tag data
@@ -115,12 +115,12 @@ function JuMP.add_variable(
     lvref = LogicalVariableRef(model, idx)
     _set_ready_to_optimize(model, false)
     # add the associated binary variables
-    if isnothing(_get_variable(v).logical_compliment)
+    if isnothing(_get_variable(v).logical_complement)
         bvref = _make_binary_variable(model, v, name)
         _add_logical_info(bvref, v)
         jump_expr = bvref
     else
-        jump_expr = 1 - binary_variable(v.logical_compliment)
+        jump_expr = 1 - binary_variable(v.logical_complement)
     end
     _indicator_to_binary(model)[lvref] = jump_expr
     return lvref
@@ -203,7 +203,7 @@ function JuMP.set_name(vref::LogicalVariableRef, name::String)
     data = gdp_data(model)
     data.logical_variables[JuMP.index(vref)].name = name
     _set_ready_to_optimize(model, false)
-    if !has_logical_compliment(vref)
+    if !has_logical_complement(vref)
         JuMP.set_name(binary_variable(vref), name)
     end
     return
@@ -229,9 +229,9 @@ function JuMP.set_start_value(
     vref::LogicalVariableRef, 
     value::Union{Nothing, Bool}
     )
-    if has_logical_compliment(vref)
-        error("Cannot set the start value of a logical compliment variable. ",
-              "Try setting the start value of its logical compliment instead.")
+    if has_logical_complement(vref)
+        error("Cannot set the start value of a logical complement variable. ",
+              "Set the start value of its logical complement instead.")
     end
     new_var = LogicalVariable(JuMP.fix_value(vref), value, nothing)
     _set_variable_object(vref, new_var)
@@ -266,9 +266,9 @@ constraint if one exists, otherwise create a
 new one.
 """
 function JuMP.fix(vref::LogicalVariableRef, value::Bool)
-    if has_logical_compliment(vref)
-        error("Cannot fix value of a logical variable compliment. ",
-             "Try fixing its logical compliment instead.")
+    if has_logical_complement(vref)
+        error("Cannot fix value of a logical variable complement. ",
+             "Fix its logical complement instead.")
     end
     new_var = LogicalVariable(value, JuMP.start_value(vref), nothing)
     _set_variable_object(vref, new_var)
@@ -282,7 +282,7 @@ end
 Delete the fixed value of a logical variable.
 """
 function JuMP.unfix(vref::LogicalVariableRef)
-    has_logical_compliment(vref) && return
+    has_logical_complement(vref) && return
     new_var = LogicalVariable(nothing, JuMP.start_value(vref), nothing)
     _set_variable_object(vref, new_var)
     JuMP.unfix(binary_variable(vref))
@@ -296,9 +296,9 @@ end
 
 Returns the underlying binary variable for the logical variable `vref` which 
 is used in the reformulated model. This is helpful to embed logical variables 
-in algebraic constraints. If `vref` has a logical compliment then an expression
+in algebraic constraints. If `vref` has a logical complement then an expression
 of the form `1 - bvref` is returned where `bvref` is the binary variable of the
-logical compliment variable.
+logical complement variable.
 """
 function binary_variable(vref::LogicalVariableRef)
     model = JuMP.owner_model(vref)
@@ -306,13 +306,13 @@ function binary_variable(vref::LogicalVariableRef)
 end
 
 """
-    has_logical_compliment(vref::LogicalVariableRef)::Bool
+    has_logical_complement(vref::LogicalVariableRef)::Bool
 
-Return a `Bool` whether a `vref` is a logical compliment of
+Return a `Bool` whether a `vref` is a logical complement of
 another logical variable.
 """
-function has_logical_compliment(vref::LogicalVariableRef)
-    return !isnothing(_variable_object(vref).logical_compliment)
+function has_logical_complement(vref::LogicalVariableRef)
+    return !isnothing(_variable_object(vref).logical_complement)
 end
 
 """
@@ -355,7 +355,7 @@ function JuMP.delete(model::JuMP.AbstractModel, vref::LogicalVariableRef)
         end
     end
     # delete the logical variable
-    if !has_logical_compliment(vref)
+    if !has_logical_complement(vref)
         JuMP.delete(model, binary_variable(vref))
     end
     delete!(dict, vidx)
