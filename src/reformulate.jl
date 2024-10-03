@@ -78,8 +78,9 @@ function _reformulate_disjunctions(model::JuMP.AbstractModel, method::AbstractRe
         dref = DisjunctionRef(model, idx)
         if requires_exactly1(method) && !haskey(gdp_data(model).exactly1_constraints, dref) &&
             !any(has_logical_compliment.(disj.constraint.indicators))
-            error("Reformulation method `$method` requires disjunctions where only 1 disjunct is selected, " *
-                  "but `exactly1 = false` for disjunction `$dref`.")
+            error("Reformulation method `$method` requires disjunctions where only 1 disjunct is selected, ",
+                  "but `exactly1 = false` or none of the logical variables are logical compliments ",
+                  "for disjunction `$dref`.")
         end
         if requires_variable_bound_info(method)
             for vref in _get_disjunction_variables(model, disj.constraint)

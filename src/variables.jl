@@ -35,11 +35,14 @@ function JuMP.build_variable(
     elseif info.has_start && !isone(info.start) && !iszero(info.start)
         _error("Invalid start value, must be false or true.")
     elseif (info.has_start || info.has_fix) && !isnothing(logical_compliment)
-        _error("Cannot fix or provide a start value for logical variable " *
-               "that has a logical compliment variable.")
+        _error("Cannot fix or provide a start value for a logical variable " *
+               "that is a logical compliment variable. Try adding these " *
+               "properties to the variable it is the compliment of.")
     elseif !isnothing(logical_compliment) && has_logical_compliment(logical_compliment)
         _error("Cannot specify a logical compliment that itself is a " *
-               "logical compliment.")
+               "logical compliment. For two logical variables that " *
+               "are the compliment of one another, only use the " * 
+               "`logical_compliment` argument on one of them.")
     end
 
     # create the variable
@@ -227,7 +230,8 @@ function JuMP.set_start_value(
     value::Union{Nothing, Bool}
     )
     if has_logical_compliment(vref)
-        error("Cannot set the start value of a variable with a logical compliment.")
+        error("Cannot set the start value of a logical compliment variable. ",
+              "Try setting the start value of its logical compliment instead.")
     end
     new_var = LogicalVariable(JuMP.fix_value(vref), value, nothing)
     _set_variable_object(vref, new_var)
@@ -263,7 +267,8 @@ new one.
 """
 function JuMP.fix(vref::LogicalVariableRef, value::Bool)
     if has_logical_compliment(vref)
-        error("Cannot fix value of a variable with a logical compliment.")
+        error("Cannot fix value of a logical variable compliment. ",
+             "Try fixing its logical compliment instead.")
     end
     new_var = LogicalVariable(value, JuMP.start_value(vref), nothing)
     _set_variable_object(vref, new_var)
