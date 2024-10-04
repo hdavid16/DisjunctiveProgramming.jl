@@ -104,7 +104,7 @@ end
 function _disaggregate_expression(
     model::JuMP.AbstractModel, 
     vref::JuMP.AbstractVariableRef, 
-    bvref::JuMP.AbstractVariableRef, 
+    bvref::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr}, 
     method::_Hull
     )
     if JuMP.is_binary(vref) || !haskey(method.disjunct_variables, (vref, bvref)) #keep any binary variables or nested disaggregated variables unchanged 
@@ -117,7 +117,7 @@ end
 function _disaggregate_expression(
     model::JuMP.AbstractModel, 
     aff::JuMP.GenericAffExpr, 
-    bvref::JuMP.AbstractVariableRef, 
+    bvref::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr}, 
     method::_Hull
     )
     new_expr = @expression(model, aff.constant*bvref) #multiply constant by binary indicator variable
@@ -137,7 +137,7 @@ end
 function _disaggregate_expression(
     model::JuMP.AbstractModel, 
     quad::JuMP.GenericQuadExpr, 
-    bvref::JuMP.AbstractVariableRef, 
+    bvref::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr}, 
     method::_Hull
     )
     #get affine part
@@ -155,7 +155,7 @@ end
 function _disaggregate_nl_expression(
     ::JuMP.AbstractModel, 
     c::Number, 
-    ::JuMP.AbstractVariableRef, 
+    ::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr}, 
     ::_Hull
     )
     return c
@@ -164,7 +164,7 @@ end
 function _disaggregate_nl_expression(
     ::JuMP.AbstractModel, 
     vref::JuMP.AbstractVariableRef, 
-    bvref::JuMP.AbstractVariableRef, 
+    bvref::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr}, 
     method::_Hull
     )
     ϵ = method.value
@@ -179,7 +179,7 @@ end
 function _disaggregate_nl_expression(
     ::JuMP.AbstractModel, 
     aff::JuMP.GenericAffExpr, 
-    bvref::JuMP.AbstractVariableRef, 
+    bvref::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr}, 
     method::_Hull
     )
     new_expr = aff.constant
@@ -200,7 +200,7 @@ end
 function _disaggregate_nl_expression(
     model::JuMP.AbstractModel, 
     quad::JuMP.GenericQuadExpr, 
-    bvref::JuMP.AbstractVariableRef, 
+    bvref::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr}, 
     method::_Hull)
     #get affine part
     new_expr = _disaggregate_nl_expression(model, quad.aff, bvref, method)
@@ -217,7 +217,7 @@ end
 function _disaggregate_nl_expression(
     model::JuMP.AbstractModel, 
     nlp::NLP, 
-    bvref::JuMP.AbstractVariableRef, 
+    bvref::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr}, 
     method::_Hull
     ) where {NLP <: JuMP.GenericNonlinearExpr}
     new_args = Vector{Any}(undef, length(nlp.args))
@@ -265,7 +265,7 @@ end
 function reformulate_disjunct_constraint(
     model::JuMP.AbstractModel, 
     con::JuMP.ScalarConstraint{T, S}, 
-    bvref::JuMP.AbstractVariableRef, 
+    bvref::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr}, 
     method::_Hull
 ) where {T <: JuMP.AbstractJuMPScalar, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
     new_func = _disaggregate_expression(model, con.func, bvref, method)
@@ -277,7 +277,7 @@ end
 function reformulate_disjunct_constraint(
     model::JuMP.AbstractModel, 
     con::JuMP.VectorConstraint{T, S, R}, 
-    bvref::JuMP.AbstractVariableRef, 
+    bvref::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr}, 
     method::_Hull
 ) where {T <: JuMP.AbstractJuMPScalar, S <: Union{_MOI.Nonpositives, _MOI.Nonnegatives, _MOI.Zeros}, R}
     new_func = JuMP.@expression(model, [i=1:con.set.dimension],
@@ -289,7 +289,7 @@ end
 function reformulate_disjunct_constraint(
     model::JuMP.AbstractModel, 
     con::JuMP.ScalarConstraint{T, S}, 
-    bvref::JuMP.AbstractVariableRef,
+    bvref::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr},
     method::_Hull
 ) where {T <: JuMP.GenericNonlinearExpr, S <: Union{_MOI.LessThan, _MOI.GreaterThan, _MOI.EqualTo}}
     con_func = _disaggregate_nl_expression(model, con.func, bvref, method)
@@ -306,7 +306,7 @@ end
 function reformulate_disjunct_constraint(
     model::JuMP.AbstractModel, 
     con::JuMP.VectorConstraint{T, S, R}, 
-    bvref::JuMP.AbstractVariableRef,
+    bvref::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr},
     method::_Hull
 ) where {T <: JuMP.GenericNonlinearExpr, S <: Union{_MOI.Nonpositives, _MOI.Nonnegatives, _MOI.Zeros}, R}
     con_func = JuMP.@expression(model, [i=1:con.set.dimension],
@@ -326,7 +326,7 @@ end
 function reformulate_disjunct_constraint(
     model::JuMP.AbstractModel, 
     con::JuMP.ScalarConstraint{T, S}, 
-    bvref::JuMP.AbstractVariableRef,
+    bvref::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr},
     method::_Hull
 ) where {T <: JuMP.AbstractJuMPScalar, S <: _MOI.Interval}
     new_func = _disaggregate_expression(model, con.func, bvref, method)
@@ -339,7 +339,7 @@ end
 function reformulate_disjunct_constraint(
     model::JuMP.AbstractModel, 
     con::JuMP.ScalarConstraint{T, S}, 
-    bvref::JuMP.AbstractVariableRef,
+    bvref::Union{JuMP.AbstractVariableRef, JuMP.GenericAffExpr},
     method::_Hull
 ) where {T <: JuMP.GenericNonlinearExpr, S <: _MOI.Interval}
     con_func = _disaggregate_nl_expression(model, con.func, bvref, method)

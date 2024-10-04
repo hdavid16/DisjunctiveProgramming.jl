@@ -11,6 +11,15 @@ function reformulate_disjunct_constraint(
     reform_con = JuMP.build_constraint(error, [1*bvref, con.func], _MOI.Indicator{_MOI.ACTIVATE_ON_ONE}(con.set))
     return [reform_con]
 end
+function reformulate_disjunct_constraint(
+    ::JuMP.AbstractModel,
+    con::JuMP.ScalarConstraint{T, S},
+    bvref::JuMP.GenericAffExpr,
+    ::Indicator
+) where {T, S}
+    reform_con = JuMP.build_constraint(error, [1 - bvref, con.func], _MOI.Indicator{_MOI.ACTIVATE_ON_ZERO}(con.set))
+    return [reform_con]
+end
 #vectorized disjunct constraint
 function reformulate_disjunct_constraint(
     ::JuMP.AbstractModel,
@@ -21,6 +30,18 @@ function reformulate_disjunct_constraint(
     set = _vec_to_scalar_set(con.set)
     return [
         JuMP.build_constraint(error, [1*bvref, f], _MOI.Indicator{_MOI.ACTIVATE_ON_ONE}(set)) 
+        for f in con.func
+    ]
+end
+function reformulate_disjunct_constraint(
+    ::JuMP.AbstractModel,
+    con::JuMP.VectorConstraint{T, S},
+    bvref::JuMP.GenericAffExpr,
+    ::Indicator
+) where {T, S}
+    set = _vec_to_scalar_set(con.set)
+    return [
+        JuMP.build_constraint(error, [1 - bvref, f], _MOI.Indicator{_MOI.ACTIVATE_ON_ZERO}(set)) 
         for f in con.func
     ]
 end

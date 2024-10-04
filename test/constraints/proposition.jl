@@ -30,11 +30,11 @@ function test_implication_add_success()
     @constraint(model, c1, implies(y...) := true)
     @constraint(model, c2, y[1] ⟹ y[2] := true)
     @constraint(model, c3, y[1] ⟹ y[2] := false)
-    @test constraint_object(c1).func.head == 
+    @test constraint_object(c1).func.head ==
             constraint_object(c2).func.head == :(=>)
     @test constraint_object(c1).func.args ==
             constraint_object(c2).func.args == Vector{Any}(y)
-    @test constraint_object(c1).set == 
+    @test constraint_object(c1).set ==
             constraint_object(c2).set == MOI.EqualTo{Bool}(true)
     @test constraint_object(c3).func.head == :!
     @test constraint_object(c3).set == MOI.EqualTo{Bool}(true)
@@ -46,11 +46,11 @@ function test_equivalence_add_success()
     @constraint(model, c1, iff(y...) := true)
     @constraint(model, c2, y[1] ⇔ y[2] := true)
     @constraint(model, y[1] == y[2] := true)
-    @test constraint_object(c1).func.head == 
+    @test constraint_object(c1).func.head ==
             constraint_object(c2).func.head == :(==)
     @test constraint_object(c1).func.args ==
             constraint_object(c2).func.args == Vector{Any}(y)
-    @test constraint_object(c1).set == 
+    @test constraint_object(c1).set ==
             constraint_object(c2).set == MOI.EqualTo{Bool}(true)
 end
 
@@ -63,14 +63,14 @@ function test_intersection_and_flatten_add_success()
     @test is_valid(model, c1)
     @test is_valid(model, c2)
     @test is_valid(model, c3)
-    @test constraint_object(c1).func.head == 
-            constraint_object(c2).func.head == 
+    @test constraint_object(c1).func.head ==
+            constraint_object(c2).func.head ==
             constraint_object(c3).func.head == :&&
     @test Set(constraint_object(c1).func.args) ==
             Set(constraint_object(c2).func.args) ==
             Set(DP._flatten(constraint_object(c3).func).args)
-    @test constraint_object(c1).set == 
-            constraint_object(c2).set == 
+    @test constraint_object(c1).set ==
+            constraint_object(c2).set ==
             constraint_object(c3).set == MOI.EqualTo{Bool}(true)
 end
 
@@ -83,14 +83,14 @@ function test_union_and_flatten_add_success()
     @test is_valid(model, c1)
     @test is_valid(model, c2)
     @test is_valid(model, c3)
-    @test constraint_object(c1).func.head == 
-            constraint_object(c2).func.head == 
+    @test constraint_object(c1).func.head ==
+            constraint_object(c2).func.head ==
             constraint_object(c3).func.head == :||
     @test Set(constraint_object(c1).func.args) ==
             Set(constraint_object(c2).func.args) ==
             Set(DP._flatten(constraint_object(c3).func).args)
-    @test constraint_object(c1).set == 
-            constraint_object(c2).set == 
+    @test constraint_object(c1).set ==
+            constraint_object(c2).set ==
             constraint_object(c3).set == MOI.EqualTo{Bool}(true)
 end
 
@@ -152,7 +152,7 @@ function test_implication_reformulation()
     @test is_valid(model, ref_con)
     ref_con_obj = constraint_object(ref_con)
     @test ref_con_obj.set == MOI.GreaterThan(0.0)
-    @test ref_con_obj.func == 
+    @test ref_con_obj.func ==
         -DP._indicator_to_binary(model)[y[1]] +
         DP._indicator_to_binary(model)[y[2]]
 end
@@ -172,7 +172,7 @@ function test_equivalence_reformulation()
     ref_cons = DP._reformulation_constraints(model)
     @test all(is_valid.(model, ref_cons))
     ref_con_objs = constraint_object.(ref_cons)
-    @test ref_con_objs[1].set == 
+    @test ref_con_objs[1].set ==
             ref_con_objs[2].set == MOI.GreaterThan(0.0)
     @test ref_con_objs[1].func == -ref_con_objs[2].func
     bvars = DP._indicator_to_binary(model)
@@ -199,7 +199,7 @@ function test_intersection_reformulation()
     @test -1bvars[y[2]] in funcs
 end
 
-function test_implication_reformulation()
+function test_union_reformulation()
     model = GDPModel()
     @variable(model, y[1:2], Logical)
     @constraint(model, ∨(y[1], y[2]) := true)
@@ -208,7 +208,7 @@ function test_implication_reformulation()
     @test is_valid(model, ref_con)
     ref_con_obj = constraint_object(ref_con)
     @test ref_con_obj.set == MOI.GreaterThan(1.0)
-    @test ref_con_obj.func == 
+    @test ref_con_obj.func ==
         DP._indicator_to_binary(model)[y[1]] +
         DP._indicator_to_binary(model)[y[2]]
 end
@@ -368,7 +368,7 @@ function test_negate_and()
     @test new_ex.args[1].head == :!
     @test new_ex.args[1].args[1] == y[1]
     @test new_ex.args[2].head == :!
-    @test new_ex.args[2].args[1] == y[2]    
+    @test new_ex.args[2].args[1] == y[2]
 end
 
 function test_negate_and_error()
@@ -395,7 +395,7 @@ function test_distribute_and_over_or()
     ex = y[1] ∨ (y[2] ∧ y[3])
     new_ex = DP._distribute_and_over_or(ex)
     @test new_ex.head == :&&
-    @test new_ex.args[1].head == 
+    @test new_ex.args[1].head ==
             new_ex.args[2].head == :||
     @test y[1] in new_ex.args[1].args
     @test y[1] in new_ex.args[2].args
@@ -519,7 +519,7 @@ end
         test_implication_reformulation_fail()
         test_equivalence_reformulation()
         test_intersection_reformulation()
-        test_implication_reformulation()
+        test_union_reformulation()
         test_reformulate_clause_error()
     end
     @testset "Conjunctive Normal Form" begin

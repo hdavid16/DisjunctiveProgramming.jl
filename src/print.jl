@@ -38,14 +38,14 @@ JuMP.op_string(::MIME"text/plain", ::_LogicalExpr, ::Val{:(=>)}) =  Sys.iswindow
 ################################################################################
 # Return the string of a DisjunctConstraintRef
 function JuMP.constraint_string(
-    mode::MIME, 
-    cref::DisjunctConstraintRef; 
+    mode::MIME,
+    cref::DisjunctConstraintRef;
     in_math_mode = false
     )
     constr_str = JuMP.constraint_string(
-        mode, 
-        JuMP.name(cref), 
-        JuMP.constraint_object(cref); 
+        mode,
+        JuMP.name(cref),
+        JuMP.constraint_object(cref);
         in_math_mode = true
         )
     model = JuMP.owner_model(cref)
@@ -64,13 +64,13 @@ end
 
 # Give the constraint string for a logical constraint
 function JuMP.constraint_string(
-    mode::MIME"text/latex", 
+    mode::MIME"text/latex",
     con::JuMP.ScalarConstraint{<:_LogicalExpr, <:MOI.EqualTo}
     )
     return JuMP.function_string(mode, con) * " = \\text{True}"
 end
 function JuMP.constraint_string(
-    mode::MIME"text/plain", 
+    mode::MIME"text/plain",
     con::JuMP.ScalarConstraint{<:_LogicalExpr, <:MOI.EqualTo}
     )
     return JuMP.function_string(mode, con) * " = True"
@@ -85,21 +85,21 @@ end
 
 # Return the string of a LogicalConstraintRef
 function JuMP.constraint_string(
-    mode::MIME, 
-    cref::LogicalConstraintRef; 
+    mode::MIME,
+    cref::LogicalConstraintRef;
     in_math_mode = false
     )
     return JuMP.constraint_string(
-        mode, 
-        JuMP.name(cref), 
-        JuMP.constraint_object(cref); 
+        mode,
+        JuMP.name(cref),
+        JuMP.constraint_object(cref);
         in_math_mode = in_math_mode
     )
 end
 
 # Return the string of a Disjunction for plain printing
 function JuMP.constraint_string(
-    mode::MIME"text/plain", 
+    mode::MIME"text/plain",
     d::Disjunction
     )
     model = JuMP.owner_model(first(d.indicators))
@@ -107,7 +107,11 @@ function JuMP.constraint_string(
     disjuncts = Vector{String}(undef, length(d.indicators))
     for (i, lvar) in enumerate(d.indicators)
         disjunct = string("[", JuMP.function_string(mode, lvar), " ", _imply_symbol(mode), " {")
-        cons = (JuMP.constraint_string(mode, JuMP.constraint_object(cref)) for cref in mappings[lvar])
+        if haskey(mappings, lvar)
+            cons = (JuMP.constraint_string(mode, JuMP.constraint_object(cref)) for cref in mappings[lvar])
+        else
+            cons = ""
+        end
         disjuncts[i] = string(disjunct, join(cons, "; "), "}]")
     end
     return join(disjuncts, " $(_dor_symbol(mode)) ")
@@ -115,7 +119,7 @@ end
 
 # Return the string of a Disjunction for latex printing
 function JuMP.constraint_string(
-    mode::MIME"text/latex", 
+    mode::MIME"text/latex",
     d::Disjunction
     )
     model = JuMP.owner_model(first(d.indicators))
@@ -123,7 +127,11 @@ function JuMP.constraint_string(
     disjuncts = Vector{String}(undef, length(d.indicators))
     for (i, lvar) in enumerate(d.indicators)
         disjunct = string("\\begin{bmatrix}\n ", JuMP.function_string(mode, lvar), "\\\\\n ")
-        cons = (JuMP.constraint_string(mode, JuMP.constraint_object(cref)) for cref in mappings[lvar])
+        if haskey(mappings, lvar)
+            cons = (JuMP.constraint_string(mode, JuMP.constraint_object(cref)) for cref in mappings[lvar])
+        else
+            cons = ""
+        end
         disjuncts[i] = string(disjunct, join(cons, "\\\\\n "), "\\end{bmatrix}")
     end
     return join(disjuncts, " $(_dor_symbol(mode)) ")
@@ -131,7 +139,7 @@ end
 
 # Return the string of a DisjunctionRef
 function JuMP.constraint_string(
-    mode::MIME, 
+    mode::MIME,
     dref::DisjunctionRef;
     in_math_mode::Bool = false
     )

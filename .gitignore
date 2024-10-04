@@ -11,3 +11,11 @@
 /docs/src/examples/*/*.png
 /docs/Manifest.toml
 .vscode/
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.fdb_latexmk
+*.fls
+*.synctex.gz

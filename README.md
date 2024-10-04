@@ -1,7 +1,8 @@
 # DisjunctiveProgramming.jl
-Generalized Disjunctive Programming (GDP) extension to JuMP, based on the GDP modeling paradigm described in [Perez and Grossmann, 2023](https://arxiv.org/abs/2303.04375).
 
-![](logo.png)
+A Generalized Disjunctive Programming (GDP) extension to JuMP.
+
+![logo](logo.png)
 
 [![codecov](https://codecov.io/gh/hdavid16/DisjunctiveProgramming.jl/graph/badge.svg?token=3FRPGMWF0J)](https://codecov.io/gh/hdavid16/DisjunctiveProgramming.jl)
 [![Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://hdavid16.github.io/DisjunctiveProgramming.jl/stable/)
@@ -12,6 +13,35 @@ Generalized Disjunctive Programming (GDP) extension to JuMP, based on the GDP mo
 ```julia
 using Pkg
 Pkg.add("DisjunctiveProgramming")
+```
+
+## Reference
+
+The theory behind the GDP modeling paradigm is described in the following references:
+
+- [JuliaCon 2022 Proceedings](https://proceedings.juliacon.org/papers/10.21105/jcon.00117)
+- [Perez and Grossmann (2023)](https://arxiv.org/abs/2303.04375)
+- [Generalized Disjunctive Programming](https://optimization.cbe.cornell.edu/index.php?title=Convex_generalized_disjunctive_programming_(GDP))
+- [Disjunctive Inequalities](https://optimization.cbe.cornell.edu/index.php?title=Disjunctive_inequalities)
+
+## Citing
+
+[![DOI](https://proceedings.juliacon.org/papers/10.21105/jcon.00117/status.svg)](https://doi.org/10.21105/jcon.00117)
+
+If you use DisjunctiveProgramming.jl in your research, we would greatly appreciate your
+citing it.
+
+```latex
+@article{Perez2023,
+  title = {DisjunctiveProgramming.jl: Generalized Disjunctive Programming Models and Algorithms for JuMP},
+  author = {Hector D. Perez and Shivank Joshi and Ignacio E. Grossmann},
+  journal = {Proceedings of the JuliaCon Conferences},
+  year = {2023},
+  publisher = {The Open Journal},
+  volume = {1},
+  number = {1},
+  pages = {117}
+}
 ```
 
 ## Model
@@ -53,6 +83,14 @@ Logical variables are JuMP `AbstractVariable`s with two fields: `fix_value` and 
 
 ```julia
 @variable(model, Y[1:3], Logical)
+```
+
+When making logical variables for disjunctions with only two disjuncts, we can use the `logical_complement` argument to prevent creating uncessary binary variables when reformulating:
+
+```julia
+
+@variable(model, Y1, Logical)
+@variable(model, Y2, Logical, logical_complement = Y1) # Y2 ⇔ ¬Y1
 ```
 
 ## Logical Constraints
@@ -223,5 +261,6 @@ print(m)
 ```
 
 ## Contributing
+
 `DisjunctiveProgramming` is being actively developed and suggestions or other forms of contribution are encouraged.
 There are many ways to contribute to this package. Feel free to create an issue to address questions or provide feedback.

@@ -8,7 +8,7 @@
 \title{DisjunctiveProgramming.jl: Generalized Disjunctive Programming Models and Algorithms for JuMP}
 \author{
   \large Hector D. Perez, Shivank Joshi, Ignacio E. Grossmann*
-  \\\normalsize Carnegie Mellon University, Pittsburgh, PA, USA  
+  \\\normalsize Carnegie Mellon University, Pittsburgh, PA, USA
   \\\normalsize	*grossmann@cmu.edu
 }
 
@@ -30,7 +30,7 @@ Within the optimization community, there is a high volume of ongoing research th
 This paper provides background on the GDP paradigm, and the techniques for reformulating and solving such models. It then presents the package \verb|DisjunctiveProgramming.jl| as an extension to \verb|JuMP.jl| for creating models for optimization that follow the GDP modeling paradigm and can be solved using the vast list of supported solvers \cite{dunning_huchette_lubin_2017}. A case study demonstrates the use of the package for chemical process superstructure optimization.
 
 \section{Generalized Disjunctive Programming}
-The GDP form of modeling is an abstraction that uses both algebraic and logical constraints to capture the fundamental rules governing a system. The two main reformulation strategies to transform GDP models into their equivalent MIP models are the Big-M reformulation \cite{nemhauser_1999, TRESPALACIOS201598} and the Hull reformulation \cite{LEE20002125}, the latter of which yields tighter models at the expense of larger model sizes \cite{grossmann_lee_2003}. 
+The GDP form of modeling is an abstraction that uses both algebraic and logical constraints to capture the fundamental rules governing a system. The two main reformulation strategies to transform GDP models into their equivalent MIP models are the Big-M reformulation \cite{nemhauser_1999, TRESPALACIOS201598} and the Hull reformulation \cite{LEE20002125}, the latter of which yields tighter models at the expense of larger model sizes \cite{grossmann_lee_2003}.
 
 \subsection{Model}
 
@@ -62,7 +62,7 @@ In the case of a linear objective function and constraint set, the GDP model can
     & Y_{ik} \in \{true, false\} \quad \forall i \in J_k, k \in K
 \end{align*}
 
-\subsection{Solution Technique: Reformulation to Mixed-Integer Program}
+\subsection{Solution Technique: Reformulation to Mixed-Integer Program} \label{reformulation}
 The simplest example of a linear GDP system is given below, where $Y_i$ is a Boolean indicator variable that enforces the constraints in the disjunct ($Ax \le b$ or $Cx \le d$) when $true$,
 
 \begin{align*}
@@ -89,7 +89,7 @@ For visualization purposes and without loss of generality, the simple linear exa
 
  \subsubsection{Big-M Reformulation}
  The Big-M reformulation for this problem is given below, where $M$ is a sufficiently large scalar that makes the particular constraint redundant when its indicator variable is not selected (i.e., $y_i = 0$). Note that the Boolean variables, $Y_i$, are replaced by binary variables, $y_i$. When the integrality constraint $y_1,y_2 \in \{0,1\}$ is relaxed to $0 \leq x_1, x_2 \leq 1$, the resulting feasible region can be visualized by projecting the relaxed model onto the $x_1, x_2$ plane. This results in the region encapsulated by the dashed line in Figure \ref{fig:bigm}. It should be noted that the relaxed feasible region is not as tight as possible around the original feasible solution space. The choice of the large $M$ value determines the tightness of this relaxation, and the minimal value of $M$ for the optimal relaxation can be found through interval arithmetic when the model is linear. For nonlinear models, the tightest $M$ can be obtained by solving the maximization problem $\{\max h_{ik}(x): x \in X\}$. An alternate method for tight Big-M relaxations is given in \cite{TRESPALACIOS201598}.
- 
+
 \begin{align*}
     & Ax \leq b + M \cdot (1 - y_1) \\
     & Cx \leq d + M \cdot (1 - y_2) \\
@@ -111,8 +111,8 @@ The Hull reformulation is given below. This formulation requires lifting the mod
 \begin{align*}
     & Ax_1 \leq by_1 \\
     & Cx_2 \leq dy_2 \\
-    & x = x_1 + x_2 \\ 
-    & y_1 + y_2 = 1 \\ 
+    & x = x_1 + x_2 \\
+    & y_1 + y_2 = 1 \\
     & 0 \leq x \leq U \\
     & 0 \leq x_i \leq U y_i \quad \forall i \in \{1,2\} \\
     & y_1, y_2 \in \{0,1\}
@@ -154,7 +154,7 @@ Selection constraints analogous to those used in Constraint Programming (CP) can
     \text{atmost}(n, Y) &  \ \ \text{becomes} \ \ n \geq \sum_i Y_i
 \end{align*}
 
-Exclusive-OR constraints as the one given in Eq. \eqref{eq:simple_xor} are more generally modeled as $exactly(1,\{Y_1,Y_2\})$.
+Exclusive-OR constraints as the one used in Section \ref{reformulation} are more generally modeled as $exactly(1,\{Y_1,Y_2\})$.
 
 \subsection{Other Solution Techniques} \label{other_techniques}
 
@@ -162,11 +162,11 @@ Exclusive-OR constraints as the one given in Eq. \eqref{eq:simple_xor} are more 
 The disjunctive branch and bound method closely mirrors the standard branch and bound approach for the solution of mixed-integer programming problems \cite{grossmann_lee_2003}. A search tree is initialized by solving the continuous relaxation of the Big-M or Hull reformulation of the original GDP to obtain a lower bound on the optimum. Branching is then done on the disjunction with an indicator binary variable closest to 1. Two nodes are created at this point: one where the respective indicator Boolean variable is fixed to $true$ (the disjunct is enforced) and another where it is fixed to $false$ (the disjunct is removed from the disjunction). Each node is reformulated and solved to obtain a candidate lower bound. If the solution to a node results in a feasible solution that satisfies all integrality constraints, the solution is an upper bound on the optimum. Any non-integral solutions that exceed an upper bound are pruned from the search tree. The process is repeated until the lower and upper bounds are within the desired tolerance.
 
 \subsubsection{Logic-based outer approximation}
-Logic-based outer approximation is another algorithm which mirrors a standard technique for solving mixed-integer nonlinear programming problems \cite{E.Grossmann2009}. This approach starts by identifying a set of reduced Non-Linear Programming (NLP) sub-problems obtained by fixing Boolean variables in the different disjunctions such that each disjunct is selected at least once across the set of sub-problems (set covering step). 
+Logic-based outer approximation is another algorithm which mirrors a standard technique for solving mixed-integer nonlinear programming problems \cite{E.Grossmann2009}. This approach starts by identifying a set of reduced Non-Linear Programming (NLP) sub-problems obtained by fixing Boolean variables in the different disjunctions such that each disjunct is selected at least once across the set of sub-problems (set covering step).
 Each sub-problem is solved to obtain an upper bound and a feasible point, about which the objective and constraints of the original GDP are linearized, and solve the resulting problem (via direct reformulation to MILP or via disjunctive branch and bound) to find a lower bound. If the lower and upper bound solutions have not converged, the Boolean variables from the previous solution are fixed and the resulting NLP is solved to find a potentially tighter upper bound solution. The procedure is repeated until convergence is obtained.
 
 \subsubsection{Hybrid cutting planes}
-The cutting planes method is an algorithm for tightening the relaxed solution space of a problem reformulated with Big-M before solving it by adding additional constraints which remove parts of the relaxed space that are disjoint from the actual feasible solution space. These "cuts" to the relaxed solution space are derived from the tighter, hull relaxation of the problem. This algorithm provides a middle-ground for the tradeoff between the complexity and corresponding computational expense of the Hull reformulation with the less tight Big-M reformulation. \cite{trespalacios_grossmann_2016}. 
+The cutting planes method is an algorithm for tightening the relaxed solution space of a problem reformulated with Big-M before solving it by adding additional constraints which remove parts of the relaxed space that are disjoint from the actual feasible solution space. These "cuts" to the relaxed solution space are derived from the tighter, hull relaxation of the problem. This algorithm provides a middle-ground for the tradeoff between the complexity and corresponding computational expense of the Hull reformulation with the less tight Big-M reformulation. \cite{trespalacios_grossmann_2016}.
 
 \begin{figure*}
     \centering
@@ -228,7 +228,7 @@ The above system can be modeled and reformulated via the Big-M reformulation usi
 
 \begin{enumerate}
     \item Create the JuMP model and define the model variables and global constraints (mass balances).
-    
+
 \begin{lstlisting}[language = Julia]
 using DisjunctiveProgramming, HiGHS
 
@@ -250,7 +250,7 @@ m = GDPModel(HiGHS.Optimizer)
     end
 )
 \end{lstlisting}
-    \item Define the inner (nested) disjunction for the separation technologies in the superstructure using the \verb|@disjunction| macro.   
+    \item Define the inner (nested) disjunction for the separation technologies in the superstructure using the \verb|@disjunction| macro.
 \begin{lstlisting}[language = Julia]
 # define constraints in left YS disjunct
 YS1_disjunct = DisjunctConstraint(YS[1])
@@ -274,16 +274,16 @@ YR1_disjunct = DisjunctConstraint(YR[1])
 # define constraints in right YR disjunct
 YR2_disjunct = DisjunctConstraint(YR[2])
 @constraint(m, F[6] == β[:R2]*F[3], YR2_disjunct)
-@constraint(m, CR == γ[:R2], YR2_disjunct)  
+@constraint(m, CR == γ[:R2], YR2_disjunct)
 # define disjunction
-@disjunction(m, YR)    
+@disjunction(m, YR)
 \end{lstlisting}
     \item Add the selection logical constraints using the \verb|choose!| function. The first constraint enforces that only one reactor is selected (i.e., $Y_{R_1} \ \underline{\vee} \ Y_{R_2}$). The second constraint enforces that the separation system be defined only if the second reactor ($R_2$) is selected. This constraint is equivalent to the proposition $Y_{R_2} \Leftrightarrow Y_{S_1} \ \underline{\vee} \ Y_{S_2}$.
 \begin{lstlisting}[language = Julia]
 @constraint(m, YR in Exactly(1))
 @constraint(m, YS in Exactly(YR[2]))
 \end{lstlisting}
-    \item Add the objective function and optimize. 
+    \item Add the objective function and optimize.
 \begin{lstlisting}[language = Julia]
 @objective(m, Max, F[7] - CS - CR)
 optimize!(m)
