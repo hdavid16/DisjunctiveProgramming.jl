@@ -63,7 +63,7 @@ function test_aggregate_variable()
     @test prep_bounds(x, model, Hull()) isa Nothing
     method = DP._Hull(Hull(1e-3), vrefs)
     @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
-    refcons = Vector{JuMP.AbstractConstraint}() 
+    refcons = Vector{JuMP.AbstractConstraint}()
     DP._aggregate_variable(model, refcons, x, method)
     @test length(refcons) == 1
     @test refcons[1].func == -x + sum(method.disjunction_variables[x])
@@ -80,7 +80,7 @@ function test_disaggregate_expression_var()
     @test prep_bounds(x, model, Hull()) isa Nothing
     method = DP._Hull(Hull(1e-3), vrefs)
     @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
-    
+
     refexpr = DP.disaggregate_expression(model, x, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
     @test refexpr == x_z
@@ -96,7 +96,7 @@ function test_disaggregate_expression_var_binary()
     method = DP._Hull(Hull(1e-3), vrefs)
     @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
     @test isnothing(variable_by_name(model, "x_z"))
-    
+
     refexpr = DP.disaggregate_expression(model, x, bvrefs[z], method)
     @test refexpr == x
 end
@@ -111,7 +111,7 @@ function test_disaggregate_expression_affine()
     @test prep_bounds(x, model, Hull()) isa Nothing
     method = DP._Hull(Hull(1e-3), vrefs)
     @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
-    
+
     refexpr = DP.disaggregate_expression(model, 2x + 1, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
     zbin = variable_by_name(model, "z")
@@ -129,7 +129,7 @@ function test_disaggregate_expression_affine_mip()
     @test prep_bounds(x, model, Hull()) isa Nothing
     method = DP._Hull(Hull(1e-3), vrefs)
     @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
-    
+
     refexpr = DP.disaggregate_expression(model, 2x + y + 1, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
     zbin = variable_by_name(model, "z")
@@ -146,7 +146,7 @@ function test_disaggregate_expression_quadratic()
     @test prep_bounds(x, model, Hull()) isa Nothing
     method = DP._Hull(Hull(1e-3), vrefs)
     @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
-    
+
     refexpr = DP.disaggregate_expression(model, 2x^2 + 1, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
     zbin = variable_by_name(model, "z")
@@ -169,7 +169,7 @@ function test_disaggregate_nl_expression_c()
     @test prep_bounds(x, model, Hull()) isa Nothing
     method = DP._Hull(Hull(1e-3), vrefs)
     @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
-    
+
     refexpr = DP._disaggregate_nl_expression(model, 1, bvrefs[z], method)
     @test refexpr == 1
 end
@@ -183,7 +183,7 @@ function test_disaggregate_nl_expression_var_binary()
     vrefs = Set([x])
     method = DP._Hull(Hull(1e-3), vrefs)
     @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
-    
+
     refexpr = DP._disaggregate_nl_expression(model, x, bvrefs[z], method)
     ϵ = method.value
     @test refexpr.head == :/
@@ -201,7 +201,7 @@ function test_disaggregate_nl_expression_var()
     method = DP._Hull(Hull(1e-3), vrefs)
     @test prep_bounds(x, model, Hull()) isa Nothing
     @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
-    
+
     refexpr = DP._disaggregate_nl_expression(model, x, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
     zbin = variable_by_name(model, "z")
@@ -221,7 +221,7 @@ function test_disaggregate_nl_expression_aff()
     method = DP._Hull(Hull(1e-3), vrefs)
     @test prep_bounds(x, model, Hull()) isa Nothing
     @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
-    
+
     refexpr = DP._disaggregate_nl_expression(model, 2x + 1, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
     zbin = variable_by_name(model, "z")
@@ -245,7 +245,7 @@ function test_disaggregate_nl_expression_aff_mip()
     method = DP._Hull(Hull(1e-3), vrefs)
     @test prep_bounds(x, model, Hull()) isa Nothing
     @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
-    
+
     refexpr = DP._disaggregate_nl_expression(model, 2x + y + 1, bvrefs[z], method)
     flatten!(refexpr)
     x_z = variable_by_name(model, "x_z")
@@ -271,7 +271,7 @@ function test_disaggregate_nl_expression_quad()
     method = DP._Hull(Hull(1e-3), vrefs)
     @test prep_bounds(x, model, Hull()) isa Nothing
     @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
-    
+
     refexpr = DP._disaggregate_nl_expression(model, 2x^2 + 1, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
     zbin = variable_by_name(model, "z")
@@ -294,7 +294,7 @@ function test_disaggregate_nl_expession()
     method = DP._Hull(Hull(1e-3), vrefs)
     @test prep_bounds(x, model, Hull()) isa Nothing
     @test DP._disaggregate_variables(model, z, vrefs, method) isa Nothing
-    
+
     refexpr = DP._disaggregate_nl_expression(model, 2x^3 + 1, bvrefs[z], method)
     x_z = variable_by_name(model, "x_z")
     zbin = variable_by_name(model, "z")
@@ -391,16 +391,10 @@ function test_scalar_quadratic_hull_1sided(moiset)
     x_z = variable_by_name(model, "x_z")
     ref = reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
     @test length(ref) == 1
-    @test ref[1].func.head == :-
-    @test 5zbin in ref[1].func.args
-    arg2 = setdiff(ref[1].func.args, [5zbin])[1]
-    @test 0*zbin in arg2.args
-    arg3 = setdiff(arg2.args, [0*zbin])[1]
-    @test arg3.head == :/
-    @test x_z^2 in arg3.args
-    @test (1-ϵ)*zbin+ϵ in arg3.args
-    @test ref[1].set isa moiset
-    @test DP._set_value(ref[1].set) == 0
+    A = (x_z^2 / ((1 - ϵ) * zbin + ϵ)) - (5 * zbin)
+    B = (zero(AffExpr) + (x_z^2 / ((1 - ϵ) * zbin + ϵ))) - (5 * zbin)
+    @test isequal_canonical(ref[1].func, A) || isequal_canonical(ref[1].func, B)
+    return
 end
 #nonpositives, nonnegatives, zeros
 function test_vector_quadratic_hull_1sided(moiset)
@@ -569,18 +563,14 @@ function test_scalar_quadratic_hull_2sided()
     ref = reformulate_disjunct_constraint(model, constraint_object(con), zbin, method)
     @test length(ref) == 2
     sets = (MOI.GreaterThan, MOI.LessThan)
-    for i in 1:2
-        @test ref[i].func.head == :-
-        @test 5zbin in ref[i].func.args
-        arg2 = setdiff(ref[i].func.args, [5zbin])[1]
-        @test 0*zbin in arg2.args
-        arg3 = setdiff(arg2.args, [0*zbin])[1]
-        @test arg3.head == :/
-        @test x_z^2 in arg3.args
-        @test (1-ϵ)*zbin+ϵ in arg3.args
-        @test ref[i].set isa sets[i]
-        @test DP._set_value(ref[i].set) == 0
+    A = (x_z^2 / ((1 - ϵ) * zbin + ϵ)) - (5 * zbin)
+    B = (zero(AffExpr) + (x_z^2 / ((1 - ϵ) * zbin + ϵ))) - (5 * zbin)
+    for (r, S) in zip(ref, sets)
+        @test isequal_canonical(r.func, A) || isequal_canonical(r.func, B)
+        @test r.set isa S
+        @test DP._set_value(r.set) == 0
     end
+    return
 end
 function test_scalar_nonlinear_hull_2sided_error()
     model = GDPModel()
@@ -685,14 +675,14 @@ end
     for s in (MOI.LessThan, MOI.GreaterThan, MOI.EqualTo)
         test_scalar_var_hull_1sided(s)
         test_scalar_affine_hull_1sided(s)
-        test_scalar_quadratic_hull_1sided(s)        
+        test_scalar_quadratic_hull_1sided(s)
         test_scalar_nonlinear_hull_1sided(s)
     end
     test_scalar_nonlinear_hull_1sided_error()
     for s in (MOI.Nonpositives, MOI.Nonnegatives, MOI.Zeros)
         test_vector_var_hull_1sided(s)
         test_vector_affine_hull_1sided(s)
-        test_vector_quadratic_hull_1sided(s)        
+        test_vector_quadratic_hull_1sided(s)
         test_vector_nonlinear_hull_1sided(s)
     end
     test_vector_nonlinear_hull_1sided_error()
