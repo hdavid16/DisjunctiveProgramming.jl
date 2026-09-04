@@ -121,6 +121,37 @@ function test_requires_disaggregation()
     @test DP.requires_disaggregation(y) == true
 end
 
+# Bound info for parameter refs in disjunct constraints: parameter
+# functions report their support extrema, finite parameters a point,
+# other parameters their domain bounds; Hull/PSplit clamp the bounds
+# to include 0 and error when a variable is missing bounds.
+function test_parameter_bound_info()
+    model = InfiniteGDPModel()
+    @infinite_parameter(model, t in [0, 1], supports = [0.0, 0.5, 1.0])
+    @infinite_parameter(model, s in [0, 1])
+    @finite_parameter(model, p == 2.0)
+    @variable(model, 0 <= x <= 10, Infinite(t))
+    @variable(model, y, Infinite(t))
+    @parameter_function(model, pf == t -> 2t - 1)
+    @parameter_function(model, pf2 == (t, s) -> t + s)
+    @parameter_function(model, pf3 == s -> s)
+    @test DP.set_variable_bound_info(pf, BigM()) == (-1.0, 1.0)
+    @test DP.set_variable_bound_info(p, BigM()) == (2.0, 2.0)
+    @test DP.set_variable_bound_info(t, BigM()) == (0.0, 1.0)
+    @test DP.set_variable_bound_info(x, BigM()) == (0.0, 10.0)
+    @test DP.set_variable_bound_info(y, BigM()) == (-Inf, Inf)
+    # multi-parameter and support-less parameter functions fall back
+    @test DP.set_variable_bound_info(pf2, BigM()) == (-Inf, Inf)
+    @test DP.set_variable_bound_info(pf3, BigM()) == (-Inf, Inf)
+    # Hull and PSplit clamp the bounds to include 0
+    @test DP.set_variable_bound_info(pf, Hull()) == (-1.0, 1.0)
+    @test DP.set_variable_bound_info(t, Hull()) == (0.0, 1.0)
+    @test DP.set_variable_bound_info(p, Hull()) == (0.0, 2.0)
+    @test DP.set_variable_bound_info(x, Hull()) == (0.0, 10.0)
+    @test DP.set_variable_bound_info(p, PSplit([[x]])) == (0.0, 2.0)
+    @test_throws ErrorException DP.set_variable_bound_info(y, Hull())
+end
+
 function test_all_variables_infiniteopt()
     model = InfiniteGDPModel()
     @infinite_parameter(model, t ∈ [0, 1])
@@ -806,6 +837,7 @@ end
         test_is_parameter()
         test_is_parameter_concrete_dispatches()
         test_requires_disaggregation()
+        test_parameter_bound_info()
         test_variable_properties_infiniteopt()
         test_variable_properties_from_expr()
         test_variable_properties_from_quad_expr()

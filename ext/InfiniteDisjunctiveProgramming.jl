@@ -38,6 +38,70 @@ function DP.requires_disaggregation(vref::InfiniteOpt.GeneralVariableRef)
     return !_is_parameter(vref)
 end
 
+# Bound info for parameter refs in disjunct constraints: parameter
+# functions report their support extrema, finite parameters a point,
+# other parameters their domain bounds. Returns nothing for
+# variables.
+function _parameter_bound_info(
+    vref::InfiniteOpt.GeneralVariableRef
+    )::Union{Nothing, Tuple{Float64, Float64}}
+    _is_parameter(vref) || return nothing
+    dvref = InfiniteOpt.dispatch_variable_ref(vref)
+    if dvref isa InfiniteOpt.ParameterFunctionRef
+        prefs = InfiniteOpt.parameter_list(dvref)
+        length(prefs) == 1 || return (-Inf, Inf)
+        supports = InfiniteOpt.supports(first(prefs))
+        isempty(supports) && return (-Inf, Inf)
+        func = InfiniteOpt.raw_function(dvref)
+        func_values = [func(s) for s in supports]
+        return (minimum(func_values), maximum(func_values))
+    elseif dvref isa InfiniteOpt.FiniteParameterRef
+        value = InfiniteOpt.parameter_value(dvref)
+        return (value, value)
+    end
+    lb = JuMP.has_lower_bound(vref) ? JuMP.lower_bound(vref) : -Inf
+    ub = JuMP.has_upper_bound(vref) ? JuMP.upper_bound(vref) : Inf
+    return (lb, ub)
+end
+
+function DP.set_variable_bound_info(
+    vref::InfiniteOpt.GeneralVariableRef, ::DP.BigM)
+    info = _parameter_bound_info(vref)
+    info === nothing || return info
+    lb = JuMP.has_lower_bound(vref) ? JuMP.lower_bound(vref) : -Inf
+    ub = JuMP.has_upper_bound(vref) ? JuMP.upper_bound(vref) : Inf
+    return lb, ub
+end
+
+# Hull and PSplit require finite bounds that include 0
+function _zero_inclusive_bounds(
+    vref::InfiniteOpt.GeneralVariableRef,
+    info::Union{Nothing, Tuple{Float64, Float64}},
+    method_name::String
+    )::Tuple{Float64, Float64}
+    info === nothing || return (min(0, info[1]), max(0, info[2]))
+    if !JuMP.has_lower_bound(vref) || !JuMP.has_upper_bound(vref)
+        error("Variable $vref must have both lower and upper " *
+              "bounds defined when using the $method_name " *
+              "reformulation.")
+    end
+    return (min(0, JuMP.lower_bound(vref)),
+            max(0, JuMP.upper_bound(vref)))
+end
+
+function DP.set_variable_bound_info(
+    vref::InfiniteOpt.GeneralVariableRef, ::DP.Hull)
+    return _zero_inclusive_bounds(vref,
+        _parameter_bound_info(vref), "Hull")
+end
+
+function DP.set_variable_bound_info(
+    vref::InfiniteOpt.GeneralVariableRef,
+    ::Union{DP.PSplit, DP._PSplit})
+    return _zero_inclusive_bounds(vref,
+        _parameter_bound_info(vref), "PSplit")
+end
+
 function DP.VariableProperties(vref::InfiniteOpt.GeneralVariableRef)
     info = DP.get_variable_info(vref)
     name = JuMP.name(vref)
