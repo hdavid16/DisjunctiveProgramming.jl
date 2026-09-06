@@ -839,6 +839,17 @@ function test_scalar_cehr_conic_errors()
     @test_throws ErrorException reformulate_disjunct_constraint(
         model, constraint_object(con_eq), zbin, method)
 end
+#all quadratic terms are pure on normal models, rest keeps the affine
+function test_split_quad_terms()
+    model = GDPModel()
+    @variable(model, x)
+    @variable(model, w)
+    quad = @expression(model, x^2 + 2*x*w + 3*x + 2)
+    quad_part, affine_part = DP._split_quad_terms(quad)
+    @test isequal_canonical(quad_part, @expression(model, x^2 + 2*x*w))
+    @test isempty(affine_part.terms)
+    @test isequal_canonical(affine_part.aff, @expression(model, 3*x + 2))
+end
 #nonconvex quadratic routed to GEHR under :exact, error under :cehr
 function test_scalar_exact_hull_nonconvex()
     model = GDPModel()
@@ -1004,6 +1015,7 @@ end
     test_scalar_nonlinear_hull_2sided()
     test_scalar_nonlinear_hull_2sided_error()
     test_hull_quadratic_option_error()
+    test_split_quad_terms()
     test_scalar_cehr_hull()
     test_scalar_cehr_hull_concave_greater()
     test_scalar_cehr_conic_hull()
