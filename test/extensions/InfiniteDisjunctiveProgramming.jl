@@ -823,7 +823,7 @@ function test_quadrature_weights_trapezoid()
     @test weights[y] ≈ [0.05, 0.2, 0.45, 0.3]
     # finite variable: unit weight
     @test weights[w] == [1.0]
-    # the weights are computed on a copy: the objective is unchanged
+    # the objective is never rewritten
     @test JuMP.objective_sense(model) == MOI.MIN_SENSE
     @test length(JuMP.objective_function(model).terms) == 3
 end
@@ -988,6 +988,24 @@ function test_quadrature_weights_nonlinear_objective()
     @test reform_state.weights[x] == [1.0, 1.0, 1.0]
 end
 
+# Measure data that reports no coefficients of its own warns and
+# falls through to the default weighting.
+struct _UnreadableMeasureData <: InfiniteOpt.AbstractMeasureData end
+
+function test_quadrature_weights_unreadable_measure_data()
+    model = InfiniteGDPModel(HiGHS.Optimizer)
+    set_silent(model)
+    @infinite_parameter(model, t ∈ [0, 1], num_supports = 3)
+    supps = [0.0, 0.5, 1.0]
+    weights = nothing
+    @test_logs (:warn,) begin
+        weights = IDP._group_weights(_UnreadableMeasureData(), t, supps)
+    end
+    # same as the unmeasured path: UniTrapezoid on 3 uniform supports
+    @test weights == IDP._group_weights(nothing, t, supps)
+    @test weights == Dict(0.0 => 0.25, 0.5 => 0.5, 1.0 => 0.25)
+end
+
 # The cut coefficients carry the quadrature weights:
 # ξ_k = 2 ω_k (sep_k - rBM_k) on each transcribed variable.
 function test_add_cut_weighted_coefficients()
@@ -1090,6 +1108,7 @@ end
         test_quadrature_weights_dependent_groups()
         test_quadrature_weights_quadratic_objective()
         test_quadrature_weights_nonlinear_objective()
+        test_quadrature_weights_unreadable_measure_data()
         test_add_cut_weighted_coefficients()
         test_CuttingPlanes_infinite_simple()
         test_CuttingPlanes_infinite_two_disj()
