@@ -41,7 +41,7 @@ function InfiniteLogical end
 
 """
     GPSampler(
-        f = nothing;
+        [f::AbstractGPs.AbstractGP];
         std_dev_margin::Real = 2.5,
         frac_supports::Real = 0.25,
         detect_uniform_M::Bool = true,
@@ -58,13 +58,13 @@ values are heuristic upper estimates of the exact M values, not
 certificates. This requires that AbstractGPs be imported first.
 
 **Arguments**
-- `f`: An `AbstractGPs.GP` prior, used as given, e.g.
-  `GP(Matern52Kernel())`; `nothing` (the default) uses a squared
-  exponential kernel with its lengthscale selected by marginal
-  likelihood. The prior is fit to support coordinates normalized to
-  `[0, 1]` per dimension and to M values standardized to zero mean
-  and unit scale, so any lengthscale baked into `f` is relative to
-  the unit box.
+- `f`: An `AbstractGPs.AbstractGP` prior, used as given, e.g.
+  `GP(Matern52Kernel())`; omitting it uses a squared exponential
+  kernel with its lengthscale selected by marginal likelihood. The
+  prior is fit to support coordinates normalized to `[0, 1]` per
+  dimension and to M values standardized to zero mean and unit
+  scale, so any lengthscale baked into `f` is relative to the unit
+  box.
 - `std_dev_margin::Real`: Standard deviations added above the
   posterior mean, both to select the next support to solve and to
   fill the unsolved supports (2.5).

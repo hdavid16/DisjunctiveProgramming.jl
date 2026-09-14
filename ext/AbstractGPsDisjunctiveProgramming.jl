@@ -22,10 +22,7 @@ struct _GPSampler{F} <: DP.AbstractMBMSampler
         frac_supports::Real = 0.25,
         detect_uniform_M::Bool = true,
         initial_supports = 4
-        ) where {F}
-        f isa Union{Nothing, AbstractGPs.GP} || error(
-            "`f` must be an `AbstractGPs.GP` prior, e.g. " *
-            "`GP(Matern52Kernel())`.")
+        ) where {F <: Union{Nothing, AbstractGPs.AbstractGP}}
         std_dev_margin >= 0 || error("`std_dev_margin` must be nonnegative.")
         0 < frac_supports <= 1 || error("`frac_supports` must be in `(0, 1]`.")
         if initial_supports isa Int
@@ -42,7 +39,10 @@ struct _GPSampler{F} <: DP.AbstractMBMSampler
     end
 end
 
-DP.GPSampler(f = nothing; kwargs...) = _GPSampler(f; kwargs...)
+# Dispatch on the AbstractGPs prior instead of claiming
+# `GPSampler(::Any)`; omitting it fits the lengthscale instead.
+DP.GPSampler(f::AbstractGPs.AbstractGP; kwargs...) = _GPSampler(f; kwargs...)
+DP.GPSampler(; kwargs...) = _GPSampler(nothing; kwargs...)
 
 ################################################################################
 #                                 GP FITTING

@@ -22,8 +22,10 @@ function test_gp_sampler_kwargs()
     @test sampler.initial_supports == [0.0, 0.3, 1.0]
     @test GPSampler(initial_supports = 6).initial_supports == 6
     @test MBM(HiGHS.Optimizer, sampler = sampler).sampler === sampler
-    # a bare kernel is not a prior
-    @test_throws ErrorException GPSampler(SqExponentialKernel())
+    # a bare kernel is not a prior: rejected by dispatch, since the
+    # extension only claims `GPSampler(::AbstractGPs.AbstractGP)`
+    @test_throws MethodError GPSampler(SqExponentialKernel())
+    @test_throws MethodError GPSampler(nothing)
     @test_throws ErrorException GPSampler(std_dev_margin = -1)
     @test_throws ErrorException GPSampler(frac_supports = 0)
     @test_throws ErrorException GPSampler(frac_supports = 1.5)
