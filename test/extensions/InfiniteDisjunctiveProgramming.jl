@@ -949,6 +949,34 @@ function test_quadrature_weights_dependent_groups()
     @test reform_state2.weights[z2] ≈ fill(1 / 3, 3)
 end
 
+# A measure over a dependent group is read off its own data rather
+# than averaged: the joint supports the measure generates carry its
+# coefficients, and the model's original supports carry none.
+function test_quadrature_weights_dependent_group_measure()
+    model = InfiniteGDPModel(HiGHS.Optimizer)
+    set_silent(model)
+    @infinite_parameter(model, q[1:2] in [0, 1], num_supports = 3)
+    @variable(model, 0 <= z <= 10, Infinite(q))
+    @variable(model, Y[1:2], InfiniteLogical(q))
+    @constraint(model, z >= 5, Disjunct(Y[1]))
+    @constraint(model, z <= 3, Disjunct(Y[2]))
+    @disjunction(model, Y)
+    @objective(model, Min, ∫(z, q))
+
+    reform_state = DP._CuttingPlanes(CuttingPlanes(HiGHS.Optimizer), model)
+    DP.copy_and_reformulate(
+        model, reform_state.decision_vars, Hull(), reform_state)
+    w = reform_state.weights[z]
+
+    # 10 Monte Carlo nodes at 1/10 each on top of the 3 original
+    # supports, which the measure never touches
+    @test length(w) == 13
+    @test count(!iszero, w) == 10
+    @test all(v -> iszero(v) || v ≈ 0.1, w)
+    # total weight = measure of the domain [0, 1]^2
+    @test sum(w) ≈ 1.0
+end
+
 # The measure collector reaches a measure inside a quadratic
 # objective: the support_sum coefficients (one per support) become
 # the weights instead of the trapezoid rule.
@@ -1106,6 +1134,7 @@ end
         test_quadrature_weights_multiparameter()
         test_quadrature_weights_default_fallbacks()
         test_quadrature_weights_dependent_groups()
+        test_quadrature_weights_dependent_group_measure()
         test_quadrature_weights_quadratic_objective()
         test_quadrature_weights_nonlinear_objective()
         test_quadrature_weights_unreadable_measure_data()
